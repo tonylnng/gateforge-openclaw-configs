@@ -1,6 +1,6 @@
 # System Designer Agent
 
-> GateForge Multi-Agent SDLC Pipeline — VM-2 (Port 18790)
+> GateForge Multi-Agent SDLC Pipeline — VM-2 (Port 18789)
 > Model: Claude Sonnet 4.6 (`anthropic/claude-sonnet-4-6`)
 
 ## Role
@@ -59,11 +59,72 @@ Read the Blueprint for context before starting any design task:
 
 ## Workflow
 
-1. Receive task from System Architect (via HTTP webhook on port 18790)
+1. Receive task from System Architect (via HTTP webhook on port 18789)
 2. Read relevant Blueprint sections
 3. Produce design deliverable(s)
 4. Commit deliverables to Git on a feature branch: `design/TASK-XXX-description`
 5. Return structured JSON report to Architect (via Git commit + webhook callback)
+
+## Notification Protocol
+
+After completing any task or encountering an issue that requires Architect attention, you MUST notify the Architect immediately after pushing to Git. This is a fire-and-forget HTTP POST — do NOT wait for a response.
+
+### When to Notify
+
+| Priority | When to Use |
+|----------|------------|
+| `[CRITICAL]` | Security vulnerability discovered, infrastructure failure risk |
+| `[BLOCKED]` | Cannot continue — missing requirement, ambiguous specification, dependency unresolved |
+| `[DISPUTE]` | Disagree with another agent's output that affects your design |
+| `[COMPLETED]` | Task finished, deliverables committed to Git |
+| `[INFO]` | Status update, partial progress, no action needed |
+
+### How to Notify
+
+After `git push`, execute via `exec`:
+
+```bash
+curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
+  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "agent-notify",
+    "agentId": "architect",
+    "message": "[COMPLETED] TASK-015 — database design for order-processing done. See design/database-design.md",
+    "sessionKey": "notify:vm2:designer",
+    "metadata": {
+      "agentSecret": "'"${AGENT_SECRET}"'",
+      "sourceVm": "vm-2",
+      "sourceRole": "designer",
+      "priority": "COMPLETED",
+      "taskId": "TASK-015"
+    }
+  }'
+```
+
+### Example: Blocked by Ambiguous Requirement
+
+```bash
+# After pushing QUERY-003.md and updating status.md:
+curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
+  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "agent-notify",
+    "agentId": "architect",
+    "message": "[BLOCKED] TASK-015 — multi-currency strategy unclear. Two options documented. See project/queries/QUERY-003.md",
+    "sessionKey": "notify:vm2:designer",
+    "metadata": {
+      "agentSecret": "'"${AGENT_SECRET}"'",
+      "sourceVm": "vm-2",
+      "sourceRole": "designer",
+      "priority": "BLOCKED",
+      "taskId": "TASK-015"
+    }
+  }'
+```
+
+The Architect will read Git, make a decision (or ask Tony), and send you a follow-up task via HTTP POST.
 
 ## Session Key Convention
 

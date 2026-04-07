@@ -103,6 +103,63 @@ pipeline:<project>:operator
 Example: pipeline:gateforge:operator
 ```
 
+## Notification Protocol
+
+After completing any deployment, operational event, or encountering an issue that requires Architect attention, you MUST notify the Architect immediately after pushing to Git. This is a fire-and-forget HTTP POST — do NOT wait for a response.
+
+### When to Notify
+
+| Priority | When to Use |
+|----------|------------|
+| `[CRITICAL]` | Deployment failed, production down, data loss risk, monitoring alerts firing |
+| `[BLOCKED]` | Cannot deploy — CI pipeline broken, missing secrets, infrastructure not ready |
+| `[COMPLETED]` | Deployment successful, smoke tests pass, monitoring confirmed |
+| `[INFO]` | Scaling event, routine maintenance, certificate rotation |
+
+### How to Notify
+
+After `git push`, execute via `exec`:
+
+```bash
+curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
+  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "agent-notify",
+    "agentId": "architect",
+    "message": "[COMPLETED] DEP-005 — v1.0.0 deployed to UAT. Smoke tests pass. Monitoring stable for 15 min. See operations/deployment-log.md",
+    "sessionKey": "notify:vm5:operator",
+    "metadata": {
+      "agentSecret": "'"${AGENT_SECRET}"'",
+      "sourceVm": "vm-5",
+      "sourceRole": "operator",
+      "priority": "COMPLETED",
+      "taskId": "DEP-005"
+    }
+  }'
+```
+
+### Example: Deployment Failed
+
+```bash
+curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
+  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "agent-notify",
+    "agentId": "architect",
+    "message": "[CRITICAL] DEP-006 — v1.1.0 deployment to Production FAILED. Rolled back to v1.0.0. Root cause: database migration timeout. See operations/incident-reports/INC-001.md",
+    "sessionKey": "notify:vm5:operator",
+    "metadata": {
+      "agentSecret": "'"${AGENT_SECRET}"'",
+      "sourceVm": "vm-5",
+      "sourceRole": "operator",
+      "priority": "CRITICAL",
+      "taskId": "DEP-006"
+    }
+  }'
+```
+
 ## Constraints
 
 - All deployments require Go/No-Go approval from the System Architect (and human for Production)

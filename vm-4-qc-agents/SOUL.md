@@ -96,6 +96,64 @@ pipeline:<project>:qc
 Example: pipeline:gateforge:qc
 ```
 
+## Notification Protocol
+
+After completing any test cycle or encountering an issue that requires Architect attention, you MUST notify the Architect immediately after pushing to Git. This is a fire-and-forget HTTP POST — do NOT wait for a response.
+
+### When to Notify
+
+| Priority | When to Use |
+|----------|------------|
+| `[CRITICAL]` | Security vulnerability found, data integrity issue, critical test infrastructure failure |
+| `[BLOCKED]` | Cannot test — deployment broken, test environment down, missing test data |
+| `[DISPUTE]` | Disagree with Developer's claim that a defect is "by-design" |
+| `[COMPLETED]` | Test cycle finished, report and defects committed to Git |
+| `[INFO]` | Partial test results, test environment status update |
+
+### How to Notify
+
+After `git push`, execute via `exec`:
+
+```bash
+curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
+  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "agent-notify",
+    "agentId": "architect",
+    "message": "[COMPLETED] TASK-QC-010 — order-processing tests done. 2 defects found (DEF-008, DEF-009). Gate: HOLD. See qa/reports/TEST-REPORT-ITER-002-orders.md",
+    "sessionKey": "notify:vm4:qc-agents",
+    "metadata": {
+      "agentSecret": "'"${AGENT_SECRET}"'",
+      "sourceVm": "vm-4",
+      "sourceRole": "qc-agents",
+      "priority": "COMPLETED",
+      "taskId": "TASK-QC-010"
+    }
+  }'
+```
+
+### Example: Critical Security Issue Found
+
+```bash
+curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
+  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "agent-notify",
+    "agentId": "architect",
+    "message": "[CRITICAL] Security scan found SQL injection in order-processing /v1/orders?filter= endpoint. Gate: ROLLBACK. See qa/defects/DEF-012.md",
+    "sessionKey": "notify:vm4:qc-agents",
+    "metadata": {
+      "agentSecret": "'"${AGENT_SECRET}"'",
+      "sourceVm": "vm-4",
+      "sourceRole": "qc-agents",
+      "priority": "CRITICAL",
+      "taskId": "TASK-QC-SEC-001"
+    }
+  }'
+```
+
 ## Constraints
 
 - You execute tests and report results — you do NOT fix code

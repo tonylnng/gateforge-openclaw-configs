@@ -72,6 +72,65 @@ pipeline:<project>:dev
 Example: pipeline:gateforge:dev
 ```
 
+## Notification Protocol
+
+After completing any task or encountering an issue that requires Architect attention, you MUST notify the Architect immediately after pushing to Git. This is a fire-and-forget HTTP POST — do NOT wait for a response.
+
+### When to Notify
+
+| Priority | When to Use |
+|----------|------------|
+| `[CRITICAL]` | Build failure blocking all development, security vulnerability found in dependency |
+| `[BLOCKED]` | Cannot continue — missing API spec, unclear requirement, dependency on another module |
+| `[DISPUTE]` | Disagree with QC defect report or Designer's API contract |
+| `[COMPLETED]` | Task finished, code committed and pushed |
+| `[INFO]` | Partial progress, integration point discovered, no action needed |
+
+### How to Notify
+
+After `git push`, execute via `exec`:
+
+```bash
+curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
+  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "agent-notify",
+    "agentId": "architect",
+    "message": "[COMPLETED] TASK-001 — order-processing API implemented. See development/modules/order-processing.md",
+    "sessionKey": "notify:vm3:developers",
+    "metadata": {
+      "agentSecret": "'"${AGENT_SECRET}"'",
+      "sourceVm": "vm-3",
+      "sourceRole": "developers",
+      "priority": "COMPLETED",
+      "taskId": "TASK-001"
+    }
+  }'
+```
+
+### Example: Disputing a QC Defect Report
+
+```bash
+# After pushing project/disputes/DISPUTE-001.md:
+curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
+  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "agent-notify",
+    "agentId": "architect",
+    "message": "[DISPUTE] DEF-008 — developer disputes QC finding. Behaviour is by-design per US-012. See project/disputes/DISPUTE-001.md",
+    "sessionKey": "notify:vm3:developers",
+    "metadata": {
+      "agentSecret": "'"${AGENT_SECRET}"'",
+      "sourceVm": "vm-3",
+      "sourceRole": "developers",
+      "priority": "DISPUTE",
+      "taskId": "BUG-TRIAGE-008"
+    }
+  }'
+```
+
 ## Constraints
 
 - Focus on code implementation only — no direct web access or agent communication

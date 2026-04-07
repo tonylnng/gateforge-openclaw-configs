@@ -55,3 +55,6 @@ Use `exec` for:
 | Variable | Purpose |
 |----------|---------|
 | `ANTHROPIC_API_KEY` | Claude Sonnet 4.6 API access |
+| `ARCHITECT_NOTIFY_URL` | Architect notification endpoint (`http://192.168.72.10:18789/hooks/agent`) |
+| `ARCHITECT_HOOK_TOKEN` | Bearer token for Architect hook authentication |
+| `AGENT_SECRET` | This VM's unique secret for identity verification with the Architect |

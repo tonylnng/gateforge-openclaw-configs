@@ -389,10 +389,10 @@ No task advances without passing its quality gate:
 | VM | Role | Model | IP | Gateway Port |
 |----|------|-------|----|--------------|
 | VM-1 | System Architect | Claude Opus 4.6 | 192.168.72.10 | :18789 |
-| VM-2 | System Designer | Claude Sonnet 4.6 | 192.168.72.11 | :18790 |
-| VM-3 | Developers (1..N) | Claude Sonnet 4.6 | 192.168.72.12 | :18791 |
-| VM-4 | QC Agents (1..N) | MiniMax 2.7 | 192.168.72.13 | :18792 |
-| VM-5 | Operator | MiniMax 2.7 | 192.168.72.14 | :18793 |
+| VM-2 | System Designer | Claude Sonnet 4.6 | 192.168.72.11 | :18789 |
+| VM-3 | Developers (1..N) | Claude Sonnet 4.6 | 192.168.72.12 | :18789 |
+| VM-4 | QC Agents (1..N) | MiniMax 2.7 | 192.168.72.13 | :18789 |
+| VM-5 | Operator | MiniMax 2.7 | 192.168.72.14 | :18789 |
 | US VM | Deployment Target (UAT + Production) | — | Tailscale | — |
 
 All VMs are on subnet `192.168.72.x` within VMware Fusion on Mac. The US VM is accessed via Tailscale SSH — it runs the product only, not OpenClaw.
@@ -409,6 +409,210 @@ All VMs are on subnet `192.168.72.x` within VMware Fusion on Mac. The US VM is a
 6. **Quality-Gate Driven** — No task advances without passing its gate. No exceptions.
 7. **Lobster-First Orchestration** — All repeatable workflows are defined as Lobster YAML pipelines for deterministic execution.
 8. **Maximum 3 Retries** — If a task fails 3 times, it escalates to the human (Tony) via Telegram. No infinite loops.
+
+---
+
+## Agent Notification Mechanism
+
+Spoke agents (Designer, Developers, QC, Operator) cannot initiate sessions with the System Architect. However, they need a way to alert the Architect immediately when something requires attention — a blocker, a dispute, a completed task, or a critical issue.
+
+GateForge solves this with a **fire-and-forget notification** mechanism: after pushing results to Git, the spoke agent sends a lightweight HTTP POST (via `curl` in `exec`) to the Architect's hook endpoint. The Architect processes it and takes action.
+
+### Two-Layer Authentication
+
+Notifications require **two credentials** — even if someone obtains the hook token, they cannot impersonate a registered agent without its unique secret.
+
+| Layer | What It Is | What It Stops |
+|-------|-----------|---------------|
+| **Hook Token** (transport) | Shared secret to access the Architect's `/hooks/agent` endpoint | Random/unauthorized requests |
+| **Agent Secret** (identity) | Unique per-VM secret registered with the Architect | Impersonation — even with the hook token |
+
+### Architect Validation Rules
+
+When the Architect receives a notification, it MUST verify three things before processing:
+
+1. **Hook token valid?** — OpenClaw rejects invalid tokens automatically
+2. **Agent secret matches registered VM?** — Architect checks `agentSecret` against its registry
+3. **Source VM is in the registered agent list?** — Unknown VMs are rejected
+
+All three must pass. Any failure is logged to `security-log.md` and ignored silently.
+
+### Notification Priority Levels
+
+| Priority | Meaning | Architect Response Time |
+|----------|---------|------------------------|
+| `[CRITICAL]` | System down, data loss, security breach | Immediate — halt current work |
+| `[BLOCKED]` | Agent cannot continue, waiting for decision | Within minutes |
+| `[DISPUTE]` | Agent disagrees with another agent's output | Review needed, within the hour |
+| `[COMPLETED]` | Task done, results committed to Git | Process in normal flow |
+| `[INFO]` | Status update, no action needed | Low priority |
+
+### How Spoke Agents Send Notifications
+
+After `git push`, the spoke agent runs:
+
+```bash
+curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
+  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "agent-notify",
+    "agentId": "architect",
+    "message": "[BLOCKED] TASK-015 by designer. See project/queries/QUERY-003.md",
+    "sessionKey": "notify:vm2:designer",
+    "metadata": {
+      "agentSecret": "'"${AGENT_SECRET}"'",
+      "sourceVm": "vm-2",
+      "sourceRole": "designer",
+      "priority": "BLOCKED",
+      "taskId": "TASK-015"
+    }
+  }'
+```
+
+This is fire-and-forget — the spoke does NOT wait for a response.
+
+### Architect's Notification Hook Configuration
+
+On VM-1, the Architect's OpenClaw is configured to receive notifications:
+
+```json
+{
+  "hooks": {
+    "enabled": true,
+    "token": "architect-hook-token-64chars",
+    "path": "/hooks",
+    "allowedAgentIds": ["architect"]
+  }
+}
+```
+
+### Behavioural Guardrail
+
+Even if a notification passes all authentication, the Architect will only perform standard pipeline actions in response:
+- Read Git, update status, ask Tony, or dispatch a task to a registered agent
+- Notifications CANNOT trigger: delete files, push to production, change secrets, modify SOUL.md, or execute arbitrary commands
+- Any notification requesting actions outside the normal SDLC pipeline is escalated to Tony via Telegram
+
+---
+
+### Example A: Designer Has a Query (Blocked Task)
+
+The Architect assigned the Designer to design the order-processing module's database schema. The Designer discovers the requirements don't specify whether the system needs multi-currency support.
+
+```
+Step 1  Architect → Designer (HTTP POST with Bearer token)
+        Task: "Design the database schema for order-processing module"
+
+Step 2  Designer works, finds ambiguity in requirements
+        (requirements say "international customers" but no currency spec)
+
+Step 3  Designer writes to Git:
+        - design/database-design.md        (partial work)
+        - project/queries/QUERY-003.md     (structured question with options)
+        - project/status.md                (TASK-015 = blocked)
+        git push origin main
+
+Step 4  Designer sends notification (immediately after push):
+        curl → Architect:18789/hooks/agent
+        "[BLOCKED] TASK-015 — multi-currency strategy unclear.
+         See project/queries/QUERY-003.md"
+
+Step 5  Architect receives notification INSTANTLY
+        Reads QUERY-003.md — sees two options with pros/cons
+        Asks Tony via Telegram:
+          "Tony, for order-processing: single-currency (simpler)
+           or multi-currency (complex, needed for international)?
+           Designer recommends multi-currency."
+        Tony replies: "Multi-currency"
+
+Step 6  Architect updates Git:
+        - project/decision-log.md  → ADR-007: multi-currency chosen
+        - project/queries/QUERY-003.md → Status: Answered
+        git push origin main
+
+Step 7  Architect → Designer (HTTP POST):
+        "QUERY-003 answered: Multi-currency. See ADR-007. Resume."
+
+Step 8  Designer resumes, completes design, pushes to Git
+        Sends notification: "[COMPLETED] TASK-015 — order-processing DB design done"
+```
+
+### Example B: QC vs Developer Dispute (Conflict Resolution)
+
+QC tests the order-processing module's discount endpoint. The test expects a `400 Bad Request` when a discount code is expired. But the API returns `200 OK` with zero discount applied. Developer says this is correct by design — expired codes silently apply no discount for better UX.
+
+```
+Step 1  QC tests, finds "failure"
+        Writes: qa/defects/DEF-008.md
+          Expected: 400 Bad Request
+          Actual: 200 OK with discountAmount: 0
+        Writes: qa/reports/TEST-REPORT-ITER-002-orders.md (test failed)
+        git push origin main
+        Sends notification: "[COMPLETED] TASK-QC-010 — 1 defect found (DEF-008)"
+
+Step 2  Architect reads DEF-008, routes investigation to Developer
+        HTTP POST → dev-01: "Investigate DEF-008"
+
+Step 3  Developer investigates, disagrees with QC
+        Writes: project/disputes/DISPUTE-001.md
+          "Not a bug. Silent discount expiry is intentional for UX.
+           User story US-012 says 'checkout should never be blocked
+           by expired promotions.' FR-018 was not updated to reflect
+           this. Propose updating FR-018."
+        git push origin main
+        Sends notification:
+          "[DISPUTE] DEF-008 — developer disputes. See DISPUTE-001.md"
+
+Step 4  Architect receives notification, reads both sides:
+        - QC: FR-018 says expired code → 400
+        - Dev: US-012 says never block checkout
+        Analysis: Requirements contradict. Developer's implementation
+                  aligns with the user story intent.
+
+Step 5  Architect resolves:
+        Updates Git:
+        - project/decision-log.md → ADR-012: silent discount expiry approved
+        - requirements/functional-requirements.md → FR-018 updated
+        - qa/defects/DEF-008.md → Status: closed (not-a-bug)
+        - project/disputes/DISPUTE-001.md → Status: resolved
+        git push origin main
+
+Step 6  Architect → QC (HTTP POST):
+        "DISPUTE-001 resolved. DEF-008 closed as not-a-bug. FR-018 updated.
+         Please update TC-orders-integration-005 to expect 200 with
+         discountAmount: 0 for expired codes. Add new test for
+         invalid code format → 400."
+
+Step 7  QC updates test cases, pushes to Git
+        Sends notification: "[COMPLETED] Test cases updated per ADR-012"
+```
+
+### The Pattern
+
+Both scenarios follow the same principle:
+
+```
+Spoke agent encounters issue
+       │
+       ▼
+Writes structured report to Git (query / dispute / defect / completion)
+       │
+       ▼
+git push origin main
+       │
+       ▼
+Sends fire-and-forget notification to Architect  ← INSTANT
+       │
+       ▼
+Architect receives, reads Git, decides (or asks Tony)
+       │
+       ▼
+Architect updates Blueprint + decision-log in Git
+       │
+       ▼
+Architect sends HTTP POST to relevant agent(s) with resolution
+```
 
 ---
 

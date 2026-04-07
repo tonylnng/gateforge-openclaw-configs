@@ -26,3 +26,15 @@ GateForge is a multi-agent SDLC pipeline. You are one of the Developer agents re
 - No hardcoded credentials
 - Every PR: code + unit tests + API docs
 - 12-factor app principles
+
+## Notification Configuration
+
+This agent is registered with the System Architect (VM-1) for authenticated notifications.
+
+- **Notify URL**: `http://192.168.72.10:18789/hooks/agent` (stored in `ARCHITECT_NOTIFY_URL`)
+- **Hook Token**: Stored in `ARCHITECT_HOOK_TOKEN` environment variable
+- **Agent Secret**: Stored in `AGENT_SECRET` environment variable — unique to this VM
+- **Source Identity**: `sourceVm: "vm-3"`, `sourceRole: "developers"`
+- **Session Key**: `notify:vm3:developers`
+
+Always send a notification after every `git push`. See SOUL.md for the full notification protocol and examples.

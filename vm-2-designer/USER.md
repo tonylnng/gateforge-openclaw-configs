@@ -25,3 +25,15 @@ GateForge is a multi-agent SDLC pipeline running on 5 isolated OpenClaw instance
 - Use OpenAPI specs for all API contracts
 - Infrastructure as Code (Helm charts, K8s manifests) preferred
 - Follow 12-factor app principles
+
+## Notification Configuration
+
+This agent is registered with the System Architect (VM-1) for authenticated notifications.
+
+- **Notify URL**: `http://192.168.72.10:18789/hooks/agent` (stored in `ARCHITECT_NOTIFY_URL`)
+- **Hook Token**: Stored in `ARCHITECT_HOOK_TOKEN` environment variable
+- **Agent Secret**: Stored in `AGENT_SECRET` environment variable — unique to this VM
+- **Source Identity**: `sourceVm: "vm-2"`, `sourceRole: "designer"`
+- **Session Key**: `notify:vm2:designer`
+
+Always send a notification after every `git push`. See SOUL.md for the full notification protocol and examples.

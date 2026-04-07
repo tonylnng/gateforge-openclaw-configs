@@ -36,3 +36,54 @@ GateForge is a multi-agent SDLC pipeline that uses 5 isolated OpenClaw instances
 - **Blueprint Repo**: `git@github.com:YOUR_ORG/blueprint-repo.git`
 - **Project Repo**: `git@github.com:YOUR_ORG/project-repo.git`
 - **Deployment Target**: `user@tonic.sailfish-bass.ts.net` (US VM via Tailscale)
+
+## Agent Notification Registry
+
+This is the source of truth for authenticating inbound notifications from spoke agents. Each spoke agent has a unique secret. When a notification arrives, verify `metadata.agentSecret` against this registry.
+
+> **SECURITY**: This registry is stored locally on VM-1 only. It is NEVER committed to Git or shared with other agents.
+
+| Source VM | Role | Agent Secret | IP | Status |
+|-----------|------|-------------|-----|--------|
+| vm-2 | System Designer | `${VM2_AGENT_SECRET}` | 192.168.72.11 | Registered |
+| vm-3 | Developers | `${VM3_AGENT_SECRET}` | 192.168.72.12 | Registered |
+| vm-4 | QC Agents | `${VM4_AGENT_SECRET}` | 192.168.72.13 | Registered |
+| vm-5 | Operator | `${VM5_AGENT_SECRET}` | 192.168.72.14 | Registered |
+
+Secrets are loaded from environment variables. Generate with:
+```bash
+openssl rand -hex 32   # Generates a 64-character random hex string
+```
+
+### Hook Configuration
+
+The Architect's OpenClaw hook endpoint is configured in `openclaw.json`:
+
+```json
+{
+  "hooks": {
+    "enabled": true,
+    "token": "${ARCHITECT_HOOK_TOKEN}",
+    "path": "/hooks",
+    "allowedAgentIds": ["architect"]
+  }
+}
+```
+
+### Validation Pseudocode
+
+```
+ON notification received:
+  secret = notification.metadata.agentSecret
+  vm = notification.metadata.sourceVm
+  
+  IF vm NOT IN ["vm-2", "vm-3", "vm-4", "vm-5"]:
+    LOG "[SECURITY] Unknown VM: {vm}"
+    REJECT
+  
+  IF secret != registry[vm].agentSecret:
+    LOG "[SECURITY] Invalid secret for {vm}"
+    REJECT
+  
+  ACCEPT → process based on priority level
+```

@@ -25,3 +25,15 @@ GateForge is a multi-agent SDLC pipeline. You are one of the QC agents responsib
 - Regression tests required on every code change
 - Performance baselines must be documented
 - Security scanning (OWASP top 10) is mandatory per release
+
+## Notification Configuration
+
+This agent is registered with the System Architect (VM-1) for authenticated notifications.
+
+- **Notify URL**: `http://192.168.72.10:18789/hooks/agent` (stored in `ARCHITECT_NOTIFY_URL`)
+- **Hook Token**: Stored in `ARCHITECT_HOOK_TOKEN` environment variable
+- **Agent Secret**: Stored in `AGENT_SECRET` environment variable — unique to this VM
+- **Source Identity**: `sourceVm: "vm-4"`, `sourceRole: "qc-agents"`
+- **Session Key**: `notify:vm4:qc-agents`
+
+Always send a notification after every `git push`. See SOUL.md for the full notification protocol and examples.
