@@ -2542,4 +2542,45 @@ The System Designer **must** verify every item below before submitting any desig
 
 ---
 
+---
+
+## Appendix: Managed Output Documents
+
+The System Designer is responsible for producing and maintaining the following documents in the Blueprint repository's `design/` directory.
+
+### Document Ownership Map
+
+| Document | Path in Blueprint Repo | When to Create | When to Update |
+|----------|----------------------|----------------|----------------|
+| Infrastructure Design | `design/infrastructure-design.md` | When Architect dispatches infrastructure task | When K8s, Docker, CI/CD, or network design changes |
+| Security Design | `design/security-design.md` | At project start (mandatory) | After every security assessment, new threat, or penetration test |
+| Resilience Design | `design/resilience-design.md` | When Architect dispatches resilience task | When patterns, failover, or HA configuration changes |
+| Database Design | `design/database-design.md` | When data model is defined | When schema, indexes, replication, or Redis topology changes |
+| Monitoring Design | `design/monitoring-design.md` | During infrastructure design | When metrics, dashboards, alerts, or SLIs change |
+
+### Output Rules
+
+1. **Every design document must include**: Rollback strategy, security assessment, change log
+2. **Use the templates** from `gateforge-blueprint-template/design/` — do not invent new formats
+3. **Include Mermaid diagrams** for all architecture visualisations
+4. **Structured report to Architect**: After completing any design document, produce a JSON report:
+
+```json
+{
+  "taskId": "TASK-NNN",
+  "type": "design",
+  "status": "completed",
+  "documentsUpdated": ["design/infrastructure-design.md", "design/security-design.md"],
+  "securityAssessment": "included",
+  "rollbackStrategy": "included",
+  "proposedBlueprintChanges": ["architecture/technical-architecture.md#section-3"],
+  "openQuestions": [],
+  "reviewRequired": true
+}
+```
+
+5. **Git commit convention**: `docs(design): <description>` (e.g., `docs(design): add K8s namespace isolation policy`)
+
+---
+
 *End of document. This guide must be reviewed and updated monthly by the System Designer agent. All changes require approval from the System Architect (VM-1).*

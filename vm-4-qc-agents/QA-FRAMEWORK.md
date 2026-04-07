@@ -1689,4 +1689,63 @@ This framework is a living document. Changes are tracked with semantic versionin
 
 ---
 
+---
+
+## Appendix: Managed Output Documents
+
+QC agents produce and maintain the following documents in the Blueprint repository's `qa/` directory.
+
+### Document Ownership Map
+
+| Document | Path in Blueprint Repo | When to Create | When to Update |
+|----------|----------------------|----------------|----------------|
+| Master Test Plan | `qa/test-plan.md` | At project start | When new modules added or test strategy changes |
+| Test Cases | `qa/test-cases/TC-<module>-<type>-<NNN>.md` | When assigned a test task for a module | When requirements change or new test scenarios identified |
+| Load Test Plan | `qa/performance/load-test-plan.md` | When NFR performance targets are defined | When targets change or new endpoints added |
+| Stress Test Plan | `qa/performance/stress-test-plan.md` | After load test plan is stable | When breaking point criteria change |
+| Test Reports | `qa/reports/TEST-REPORT-ITER-<NNN>-<module>.md` | After every test execution cycle | N/A (each report is a new file) |
+| QA Metrics | `qa/metrics.md` | At first test execution | After every test execution (living document) |
+| Defect Reports | `qa/defects/DEF-<NNN>.md` | When a defect is found | Through defect lifecycle (reported → verified → closed) |
+
+### Output Rules
+
+1. **Use the templates** from `gateforge-blueprint-template/qa/` — do not invent new formats
+2. **Every test report must include a gate assessment**: PROMOTE / HOLD / ROLLBACK with rationale
+3. **Defect reports must follow the full lifecycle**: reported → confirmed → in-progress → fixed → verified → closed
+4. **QA metrics must be updated** after every test execution — this is a living dashboard
+5. **Structured report to Architect**: After every test cycle, produce:
+
+```json
+{
+  "taskId": "TASK-NNN",
+  "type": "testing",
+  "status": "completed",
+  "module": "auth",
+  "testLevels": ["unit", "integration", "e2e"],
+  "results": {
+    "unit": { "total": 45, "pass": 44, "fail": 1, "skip": 0, "coverage": 96.2 },
+    "integration": { "total": 18, "pass": 17, "fail": 1, "skip": 0, "coverage": 91.0 },
+    "e2e": { "total": 8, "pass": 7, "fail": 1, "skip": 0, "coverage": 87.5 }
+  },
+  "gateDecision": "HOLD",
+  "gateRationale": "1 integration test failing on token refresh edge case",
+  "defectsFound": ["DEF-005", "DEF-006"],
+  "documentsUpdated": [
+    "qa/reports/TEST-REPORT-ITER-001-auth.md",
+    "qa/metrics.md",
+    "qa/defects/DEF-005.md",
+    "qa/defects/DEF-006.md"
+  ],
+  "performanceBaseline": {
+    "p95Latency": "145ms",
+    "throughput": "1200 req/s"
+  }
+}
+```
+
+6. **Git commit convention**: `test(<module>): <description>` (e.g., `test(auth): add JWT refresh token edge case tests`)
+7. **Traceability**: Every test case must reference the FR-ID or NFR-ID it validates. Every defect must reference the test case that found it.
+
+---
+
 > **Document end.** This framework is maintained by the QC agents on VM-4 under the governance of the System Architect (VM-1). All changes require Architect approval and must be version-tracked.

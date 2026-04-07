@@ -2778,4 +2778,55 @@ SMTP_PASSWORD=<smtp-password>
 
 *This document is the single source of truth for GateForge monitoring and operations. All changes must be approved by the System Architect (VM-1) and logged in `decision-log.md`.*
 
+---
+
+## Appendix: Managed Output Documents
+
+The Operator agent produces and maintains the following documents in the Blueprint repository's `operations/` directory.
+
+### Document Ownership Map
+
+| Document | Path in Blueprint Repo | When to Create | When to Update |
+|----------|----------------------|----------------|----------------|
+| Deployment Runbook | `operations/deployment-runbook.md` | Before first deployment | When deployment procedure changes |
+| Deployment Log | `operations/deployment-log.md` | At first deployment | After every deployment (append entry) |
+| Operation Log | `operations/operation-log.md` | At system launch | After every operational event (append entry) |
+| SLA/SLO Tracking | `operations/sla-slo-tracking.md` | When SLOs are defined | Monthly (reliability report) + after any incident |
+| Incident Reports | `operations/incident-reports/INC-<NNN>.md` | When an incident occurs | Through incident lifecycle (open → resolved → post-mortem) |
+
+### Output Rules
+
+1. **Use the templates** from `gateforge-blueprint-template/operations/` — do not invent new formats
+2. **Deployment log is append-only** — never modify past entries, only add new ones
+3. **Operation log is append-only** — every operational event must be recorded
+4. **Incident reports must include**: Timeline, root cause analysis (5 Whys), prevention actions, lessons learned
+5. **SLA/SLO tracking must include**: Error budget status, monthly reliability report
+6. **Structured report to Architect**: After every deployment, produce:
+
+```json
+{
+  "taskId": "TASK-NNN",
+  "type": "deployment",
+  "status": "completed",
+  "deployId": "DEP-NNN",
+  "version": "v1.0.0",
+  "environment": "dev | uat | production",
+  "commitSha": "abc123",
+  "imageTags": ["auth-service:v1.0.0", "patient-service:v1.0.0"],
+  "smokeTestResult": "pass",
+  "healthCheckResult": "all services healthy",
+  "monitoringConfirmed": true,
+  "documentsUpdated": ["operations/deployment-log.md"],
+  "rollbackTested": true,
+  "issues": []
+}
+```
+
+7. **Git commit convention**: `ops(<env>): <description>` (e.g., `ops(uat): deploy v1.0.0 to UAT`)
+8. **Monthly operations summary**: On the last day of each month, produce a summary in `operations/operation-log.md` covering total events, uptime %, incidents, planned maintenance
+
+---
+
+*This document is the single source of truth for GateForge monitoring and operations. All changes must be approved by the System Architect (VM-1) and logged in `decision-log.md`.*
+
 *Last updated: 2026-04-07 by Operator Agent (VM-5)*

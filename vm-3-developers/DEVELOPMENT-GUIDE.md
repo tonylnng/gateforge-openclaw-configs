@@ -3446,4 +3446,59 @@ FRONTEND_URL=http://localhost:3000
 
 ---
 
+---
+
+## Appendix: Managed Output Documents
+
+Developer agents produce and maintain the following documents in the Blueprint repository.
+
+### Document Ownership Map
+
+| Document | Path in Blueprint Repo | When to Create | When to Update |
+|----------|----------------------|----------------|----------------|
+| Module Documentation | `development/modules/<module>.md` | When assigned a new module | After every feature added, API changed, or dependency updated |
+| Coding Standards | `development/coding-standards.md` | Reference only (Architect maintains) | Propose changes via structured report |
+
+### Output Rules
+
+1. **Use the module template** from `gateforge-blueprint-template/development/modules/README.md` — every module must have:
+   - API endpoints table
+   - Database tables owned
+   - Events published/consumed
+   - Dependencies on other modules
+   - Change log
+
+2. **Structured completion report to Architect**: After every task, produce:
+
+```json
+{
+  "taskId": "TASK-NNN",
+  "type": "implementation",
+  "status": "completed",
+  "module": "auth",
+  "branch": "feature/TASK-001-jwt-login",
+  "filesChanged": 12,
+  "testsAdded": 8,
+  "testsPass": true,
+  "documentsUpdated": ["development/modules/auth.md"],
+  "integrationPoints": ["patient-records service via REST", "Redis for token cache"],
+  "testRequirements": ["JWT token generation", "refresh token rotation", "role-based access"],
+  "openQuestions": [],
+  "blockers": []
+}
+```
+
+3. **Git commit convention**: Conventional commits as defined in Section 3.7
+4. **Branch naming**: `feature/TASK-<NNN>-<description>` — never push to main/develop directly
+5. **API documentation**: If API endpoints changed, update the relevant OpenAPI spec in `architecture/api-specifications/`
+
+### Code → Document Traceability
+
+Every code change must be traceable back to a backlog item:
+- Code commit message references `TASK-NNN` or `BUG-NNN`
+- Module documentation references the related functional requirements (FR-IDs)
+- Test requirements in the completion report link to QA test cases
+
+---
+
 *This document is maintained by the GateForge System Architect (VM-1) and applies to all Developer Agents on VM-3. For questions or updates, route through the System Architect via the Lobster pipeline.*
