@@ -1,11 +1,13 @@
 # GateForge Admin Portal — Implementation Guide
 
 **Document Status:** Implementation-Ready  
-**Version:** 1.0  
+**Version:** 2.5  
 **Author:** GateForge Agent Team  
 **Created:** 2026-04-07  
+**Updated:** 2026-04-09  
 **References:**
 - Feature Specification: `GATEFORGE-ADMIN-PORTAL.md`
+- Extended Feature Set: `GATEFORGE-ADMIN-PORTAL-EXTENDED-FEATURES.md`
 - Architecture Context: `README.md`
 - Reference Project: ClawDeck (`clawdeck/`)
 
@@ -73,17 +75,48 @@ gateforge-admin-portal/
 │   │   │   │       └── page.tsx
 │   │   │   ├── (portal)/
 │   │   │   │   ├── layout.tsx
-│   │   │   │   ├── page.tsx                    # Agent Dashboard
-│   │   │   │   ├── pipeline/page.tsx
+│   │   │   │   ├── page.tsx                              # Dashboard Home (Health Score + key metrics)
+│   │   │   │   ├── agents/
+│   │   │   │   │   ├── page.tsx                          # Agent Overview (card grid)
+│   │   │   │   │   ├── decision-graph/page.tsx           # ◆ A1 Agent Decision Graph
+│   │   │   │   │   ├── session-replay/page.tsx           # ◆ A2 Agent Session Replay
+│   │   │   │   │   ├── cost/page.tsx                     # ◆ A3 Agent Cost Tracker
+│   │   │   │   │   ├── comparison/page.tsx               # ◆ A4 Agent Comparison Matrix
+│   │   │   │   │   └── [vmId]/[agentId]/page.tsx         # Agent detail page
+│   │   │   │   ├── pipeline/
+│   │   │   │   │   ├── page.tsx                          # Pipeline Live View
+│   │   │   │   │   ├── history/page.tsx                  # ◆ B1 Pipeline Run History
+│   │   │   │   │   ├── analytics/page.tsx                # ◆ B2 Pipeline Analytics
+│   │   │   │   │   ├── yaml/page.tsx                     # ◆ B3 YAML Preview
+│   │   │   │   │   └── task-tracker/page.tsx             # ◆ B4 Task Lifecycle Tracker
+│   │   │   │   ├── project/
+│   │   │   │   │   ├── page.tsx                          # Project Dashboard
+│   │   │   │   │   ├── iterations/page.tsx               # ◆ C1 Iteration Manager
+│   │   │   │   │   ├── releases/page.tsx                 # ◆ C5 Release Manager
+│   │   │   │   │   ├── dependencies/page.tsx             # ◆ C2 Dependency Map
+│   │   │   │   │   ├── risks/page.tsx                    # ◆ C3 Risk Register
+│   │   │   │   │   └── decisions/page.tsx                # ◆ C4 Decision Timeline
+│   │   │   │   ├── quality/
+│   │   │   │   │   ├── page.tsx                          # QA Metrics Dashboard
+│   │   │   │   │   ├── defects/page.tsx                  # ◆ D1 Defect Deep-Dive
+│   │   │   │   │   └── gate-history/page.tsx             # Gate History
+│   │   │   │   ├── operations/
+│   │   │   │   │   ├── page.tsx                          # Operations Dashboard
+│   │   │   │   │   ├── deployments/page.tsx              # ◆ D2 Deployment Diff
+│   │   │   │   │   └── slo-forecast/page.tsx             # ◆ D3 SLO Forecasting
+│   │   │   │   ├── troubleshooting/
+│   │   │   │   │   ├── console/page.tsx                  # ◆ E1 Troubleshooting Console
+│   │   │   │   │   ├── blockers/page.tsx                 # ◆ E4 Blocker Chain Visualiser
+│   │   │   │   │   ├── root-cause/page.tsx               # ◆ E3 Root Cause Analyser
+│   │   │   │   │   └── comms-audit/page.tsx              # ◆ E2 Cross-Agent Comms Audit
 │   │   │   │   ├── blueprint/
-│   │   │   │   │   ├── page.tsx
-│   │   │   │   │   └── [path]/page.tsx
-│   │   │   │   ├── project/page.tsx
-│   │   │   │   ├── qa/page.tsx
-│   │   │   │   ├── operations/page.tsx
+│   │   │   │   │   ├── page.tsx                          # Blueprint Explorer
+│   │   │   │   │   ├── compare/page.tsx                  # ◆ F1 Blueprint Diff
+│   │   │   │   │   └── [...path]/page.tsx                # Dynamic file viewer
 │   │   │   │   ├── notifications/page.tsx
-│   │   │   │   ├── setup/page.tsx
-│   │   │   │   └── agents/[vmId]/[agentId]/page.tsx
+│   │   │   │   ├── activity-log/page.tsx                 # ◆ F2 Activity Feed & Audit Log
+│   │   │   │   ├── webhooks/page.tsx                     # ◆ F4 Webhook & External Alerts
+│   │   │   │   └── setup/page.tsx
 │   │   │   ├── globals.css
 │   │   │   └── layout.tsx
 │   │   ├── components/
@@ -92,14 +125,21 @@ gateforge-admin-portal/
 │   │   │   │   ├── AgentDetailModal.tsx
 │   │   │   │   ├── AgentGrid.tsx
 │   │   │   │   ├── NotificationBadge.tsx
-│   │   │   │   └── StatusDot.tsx
+│   │   │   │   ├── StatusDot.tsx
+│   │   │   │   ├── DecisionGraphCanvas.tsx               # ◆ A1
+│   │   │   │   ├── SessionReplayTimeline.tsx             # ◆ A2
+│   │   │   │   ├── CostDashboard.tsx                     # ◆ A3
+│   │   │   │   ├── CostBreakdownChart.tsx                # ◆ A3
+│   │   │   │   └── AgentComparisonTable.tsx              # ◆ A4
 │   │   │   ├── blueprint/
 │   │   │   │   ├── CommitLog.tsx
 │   │   │   │   ├── DocumentViewer.tsx
 │   │   │   │   ├── FileTree.tsx
-│   │   │   │   └── StatusBadge.tsx
+│   │   │   │   ├── StatusBadge.tsx
+│   │   │   │   └── BlueprintDiffViewer.tsx               # ◆ F1
 │   │   │   ├── layout/
 │   │   │   │   ├── Header.tsx
+│   │   │   │   ├── HealthScoreBadge.tsx                  # ◆ F3
 │   │   │   │   ├── Sidebar.tsx
 │   │   │   │   ├── ThemeProvider.tsx
 │   │   │   │   └── ThemeToggle.tsx
@@ -110,26 +150,56 @@ gateforge-admin-portal/
 │   │   │   ├── operations/
 │   │   │   │   ├── BurnRateCard.tsx
 │   │   │   │   ├── DeploymentLog.tsx
+│   │   │   │   ├── DeploymentDiffViewer.tsx              # ◆ D2
 │   │   │   │   ├── EnvironmentCard.tsx
 │   │   │   │   ├── IncidentTimeline.tsx
+│   │   │   │   ├── SLOForecastChart.tsx                  # ◆ D3
 │   │   │   │   └── SLOGauge.tsx
 │   │   │   ├── pipeline/
+│   │   │   │   ├── BottleneckHeatmap.tsx                 # ◆ B2
 │   │   │   │   ├── LobsterYAMLPreview.tsx
 │   │   │   │   ├── PhaseDetailPanel.tsx
 │   │   │   │   ├── PhaseNode.tsx
+│   │   │   │   ├── PipelineAnalyticsChart.tsx            # ◆ B2
 │   │   │   │   ├── PipelineCanvas.tsx
+│   │   │   │   ├── PipelineRunList.tsx                   # ◆ B1
+│   │   │   │   ├── PipelineRunCompare.tsx                # ◆ B1
 │   │   │   │   ├── QualityGatePanel.tsx
+│   │   │   │   ├── TaskLifecycleTimeline.tsx             # ◆ B4
 │   │   │   │   └── TaskList.tsx
 │   │   │   ├── project/
 │   │   │   │   ├── BlockersList.tsx
 │   │   │   │   ├── BurndownChart.tsx
+│   │   │   │   ├── DecisionTimeline.tsx                  # ◆ C4
+│   │   │   │   ├── DependencyGraph.tsx                   # ◆ C2
 │   │   │   │   ├── HealthCard.tsx
+│   │   │   │   ├── IterationDetail.tsx                   # ◆ C1
+│   │   │   │   ├── IterationList.tsx                     # ◆ C1
+│   │   │   │   ├── ReleaseDetail.tsx                     # ◆ C5
+│   │   │   │   ├── ReleaseList.tsx                       # ◆ C5
+│   │   │   │   ├── RiskHeatMap.tsx                       # ◆ C3
+│   │   │   │   ├── RiskTable.tsx                         # ◆ C3
 │   │   │   │   └── TaskTable.tsx
 │   │   │   ├── qa/
 │   │   │   │   ├── CoverageGauge.tsx
+│   │   │   │   ├── DefectAgingChart.tsx                  # ◆ D1
+│   │   │   │   ├── DefectHeatmap.tsx                     # ◆ D1
 │   │   │   │   ├── DefectSummary.tsx
 │   │   │   │   ├── GateDecisionCard.tsx
 │   │   │   │   └── SecurityPanel.tsx
+│   │   │   ├── troubleshooting/
+│   │   │   │   ├── BlockerChainDiagram.tsx               # ◆ E4
+│   │   │   │   ├── BlockerImpactScore.tsx                # ◆ E4
+│   │   │   │   ├── CommsAuditLog.tsx                     # ◆ E2
+│   │   │   │   ├── MessageFlowDiagram.tsx                # ◆ E2
+│   │   │   │   ├── RootCauseChainView.tsx                # ◆ E3
+│   │   │   │   └── TroubleshootingConsole.tsx            # ◆ E1
+│   │   │   ├── audit/
+│   │   │   │   ├── AuditLogFeed.tsx                      # ◆ F2
+│   │   │   │   └── AuditLogExport.tsx                    # ◆ F2
+│   │   │   ├── webhooks/
+│   │   │   │   ├── WebhookConfigCard.tsx                 # ◆ F4
+│   │   │   │   └── WebhookTriggerList.tsx                # ◆ F4
 │   │   │   ├── setup/
 │   │   │   │   ├── HealthCheckDashboard.tsx
 │   │   │   │   ├── SetupWizard.tsx
@@ -142,12 +212,22 @@ gateforge-admin-portal/
 │   │   │   │       ├── Step5Blueprint.tsx
 │   │   │   │       ├── Step6Deploy.tsx
 │   │   │   │       └── Step7Review.tsx
-│   │   │   └── ui/                             # shadcn/ui primitives
+│   │   │   └── ui/                                       # shadcn/ui primitives
 │   │   ├── hooks/
 │   │   │   ├── useAgents.ts
+│   │   │   ├── useAuditLog.ts                            # ◆ F2
+│   │   │   ├── useCost.ts                                # ◆ A3
+│   │   │   ├── useDecisionGraph.ts                       # ◆ A1
+│   │   │   ├── useDependencies.ts                        # ◆ C2
+│   │   │   ├── useHealthScore.ts                         # ◆ F3
+│   │   │   ├── useIterations.ts                          # ◆ C1
 │   │   │   ├── useNotifications.ts
 │   │   │   ├── usePipeline.ts
-│   │   │   └── useSSE.ts
+│   │   │   ├── usePipelineHistory.ts                     # ◆ B1
+│   │   │   ├── useRisks.ts                               # ◆ C3
+│   │   │   ├── useSessionReplay.ts                       # ◆ A2
+│   │   │   ├── useSSE.ts
+│   │   │   └── useTaskLifecycle.ts                       # ◆ B4
 │   │   └── lib/
 │   │       ├── api.ts
 │   │       ├── constants.ts
@@ -167,23 +247,51 @@ gateforge-admin-portal/
 │   │   │   └── rateLimiter.ts
 │   │   ├── routes/
 │   │   │   ├── agents.ts
+│   │   │   ├── audit-log.ts                              # ◆ F2
 │   │   │   ├── auth.ts
 │   │   │   ├── blueprint.ts
+│   │   │   ├── blockers.ts                               # ◆ E4
+│   │   │   ├── blueprint-diff.ts                         # ◆ F1
+│   │   │   ├── comms-audit.ts                            # ◆ E2
+│   │   │   ├── cost.ts                                   # ◆ A3
+│   │   │   ├── decision-graph.ts                         # ◆ A1
+│   │   │   ├── decisions.ts                              # ◆ C4
+│   │   │   ├── defect-analysis.ts                        # ◆ D1
+│   │   │   ├── dependencies.ts                           # ◆ C2
+│   │   │   ├── deployment-diff.ts                        # ◆ D2
 │   │   │   ├── events.ts
+│   │   │   ├── health-score.ts                           # ◆ F3
+│   │   │   ├── iterations.ts                             # ◆ C1
 │   │   │   ├── notifications.ts
 │   │   │   ├── operations.ts
 │   │   │   ├── pipeline.ts
+│   │   │   ├── pipeline-analytics.ts                     # ◆ B2
+│   │   │   ├── pipeline-history.ts                       # ◆ B1
 │   │   │   ├── project.ts
 │   │   │   ├── qa.ts
-│   │   │   └── setup.ts
+│   │   │   ├── releases.ts                               # ◆ C5
+│   │   │   ├── risks.ts                                  # ◆ C3
+│   │   │   ├── root-cause.ts                             # ◆ E3
+│   │   │   ├── session-replay.ts                         # ◆ A2
+│   │   │   ├── setup.ts
+│   │   │   ├── slo-forecast.ts                           # ◆ D3
+│   │   │   ├── task-lifecycle.ts                         # ◆ B4
+│   │   │   ├── troubleshoot.ts                           # ◆ E1
+│   │   │   └── webhooks.ts                               # ◆ F4
 │   │   └── services/
+│   │       ├── auditLogger.ts                            # ◆ F2
 │   │       ├── blueprintGit.ts
+│   │       ├── costTracker.ts                            # ◆ A3
 │   │       ├── gatewayClient.ts
+│   │       ├── healthScore.ts                            # ◆ F3
 │   │       ├── notificationBus.ts
+│   │       ├── pipelineAnalytics.ts                      # ◆ B2
 │   │       ├── poller.ts
+│   │       ├── rootCauseEngine.ts                        # ◆ E3
 │   │       ├── stateCache.ts
 │   │       ├── telegramMonitor.ts
-│   │       └── usvmProbe.ts
+│   │       ├── usvmProbe.ts
+│   │       └── webhookDispatcher.ts                      # ◆ F4
 │   ├── Dockerfile
 │   ├── package.json
 │   └── tsconfig.json
@@ -1250,6 +1358,578 @@ export interface SetupHealthResult {
   detail?: string;
   latencyMs?: number;
   checkedAt: string;
+}
+
+
+// ─── Agent Decision Graph (A1) ────────────────────────────────────────────────
+
+export type DecisionNodeOutcome = 'success' | 'error' | 'retry' | 'skipped';
+
+export interface DecisionNode {
+  id: string;                      // Unique node ID within this session
+  sessionId: string;
+  agentId: string;
+  vmId: string;
+  type: 'reasoning' | 'tool_call' | 'model_response' | 'branch';
+  label: string;                   // Short display label (tool name, "Reasoning step", etc.)
+  outcome: DecisionNodeOutcome;
+  inputTokens: number;
+  outputTokens: number;
+  latencyMs: number;
+  startedAt: string;               // ISO 8601
+  fullPrompt?: string;             // Expandable full content
+  fullResponse?: string;
+}
+
+export interface DecisionEdge {
+  id: string;
+  source: string;                  // DecisionNode.id
+  target: string;
+  dataFlowLabel?: string;          // Brief description of data flowing along edge
+}
+
+export interface DecisionGraph {
+  sessionId: string;
+  agentId: string;
+  vmId: string;
+  nodes: DecisionNode[];
+  edges: DecisionEdge[];
+  totalTokens: number;
+  totalLatencyMs: number;
+  capturedAt: string;
+}
+
+// ─── Agent Session Replay (A2) ────────────────────────────────────────────────
+
+export interface SessionReplayEvent {
+  seq: number;                     // Sequence number (0-based)
+  type: 'prompt' | 'thinking' | 'tool_call' | 'tool_result' | 'response';
+  timestamp: string;
+  durationMs: number;
+  content: string;                 // Full content of this step
+  tokens?: number;
+  costUsd?: number;
+}
+
+export interface SessionReplayStep {
+  seq: number;
+  type: SessionReplayEvent['type'];
+  timestamp: string;
+  durationMs: number;
+  contentPreview: string;          // First 200 chars for timeline scrubber
+  tokens?: number;
+  costUsd?: number;
+}
+
+export interface SessionReplay {
+  sessionId: string;
+  agentId: string;
+  vmId: string;
+  startedAt: string;
+  endedAt?: string;
+  totalDurationMs: number;
+  totalTokens: number;
+  totalCostUsd: number;
+  steps: SessionReplayStep[];
+  firstErrorSeq?: number;          // Sequence number of first error step
+  longestStepSeq?: number;         // Sequence number of longest step by duration
+}
+
+// ─── Agent Cost Tracker (A3) ──────────────────────────────────────────────────
+
+export interface CostRecord {
+  id: string;
+  agentId: string;
+  vmId: string;
+  taskId?: string;
+  sessionId: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  retryTokens: number;             // Tokens consumed in retries
+  costUsd: number;
+  timestamp: string;
+  phase?: PipelinePhaseName;
+}
+
+export interface CostSummary {
+  period: 'day' | 'week' | 'month';
+  totalCostUsd: number;
+  budgetUsd?: number;
+  budgetUtilizationPct?: number;
+  byAgent: Array<{ agentId: string; vmId: string; costUsd: number; tokenCount: number }>;
+  byModel: Array<{ model: string; costUsd: number; tokenCount: number }>;
+  byPhase: Array<{ phase: PipelinePhaseName; costUsd: number }>;
+  topExpensiveTasks: Array<{ taskId: string; taskTitle: string; costUsd: number }>;
+  trend: TimeSeriesPoint[];        // Daily cost over the period
+  anomalyAlerts: Array<{ agentId: string; reason: string; threshold: number; actual: number }>;
+}
+
+// ─── Agent Comparison Matrix (A4) ─────────────────────────────────────────────
+
+export interface AgentComparison {
+  agentId: string;
+  vmId: string;
+  displayId: string;
+  model: string;
+  tasksCompleted: number;
+  avgTaskDurationMs: number;
+  avgTokensPerTask: number;
+  avgCostPerTask: number;
+  errorRetryRate: number;          // 0.0 – 1.0
+  qaPassRate: number;              // 0.0 – 1.0 (for developer agents)
+  velocityTrend: TimeSeriesPoint[]; // Last 7 iterations
+}
+
+// ─── Pipeline Run History (B1) ────────────────────────────────────────────────
+
+export type PipelineRunOutcome = 'completed' | 'aborted' | 'in-progress' | 'failed';
+
+export interface PipelineRun {
+  runId: string;
+  iterationId: string;
+  iterationLabel: string;
+  startedAt: string;
+  completedAt?: string;
+  durationMs?: number;
+  outcome: PipelineRunOutcome;
+  totalTasks: number;
+  blockedCount: number;
+  qualityGatesPassRate: number;
+  totalCostUsd?: number;
+  phases: Array<{
+    phaseId: number;
+    name: PipelinePhaseName;
+    durationMs?: number;
+    taskCount: number;
+    blockedCount: number;
+    gateDecision?: GateDecision;
+  }>;
+}
+
+export interface PipelineRunComparison {
+  runA: PipelineRun;
+  runB: PipelineRun;
+  phaseDurationDeltaMs: Record<string, number>;  // phase name → delta (positive = A slower)
+  blockersA: number;
+  blockersB: number;
+  costDeltaUsd?: number;
+  velocityRatio: number;           // runA tasks/day ÷ runB tasks/day
+}
+
+// ─── Pipeline Analytics (B2) ──────────────────────────────────────────────────
+
+export interface BottleneckAnalysis {
+  runId: string;
+  analysisAt: string;
+  bottleneckPhase?: PipelinePhaseName;
+  bottleneckReason?: string;
+  phaseStats: Array<{
+    phase: PipelinePhaseName;
+    avgDurationMs: number;
+    currentDurationMs?: number;
+    deviationPct: number;          // (current - avg) / avg * 100
+    isBottleneck: boolean;
+  }>;
+  waitTimeStats: Array<{
+    description: string;
+    avgWaitMs: number;
+    currentWaitMs?: number;
+  }>;
+  throughputMetrics: {
+    tasksPerDay: number;
+    cycleTimeDays: number;
+    leadTimeDays: number;
+  };
+  predictiveAlerts: Array<{
+    severity: 'warning' | 'critical';
+    message: string;
+  }>;
+}
+
+// ─── Pipeline YAML Preview (B3) ───────────────────────────────────────────────
+
+export interface LobsterYAMLStep {
+  stepId: string;
+  stepIndex: number;
+  action: string;
+  agent: string;
+  inputs: string[];
+  onPass: string;
+  onFail?: string;
+  retryCount?: number;
+  validationErrors: string[];      // From YAML validation pass
+}
+
+// ─── Task Lifecycle Tracker (B4) ──────────────────────────────────────────────
+
+export interface TaskLifecycleEvent {
+  seq: number;
+  eventType:
+    | 'created'
+    | 'assigned'
+    | 'started'
+    | 'commit'
+    | 'review_requested'
+    | 'approved'
+    | 'qa_assigned'
+    | 'qa_result'
+    | 'blocked'
+    | 'unblocked'
+    | 'deployed';
+  timestamp: string;
+  agentId?: string;
+  vmId?: string;
+  detail: string;                  // Human-readable description
+  gitRef?: string;
+  durationSincePrevMs?: number;    // Milliseconds since previous event
+  metadata?: Record<string, unknown>;
+}
+
+// ─── Iteration Manager (C1) ───────────────────────────────────────────────────
+
+export type IterationStatus = 'planned' | 'active' | 'completed' | 'cancelled';
+
+export interface Iteration {
+  id: string;
+  label: string;
+  status: IterationStatus;
+  startDate: string;
+  endDate: string;
+  velocity: number;                // Story points completed
+  plannedPoints: number;
+  completedPoints: number;
+  addedMidIterationCount: number;  // Scope creep
+  burndown: BurndownDataPoint[];
+  blockers: Array<{ taskId: string; title: string; resolutionTimeMs?: number }>;
+  qualityGatePassRate: number;
+  carryoverTaskIds: string[];
+}
+
+export interface IterationMetrics {
+  iterationId: string;
+  plannedVsActualPoints: { planned: number; actual: number };
+  velocityTrend: Array<{ iterationId: string; velocity: number }>;
+  scopeCreepPct: number;
+  blockerCount: number;
+  avgBlockerResolutionHours: number;
+}
+
+// ─── Dependency Map (C2) ──────────────────────────────────────────────────────
+
+export interface DependencyNode {
+  id: string;                      // Task ID or module ID
+  label: string;
+  type: 'task' | 'module';
+  status: TaskStatus;
+  isCriticalPath: boolean;
+}
+
+export interface DependencyEdge {
+  source: string;                  // DependencyNode.id that is depended upon
+  target: string;                  // DependencyNode.id that depends on source
+}
+
+// ─── Risk Register (C3) ───────────────────────────────────────────────────────
+
+export type RiskLevel = 'Low' | 'Medium' | 'High';
+export type RiskStatus = 'open' | 'mitigated' | 'escalated' | 'closed';
+export type RiskCategory = 'Quality' | 'Resource' | 'Schedule' | 'Operational' | 'Security';
+
+export interface Risk {
+  id: string;                      // 'RISK-001'
+  title: string;
+  description: string;
+  probability: RiskLevel;
+  impact: RiskLevel;
+  category: RiskCategory;
+  status: RiskStatus;
+  mitigation: string;
+  owner?: string;                  // Agent or role responsible
+  detectedAt: string;
+  resolvedAt?: string;
+  autoDetected: boolean;           // true = system-generated from pipeline data
+  linkedTaskIds: string[];
+}
+
+// ─── Decision Timeline (C4) ───────────────────────────────────────────────────
+
+export type DecisionEntryType = 'adr' | 'gate_decision' | 'dispute_resolution' | 'scope_change' | 'blocker_resolution';
+
+export interface DecisionEntry {
+  id: string;
+  type: DecisionEntryType;
+  timestamp: string;
+  title: string;
+  decision: string;
+  rationale: string;
+  madeBy?: string;                 // Agent or role
+  affectedItems: string[];         // Task IDs, module names, etc.
+  linkedGitRef?: string;
+}
+
+// ─── Release Manager (C5) ─────────────────────────────────────────────────────
+
+export type ReleaseStatus = 'planned' | 'staging' | 'released' | 'rolled-back';
+
+export interface ReleaseNote {
+  taskId: string;
+  type: 'feature' | 'bugfix' | 'breaking_change' | 'improvement';
+  title: string;
+  description?: string;
+}
+
+export interface Release {
+  id: string;                      // 'v1.3.0'
+  version: string;
+  status: ReleaseStatus;
+  plannedDate: string;
+  releasedAt?: string;
+  notes: ReleaseNote[];
+  deploymentStatus: Partial<Record<DeploymentEnvironment, 'pending' | 'deployed' | 'failed'>>;
+  qualityGateSummary: {
+    totalGates: number;
+    passed: number;
+    failed: number;
+  };
+  breakingChanges: string[];
+}
+
+// ─── Defect Deep-Dive (D1) ────────────────────────────────────────────────────
+
+export interface DefectAnalysis {
+  period: 'week' | 'month' | 'quarter';
+  totalOpen: number;
+  totalClosed: number;
+  avgResolutionDays: Record<DefectSeverity, number>;
+  moduleHeatmap: Array<{
+    module: string;
+    critical: number; major: number; minor: number; cosmetic: number;
+  }>;
+  escapeRate: number;              // % of defects that escaped to UAT/Prod
+  rootCauseBreakdown: Array<{
+    category: 'code_logic' | 'missing_requirement' | 'integration' | 'environment' | 'test_gap';
+    count: number;
+  }>;
+  defectDensity: Array<{ module: string; linesOfCode: number; defectCount: number; density: number }>;
+}
+
+// ─── Deployment Diff (D2) ─────────────────────────────────────────────────────
+
+export interface DeploymentDiff {
+  fromVersion: string;
+  toVersion: string;
+  environment: DeploymentEnvironment;
+  filesChanged: Array<{
+    path: string;
+    changeType: 'added' | 'modified' | 'deleted';
+    additions: number;
+    deletions: number;
+  }>;
+  configChanges: Array<{ key: string; before?: string; after?: string }>;
+  migrationScripts: string[];
+  smokeTestResults: Array<{ testName: string; passed: boolean; detail?: string }>;
+}
+
+// ─── SLO Forecasting (D3) ─────────────────────────────────────────────────────
+
+export interface SLOForecast {
+  sloId: string;
+  sloName: string;
+  currentBudgetPct: number;
+  currentBurnRateMultiplier: number;
+  estimatedExhaustionDate?: string;  // ISO 8601 — undefined if budget is healthy
+  projectionData: Array<{ date: string; budgetPctRemaining: number; isProjected: boolean }>;
+  scenarios: Array<{
+    label: string;                 // e.g. "Reduce error rate by 50%"
+    adjustmentFactor: number;
+    newExhaustionDate?: string;
+  }>;
+  historicalCompliance: Array<{ month: string; achievedPct: number; targetPct: number }>;
+  breachHistory: Array<{ startedAt: string; resolvedAt: string; rootCause?: string }>;
+}
+
+// ─── Troubleshooting Console (E1) ─────────────────────────────────────────────
+
+export interface TroubleshootContext {
+  sourceType: 'notification' | 'task' | 'gate_failure';
+  sourceId: string;
+  involvedAgents: Array<{ agentId: string; vmId: string }>;
+  involvedTasks: string[];
+  pipelinePhase?: PipelinePhaseName;
+  correlationTimeline: Array<{
+    timestamp: string;
+    source: string;
+    eventType: string;
+    summary: string;
+  }>;
+  suggestedActions: Array<{ action: string; reason: string; deepLinkPath?: string }>;
+  relatedGitRefs: string[];
+  relatedQAResults: Array<{ module: string; decision: GateDecision }>;
+}
+
+// ─── Cross-Agent Comms Audit (E2) ─────────────────────────────────────────────
+
+export interface AgentMessage {
+  id: string;
+  timestamp: string;
+  sourceVmId: string;
+  sourceAgentId: string;
+  destinationVmId: string;
+  destinationAgentId: string;
+  messageType: 'task_dispatch' | 'notification' | 'query' | 'resolution';
+  priority: NotificationPriority;
+  hmacStatus: 'valid' | 'expired' | 'failed';
+  deliveryLatencyMs?: number;
+  retryCount: number;
+  payloadSummary: string;          // Truncated preview
+  payloadFull?: string;            // Full payload on demand
+  taskId?: string;
+}
+
+export interface MessageAudit {
+  period: string;
+  totalMessages: number;
+  failedDeliveries: number;
+  avgLatencyMs: number;
+  messagesByType: Record<AgentMessage['messageType'], number>;
+  messagesPerHour: TimeSeriesPoint[];
+  topVmPairs: Array<{ fromVmId: string; toVmId: string; count: number }>;
+}
+
+// ─── Root Cause Analyser (E3) ─────────────────────────────────────────────────
+
+export interface RootCauseChain {
+  id: string;
+  symptomDescription: string;
+  confidence: 'high' | 'medium' | 'low';
+  chain: Array<{
+    step: number;
+    description: string;
+    dataSource: string;            // 'pipeline_state' | 'agent_log' | 'notification' | etc.
+    evidence?: string;
+  }>;
+  rootCause: string;
+  suggestedResolution: string;
+  similarPastIssueIds: string[];
+  analysisAt: string;
+}
+
+// ─── Blocker Chain Visualiser (E4) ────────────────────────────────────────────
+
+export interface BlockerChain {
+  blockedItemId: string;
+  blockedItemTitle: string;
+  blockedItemType: 'task' | 'agent';
+  chain: Array<{
+    depth: number;                 // 0 = root blocker, 1 = depends on root, etc.
+    itemId: string;
+    itemTitle: string;
+    itemType: 'task' | 'agent';
+    status: TaskStatus | AgentStatus;
+    assignedAgentId?: string;
+    estimatedResolutionAt?: string;
+  }>;
+  impactScore: number;             // Number of downstream items affected
+  downstreamItemIds: string[];
+}
+
+// ─── Blueprint Diff (F1) ──────────────────────────────────────────────────────
+
+export interface BlueprintDiff {
+  fromSha: string;
+  toSha: string;
+  fromDate: string;
+  toDate: string;
+  filesChanged: Array<{
+    path: string;
+    changeType: 'added' | 'modified' | 'deleted';
+    additions: number;
+    deletions: number;
+    authorAgent?: string;
+    approved?: boolean;
+    approvedBy?: string;
+    approvedAt?: string;
+  }>;
+  changeSummary: {
+    totalAdditions: number;
+    totalDeletions: number;
+    filesAdded: number;
+    filesModified: number;
+    filesDeleted: number;
+  };
+}
+
+// ─── Activity Feed & Audit Log (F2) ───────────────────────────────────────────
+
+export type AuditEventType =
+  | 'agent.started' | 'agent.stopped' | 'agent.status_changed'
+  | 'task.created' | 'task.assigned' | 'task.status_changed'
+  | 'pipeline.phase_advanced'
+  | 'gate.evaluated'
+  | 'deployment.executed'
+  | 'notification.dispatched'
+  | 'blueprint.updated'
+  | 'config.changed'
+  | 'webhook.triggered';
+
+export interface AuditLogEntry {
+  id: string;
+  eventType: AuditEventType;
+  timestamp: string;
+  actor: string;                   // Agent display ID or 'system'
+  vmId?: string;
+  summary: string;
+  detail?: Record<string, unknown>;
+  severity: 'info' | 'warning' | 'critical';
+  immutable: true;                 // Audit records are read-only by design
+}
+
+// ─── Project Health Score (F3) ────────────────────────────────────────────────
+
+export interface ProjectHealthScore {
+  score: number;                   // 0–100
+  tier: 'green' | 'yellow' | 'red';  // green 80–100, yellow 50–79, red 0–49
+  computedAt: string;
+  dimensions: Array<{
+    name: string;
+    weight: number;                // Decimal fraction, all weights sum to 1.0
+    rawScore: number;              // 0–100 before weighting
+    weightedScore: number;
+    detail: string;
+  }>;
+  trend: TimeSeriesPoint[];        // Last 14 days
+}
+
+// ─── Webhook & External Alerts (F4) ───────────────────────────────────────────
+
+export type WebhookChannel = 'slack' | 'email' | 'pagerduty' | 'http' | 'telegram';
+
+export type WebhookTrigger =
+  | 'notification.critical'
+  | 'gate.rollback'
+  | 'deployment.failed'
+  | 'slo.budget_low'
+  | 'agent.offline'
+  | 'health_score.dropped'
+  | 'digest.daily'
+  | 'digest.weekly';
+
+export interface WebhookConfig {
+  id: string;
+  name: string;
+  channel: WebhookChannel;
+  enabled: boolean;
+  trigger: WebhookTrigger;
+  targetUrl?: string;              // For http channel
+  slackWebhookUrl?: string;
+  emailRecipients?: string[];
+  pagerdutyKey?: string;
+  telegramChatId?: string;
+  payloadTemplate?: string;        // Handlebars template for custom HTTP payloads
+  lastFiredAt?: string;
+  lastStatus?: 'success' | 'failed';
+  createdAt: string;
 }
 
 // ─── SSE Event Payloads ───────────────────────────────────────────────────────
@@ -2468,6 +3148,646 @@ export async function probeUSVM(): Promise<USVMProbeResult> {
 }
 ```
 
+### 4.9 New Route Files — v1.5 Features
+
+All new route files follow the same pattern: `router.use(requireAuth)`, GET-only handlers, typed responses.
+
+---
+
+#### `backend/src/routes/cost.ts`
+
+```typescript
+import { Router, Request, Response } from 'express';
+import { requireAuth } from '../middleware/auth';
+import { getCostSummary, getCostRecords, getCostAlerts } from '../services/costTracker';
+
+const router = Router();
+router.use(requireAuth);
+
+// GET /api/cost/summary?period=day|week|month
+// Response: ApiSuccess<CostSummary>
+router.get('/summary', async (req: Request, res: Response) => {
+  const period = (req.query.period as 'day' | 'week' | 'month') || 'week';
+  const summary = await getCostSummary(period);
+  res.json({ ok: true, data: summary });
+});
+
+// GET /api/cost/records?agentId=&vmId=&taskId=&page=1&pageSize=50
+// Response: PaginatedResponse<CostRecord>
+router.get('/records', async (req: Request, res: Response) => {
+  const { agentId, vmId, taskId, page = '1', pageSize = '50' } = req.query as Record<string, string>;
+  const records = await getCostRecords({ agentId, vmId, taskId,
+    page: parseInt(page), pageSize: parseInt(pageSize) });
+  res.json(records);
+});
+
+// GET /api/cost/alerts — active cost anomaly alerts
+// Response: ApiSuccess<Array<{ agentId; reason; threshold; actual }>>
+router.get('/alerts', async (_req, res: Response) => {
+  const alerts = await getCostAlerts();
+  res.json({ ok: true, data: alerts });
+});
+
+// GET /api/cost/pricing — configured model pricing table
+// Response: ApiSuccess<Array<{ model; inputPer1M; outputPer1M }>>
+router.get('/pricing', (_req, res: Response) => {
+  const pricing = [
+    { model: 'claude-opus-4.6',   inputPer1M: 15.00, outputPer1M: 75.00 },
+    { model: 'claude-sonnet-4.6', inputPer1M: 3.00,  outputPer1M: 15.00 },
+    { model: 'minimax-2.7',       inputPer1M: 0.20,  outputPer1M: 1.10  },
+  ];
+  res.json({ ok: true, data: pricing });
+});
+
+export default router;
+```
+
+---
+
+#### `backend/src/routes/task-lifecycle.ts`
+
+```typescript
+// Endpoints:
+// GET /api/task-lifecycle/:taskId
+//   Response: ApiSuccess<{ task: Task; events: TaskLifecycleEvent[] }>
+//   Returns full chronological timeline for a single task from Blueprint status.md
+
+// GET /api/task-lifecycle/:taskId/events?type=created|assigned|...
+//   Response: ApiSuccess<TaskLifecycleEvent[]>
+//   Filter timeline events by type
+```
+
+---
+
+#### `backend/src/routes/pipeline-history.ts`
+
+```typescript
+// Endpoints:
+// GET /api/pipeline-history
+//   Response: PaginatedResponse<PipelineRun>
+//   Query params: ?status=completed|in-progress|aborted&from=ISO&to=ISO&page=1
+
+// GET /api/pipeline-history/:runId
+//   Response: ApiSuccess<PipelineRun>
+//   Full detail of a specific pipeline run (all phases, task counts, gate decisions)
+
+// GET /api/pipeline-history/compare?runA=runId&runB=runId
+//   Response: ApiSuccess<PipelineRunComparison>
+//   Side-by-side comparison of two pipeline runs
+```
+
+---
+
+#### `backend/src/routes/audit-log.ts`
+
+```typescript
+// Endpoints:
+// GET /api/audit-log?type=&vmId=&agentId=&from=&to=&severity=&page=1&pageSize=50
+//   Response: PaginatedResponse<AuditLogEntry>
+//   Chronological immutable audit log with comprehensive filters
+
+// GET /api/audit-log/:id
+//   Response: ApiSuccess<AuditLogEntry>
+
+// GET /api/audit-log/export?from=&to=&format=csv|json
+//   Response: file download (CSV or JSON)
+//   Requires auth; generates export for compliance reporting
+```
+
+---
+
+#### `backend/src/routes/health-score.ts`
+
+```typescript
+// Endpoints:
+// GET /api/health-score
+//   Response: ApiSuccess<ProjectHealthScore>
+//   Computes current composite score from all 7 dimensions
+
+// GET /api/health-score/history?days=14
+//   Response: ApiSuccess<TimeSeriesPoint[]>
+//   Historical score trend for sparkline display
+```
+
+---
+
+#### `backend/src/routes/blockers.ts`
+
+```typescript
+// Endpoints:
+// GET /api/blockers
+//   Response: ApiSuccess<BlockerChain[]>
+//   All currently blocked items with full dependency chains
+
+// GET /api/blockers/:itemId
+//   Response: ApiSuccess<BlockerChain>
+//   Blocker chain for a specific task or agent
+
+// GET /api/blockers/summary
+//   Response: ApiSuccess<{ count: number; topImpactScore: number; criticalBlockerIds: string[] }>
+```
+
+---
+
+#### `backend/src/routes/comms-audit.ts`
+
+```typescript
+// Endpoints:
+// GET /api/comms-audit/messages?sourceVmId=&destVmId=&type=&from=&to=&page=1
+//   Response: PaginatedResponse<AgentMessage>
+//   Paginated inter-agent message log
+
+// GET /api/comms-audit/messages/:id
+//   Response: ApiSuccess<AgentMessage>
+//   Full message including payload
+
+// GET /api/comms-audit/stats
+//   Response: ApiSuccess<MessageAudit>
+//   Aggregate delivery metrics and breakdowns
+
+// GET /api/comms-audit/search?q=
+//   Response: ApiSuccess<Array<{ id; timestamp; summary }>>
+//   Full-text search across message payloads (max 100 results)
+```
+
+---
+
+#### `backend/src/routes/webhooks.ts`
+
+```typescript
+// Endpoints:
+// GET /api/webhooks
+//   Response: ApiSuccess<WebhookConfig[]>
+//   All configured webhooks
+
+// GET /api/webhooks/:id
+//   Response: ApiSuccess<WebhookConfig>
+
+// POST /api/webhooks
+//   Body: Omit<WebhookConfig, 'id' | 'createdAt'>
+//   Response: ApiSuccess<WebhookConfig>
+//   Create new webhook configuration
+
+// POST /api/webhooks/:id/test
+//   Response: ApiSuccess<{ success: boolean; statusCode?: number; error?: string }>
+//   Send a test payload to the configured endpoint
+
+// POST /api/webhooks/:id/toggle
+//   Body: { enabled: boolean }
+//   Response: ApiSuccess<WebhookConfig>
+
+// DELETE /api/webhooks/:id
+//   Response: ApiSuccess<{ deleted: true }>
+```
+
+---
+
+### 4.10 New Route Files — v2.0 Features
+
+---
+
+#### `backend/src/routes/decision-graph.ts`
+
+```typescript
+// Endpoints:
+// GET /api/decision-graph/:vmId/:agentId/sessions
+//   Response: PaginatedResponse<{ sessionId; startedAt; taskId; nodeCount; totalTokens }>
+//   List sessions with decision graph data available
+
+// GET /api/decision-graph/:vmId/:agentId/sessions/:sessionId
+//   Response: ApiSuccess<DecisionGraph>
+//   Full decision graph for a specific session
+
+// GET /api/decision-graph/:vmId/:agentId/sessions/:sessionId/node/:nodeId
+//   Response: ApiSuccess<DecisionNode>
+//   Full node content (prompt + response) — large payload, load on demand
+```
+
+---
+
+#### `backend/src/routes/session-replay.ts`
+
+```typescript
+// Endpoints:
+// GET /api/session-replay/:vmId/:agentId/sessions
+//   Response: PaginatedResponse<{ sessionId; startedAt; totalDurationMs; stepCount }>
+
+// GET /api/session-replay/:vmId/:agentId/sessions/:sessionId
+//   Response: ApiSuccess<SessionReplay>
+//   Session replay manifest (steps list, metadata, markers for first error / longest step)
+
+// GET /api/session-replay/:vmId/:agentId/sessions/:sessionId/step/:seq
+//   Response: ApiSuccess<SessionReplayEvent>
+//   Full content for a single step (loaded on pause in the player)
+```
+
+---
+
+#### `backend/src/routes/pipeline-analytics.ts`
+
+```typescript
+// Endpoints:
+// GET /api/pipeline-analytics/bottlenecks?runId=
+//   Response: ApiSuccess<BottleneckAnalysis>
+//   Bottleneck detection for current or specified run
+
+// GET /api/pipeline-analytics/phase-durations?last=10
+//   Response: ApiSuccess<Array<{ runId; phases: Array<{ phase; durationMs }> }>>
+//   Historical phase duration data for trend charts
+
+// GET /api/pipeline-analytics/throughput?days=30
+//   Response: ApiSuccess<{ tasksPerDay: TimeSeriesPoint[]; cycleTimeTrend: TimeSeriesPoint[] }>
+```
+
+---
+
+#### `backend/src/routes/root-cause.ts`
+
+```typescript
+// Endpoints:
+// POST /api/root-cause/analyse
+//   Body: { symptomType: 'blocked_phase'|'gate_failure'|'blocked_task'; symptomId: string }
+//   Response: ApiSuccess<RootCauseChain>
+//   Triggers root cause analysis; may take 2–5s
+
+// GET /api/root-cause/history?page=1
+//   Response: PaginatedResponse<RootCauseChain>
+//   Previous root cause analyses
+
+// GET /api/root-cause/:id
+//   Response: ApiSuccess<RootCauseChain>
+```
+
+---
+
+#### `backend/src/routes/troubleshoot.ts`
+
+```typescript
+// Endpoints:
+// POST /api/troubleshoot/context
+//   Body: { sourceType: 'notification'|'task'|'gate_failure'; sourceId: string }
+//   Response: ApiSuccess<TroubleshootContext>
+//   Aggregate all relevant context for a given issue
+
+// GET /api/troubleshoot/recent?limit=10
+//   Response: ApiSuccess<Array<{ sourceId; sourceType; summary; investigatedAt }>>
+//   Recent troubleshooting sessions
+```
+
+---
+
+#### `backend/src/routes/iterations.ts`
+
+```typescript
+// Endpoints:
+// GET /api/iterations
+//   Response: PaginatedResponse<Iteration>
+//   All iterations, newest first
+
+// GET /api/iterations/active
+//   Response: ApiSuccess<Iteration>
+//   Currently active iteration with full burndown
+
+// GET /api/iterations/:id
+//   Response: ApiSuccess<Iteration>
+
+// GET /api/iterations/:id/metrics
+//   Response: ApiSuccess<IterationMetrics>
+```
+
+---
+
+#### `backend/src/routes/dependencies.ts`
+
+```typescript
+// Endpoints:
+// GET /api/dependencies/graph?scope=task|module
+//   Response: ApiSuccess<{ nodes: DependencyNode[]; edges: DependencyEdge[] }>
+//   Full dependency graph at task or module level
+
+// GET /api/dependencies/critical-path
+//   Response: ApiSuccess<string[]>
+//   Ordered list of task IDs on the critical path
+
+// GET /api/dependencies/:taskId/chain
+//   Response: ApiSuccess<{ upstream: DependencyNode[]; downstream: DependencyNode[] }>
+```
+
+---
+
+#### `backend/src/routes/decisions.ts`
+
+```typescript
+// Endpoints:
+// GET /api/decisions?type=adr|gate_decision|dispute_resolution|...&from=&to=&page=1
+//   Response: PaginatedResponse<DecisionEntry>
+//   Filtered decision timeline
+
+// GET /api/decisions/:id
+//   Response: ApiSuccess<DecisionEntry>
+```
+
+---
+
+#### `backend/src/routes/risks.ts`
+
+```typescript
+// Endpoints:
+// GET /api/risks?status=open|mitigated|closed&category=&page=1
+//   Response: PaginatedResponse<Risk>
+
+// GET /api/risks/:id
+//   Response: ApiSuccess<Risk>
+
+// GET /api/risks/heatmap
+//   Response: ApiSuccess<Array<{ probability: RiskLevel; impact: RiskLevel; riskIds: string[] }>>
+//   3×3 matrix data for heat map rendering
+
+// GET /api/risks/auto-detected
+//   Response: ApiSuccess<Risk[]>
+//   Risks auto-generated by the system from pipeline data
+```
+
+---
+
+#### `backend/src/routes/blueprint-diff.ts`
+
+```typescript
+// Endpoints:
+// GET /api/blueprint-diff?fromSha=&toSha=
+//   Response: ApiSuccess<BlueprintDiff>
+//   Diff between two Blueprint commits
+
+// GET /api/blueprint-diff?fromDate=&toDate=
+//   Response: ApiSuccess<BlueprintDiff>
+//   Diff between two date points (resolved to nearest commit SHAs)
+```
+
+---
+
+### 4.11 New Route Files — v2.5 Features
+
+---
+
+#### `backend/src/routes/releases.ts`
+
+```typescript
+// Endpoints:
+// GET /api/releases?status=planned|staging|released|rolled-back&page=1
+//   Response: PaginatedResponse<Release>
+
+// GET /api/releases/:id
+//   Response: ApiSuccess<Release>
+
+// GET /api/releases/:id/notes
+//   Response: ApiSuccess<ReleaseNote[]>
+//   Auto-generated release notes
+
+// GET /api/releases/compare?from=releaseId&to=releaseId
+//   Response: ApiSuccess<{ added: ReleaseNote[]; removed: ReleaseNote[]; changed: ReleaseNote[] }>
+```
+
+---
+
+#### `backend/src/routes/defect-analysis.ts`
+
+```typescript
+// Endpoints:
+// GET /api/defect-analysis?period=week|month|quarter
+//   Response: ApiSuccess<DefectAnalysis>
+
+// GET /api/defect-analysis/aging?severity=Critical|Major|Minor|Cosmetic
+//   Response: ApiSuccess<Array<{ defectId; title; openDays; severity; module }>>
+//   All open defects sorted by age
+```
+
+---
+
+#### `backend/src/routes/deployment-diff.ts`
+
+```typescript
+// Endpoints:
+// GET /api/deployment-diff?fromVersion=&toVersion=&environment=
+//   Response: ApiSuccess<DeploymentDiff>
+
+// GET /api/deployment-diff/rollback-chain?fromVersion=&targetVersion=
+//   Response: ApiSuccess<{ willRevert: ReleaseNote[]; affectedEnvs: DeploymentEnvironment[] }>
+```
+
+---
+
+#### `backend/src/routes/slo-forecast.ts`
+
+```typescript
+// Endpoints:
+// GET /api/slo-forecast
+//   Response: ApiSuccess<SLOForecast[]>
+//   Forecasts for all SLOs
+
+// GET /api/slo-forecast/:sloId
+//   Response: ApiSuccess<SLOForecast>
+
+// GET /api/slo-forecast/:sloId/scenarios
+//   Response: ApiSuccess<SLOForecast['scenarios']>
+//   What-if scenario projections
+```
+
+---
+
+### 4.12 New Service Files
+
+#### `backend/src/services/costTracker.ts`
+
+```typescript
+// Responsibilities:
+// - Aggregate token usage records from OpenClaw gateway logs (via gatewayClient.ts)
+// - Apply configured pricing table to compute USD costs
+// - Maintain in-memory rolling window for fast summary queries
+// - Detect anomalies: agent using > 3× their 7-day average tokens/hour
+// - Detect runaway loops: agent active > 30 min with no status change
+
+// Key exports:
+export async function getCostSummary(period: 'day' | 'week' | 'month'): Promise<CostSummary>;
+export async function getCostRecords(filters: CostRecordFilters): Promise<PaginatedResponse<CostRecord>>;
+export async function getCostAlerts(): Promise<CostAnomaly[]>;
+export function recordCostEntry(entry: Omit<CostRecord, 'id'>): void;
+```
+
+---
+
+#### `backend/src/services/pipelineAnalytics.ts`
+
+```typescript
+// Responsibilities:
+// - Compute phase duration statistics across historical pipeline runs
+// - Identify bottleneck phases (current duration > 1.5× historical average)
+// - Calculate throughput metrics: tasks/day, cycle time, lead time
+// - Generate predictive alerts based on current trends
+
+// Key exports:
+export async function analyseBottlenecks(runId?: string): Promise<BottleneckAnalysis>;
+export async function getPhaseDurationHistory(lastN: number): Promise<PhaseDurationHistory[]>;
+export async function getThroughputMetrics(days: number): Promise<ThroughputData>;
+```
+
+---
+
+#### `backend/src/services/healthScore.ts`
+
+```typescript
+// Responsibilities:
+// - Compute composite 0–100 Project Health Score every 60s
+// - Cache the last 14 days of scores for trend display
+// - Fire health_score.dropped webhook trigger when score drops > 10 points in 1 hour
+
+// Scoring dimensions and weights:
+// Pipeline Progress (20%) — % of phases completed
+// Agent Availability (15%) — % of agents online and active
+// Task Velocity (15%) — tasks completed vs planned this iteration
+// Quality Gate Health (15%) — % of gates passing
+// Blocker Count (15%) — inverse blocker impact (0 blockers = 100%)
+// SLO Compliance (10%) — % of SLOs within error budget
+// Cost Efficiency (10%) — actual cost vs configured daily budget
+
+// Key exports:
+export function getCurrentHealthScore(): ProjectHealthScore;
+export function getHealthScoreHistory(days: number): TimeSeriesPoint[];
+```
+
+---
+
+#### `backend/src/services/rootCauseEngine.ts`
+
+```typescript
+// Responsibilities:
+// - Accept a symptom (blocked phase, gate failure, blocked task)
+// - Trace upstream through pipeline state, agent logs, and notifications
+// - Build a structured RootCauseChain with confidence score
+// - Index past analyses for similar-issue lookup
+
+// Analysis algorithm:
+// 1. Query pipeline state for symptom context
+// 2. Identify upstream incomplete tasks or blocked agents
+// 3. For each blocked agent: fetch last agent log entry from gatewayClient
+// 4. Match log error patterns to root cause categories
+// 5. Compute confidence: high if full trace available, medium if partial, low if data missing
+
+// Key exports:
+export async function analyseRootCause(symptom: RootCauseSymptom): Promise<RootCauseChain>;
+export function findSimilarIssues(chain: RootCauseChain): string[];  // Returns past chain IDs
+```
+
+---
+
+#### `backend/src/services/webhookDispatcher.ts`
+
+```typescript
+// Responsibilities:
+// - Load WebhookConfig from config store
+// - Listen to relevant internal events (via notificationBus.ts)
+// - Fire webhook payloads to configured channels
+// - Retry on failure (3 attempts, exponential backoff)
+// - Record last fired timestamp and success/failure status
+
+// Supported channels:
+// - Slack: POST to slackWebhookUrl with `{ text: string }`
+// - Email: SMTP via nodemailer (requires SMTP config in .env)
+// - PagerDuty: POST to Events API v2 with integration key
+// - Custom HTTP: POST with Handlebars-rendered payloadTemplate
+// - Telegram: POST to Bot API sendMessage
+
+// Key exports:
+export function startWebhookDispatcher(): void;
+export async function testWebhook(config: WebhookConfig): Promise<{ success: boolean; statusCode?: number }>;
+export async function getWebhookConfigs(): Promise<WebhookConfig[]>;
+export async function saveWebhookConfig(config: Omit<WebhookConfig, 'id' | 'createdAt'>): Promise<WebhookConfig>;
+```
+
+---
+
+#### `backend/src/services/auditLogger.ts`
+
+```typescript
+// Responsibilities:
+// - Receive audit events from all parts of the system
+// - Write immutable audit records to persistent store (JSON-lines file by default, DB optional)
+// - Support paginated reads with full filter support
+// - Support CSV/JSON export for compliance
+
+// Immutability guarantee:
+// Records written to audit.log are append-only. The service never modifies or deletes records.
+// The export endpoint creates a read-only copy; it does not alter the log.
+
+// Key exports:
+export function logAuditEvent(event: Omit<AuditLogEntry, 'id' | 'immutable'>): void;
+export async function queryAuditLog(filters: AuditLogFilters): Promise<PaginatedResponse<AuditLogEntry>>;
+export async function exportAuditLog(filters: AuditLogFilters, format: 'csv' | 'json'): Promise<string>;
+```
+
+---
+
+### 4.13 Updated `backend/src/index.ts` Route Registration
+
+Add the following route registrations to the existing app setup (after line `app.use('/api/setup', setupRouter)`):
+
+```typescript
+// ─── v1.5 Routes ─────────────────────────────────────────────────────────────
+import costRouter           from './routes/cost';
+import taskLifecycleRouter  from './routes/task-lifecycle';
+import pipelineHistoryRouter from './routes/pipeline-history';
+import auditLogRouter       from './routes/audit-log';
+import commsAuditRouter     from './routes/comms-audit';
+import healthScoreRouter    from './routes/health-score';
+import blockersRouter       from './routes/blockers';
+import webhooksRouter       from './routes/webhooks';
+
+app.use('/api/cost',             costRouter);
+app.use('/api/task-lifecycle',   taskLifecycleRouter);
+app.use('/api/pipeline-history', pipelineHistoryRouter);
+app.use('/api/audit-log',        auditLogRouter);
+app.use('/api/comms-audit',      commsAuditRouter);
+app.use('/api/health-score',     healthScoreRouter);
+app.use('/api/blockers',         blockersRouter);
+app.use('/api/webhooks',         webhooksRouter);
+
+// ─── v2.0 Routes ─────────────────────────────────────────────────────────────
+import decisionGraphRouter    from './routes/decision-graph';
+import sessionReplayRouter    from './routes/session-replay';
+import pipelineAnalyticsRouter from './routes/pipeline-analytics';
+import rootCauseRouter        from './routes/root-cause';
+import troubleshootRouter     from './routes/troubleshoot';
+import iterationsRouter       from './routes/iterations';
+import dependenciesRouter     from './routes/dependencies';
+import decisionsRouter        from './routes/decisions';
+import risksRouter            from './routes/risks';
+import blueprintDiffRouter    from './routes/blueprint-diff';
+
+app.use('/api/decision-graph',     decisionGraphRouter);
+app.use('/api/session-replay',     sessionReplayRouter);
+app.use('/api/pipeline-analytics', pipelineAnalyticsRouter);
+app.use('/api/root-cause',         rootCauseRouter);
+app.use('/api/troubleshoot',       troubleshootRouter);
+app.use('/api/iterations',         iterationsRouter);
+app.use('/api/dependencies',       dependenciesRouter);
+app.use('/api/decisions',          decisionsRouter);
+app.use('/api/risks',              risksRouter);
+app.use('/api/blueprint-diff',     blueprintDiffRouter);
+
+// ─── v2.5 Routes ─────────────────────────────────────────────────────────────
+import releasesRouter        from './routes/releases';
+import defectAnalysisRouter  from './routes/defect-analysis';
+import deploymentDiffRouter  from './routes/deployment-diff';
+import sloForecastRouter     from './routes/slo-forecast';
+
+app.use('/api/releases',        releasesRouter);
+app.use('/api/defect-analysis', defectAnalysisRouter);
+app.use('/api/deployment-diff', deploymentDiffRouter);
+app.use('/api/slo-forecast',    sloForecastRouter);
+
+// ─── SSE — must remain last ───────────────────────────────────────────────────
+app.use('/api/events', eventsRouter);
+```
+
 ---
 
 ## 5. Frontend Implementation
@@ -2588,17 +3908,101 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 }
 ```
 
-**Sidebar nav items** (`src/components/layout/Sidebar.tsx`):
+**Sidebar nav items** (`src/components/layout/Sidebar.tsx`) — updated for v2.5 navigation structure:
 
 ```typescript
-const NAV_ITEMS = [
-  { href: '/',              label: 'Agents',      icon: CircleDot,    shortcut: 'g+a' },
-  { href: '/pipeline',      label: 'Pipeline',    icon: GitBranch,    shortcut: 'g+p' },
-  { href: '/blueprint',     label: 'Blueprint',   icon: FolderOpen,   shortcut: 'g+b' },
-  { href: '/project',       label: 'Project',     icon: BarChart2,    shortcut: 'g+r' },
-  { href: '/qa',            label: 'QA Metrics',  icon: FlaskConical, shortcut: 'g+q' },
-  { href: '/operations',    label: 'Operations',  icon: Rocket,       shortcut: 'g+o' },
-  { href: '/notifications', label: 'Alerts',      icon: Bell,         shortcut: 'g+n', badge: true },
+// Hierarchical nav groups matching the revised navigation structure
+const NAV_GROUPS = [
+  {
+    label: 'Agents',
+    icon: CircleDot,
+    shortcut: 'g+a',
+    href: '/agents',
+    children: [
+      { href: '/agents',               label: 'Overview'         },
+      { href: '/agents/decision-graph',label: 'Decision Graph'   },  // ◆ A1
+      { href: '/agents/session-replay',label: 'Session Replay'   },  // ◆ A2
+      { href: '/agents/cost',          label: 'Cost Tracker'     },  // ◆ A3
+      { href: '/agents/comparison',    label: 'Comparison'       },  // ◆ A4
+    ],
+  },
+  {
+    label: 'Pipeline',
+    icon: GitBranch,
+    shortcut: 'g+p',
+    href: '/pipeline',
+    children: [
+      { href: '/pipeline',             label: 'Live View'        },
+      { href: '/pipeline/history',     label: 'Run History'      },  // ◆ B1
+      { href: '/pipeline/analytics',   label: 'Analytics'        },  // ◆ B2
+      { href: '/pipeline/yaml',        label: 'YAML Preview'     },  // ◆ B3
+      { href: '/pipeline/task-tracker',label: 'Task Tracker'     },  // ◆ B4
+    ],
+  },
+  {
+    label: 'Project',
+    icon: BarChart2,
+    shortcut: 'g+r',
+    href: '/project',
+    children: [
+      { href: '/project',              label: 'Dashboard'        },
+      { href: '/project/iterations',   label: 'Iterations'       },  // ◆ C1
+      { href: '/project/releases',     label: 'Releases'         },  // ◆ C5
+      { href: '/project/dependencies', label: 'Dependencies'     },  // ◆ C2
+      { href: '/project/risks',        label: 'Risks'            },  // ◆ C3
+      { href: '/project/decisions',    label: 'Decisions'        },  // ◆ C4
+    ],
+  },
+  {
+    label: 'Quality',
+    icon: FlaskConical,
+    shortcut: 'g+q',
+    href: '/quality',
+    children: [
+      { href: '/quality',              label: 'Metrics'          },
+      { href: '/quality/defects',      label: 'Defect Analysis'  },  // ◆ D1
+      { href: '/quality/gate-history', label: 'Gate History'     },
+    ],
+  },
+  {
+    label: 'Operations',
+    icon: Rocket,
+    shortcut: 'g+o',
+    href: '/operations',
+    children: [
+      { href: '/operations',             label: 'Dashboard'      },
+      { href: '/operations/deployments', label: 'Deployments'    },  // ◆ D2
+      { href: '/operations/slo-forecast',label: 'SLO Forecast'   },  // ◆ D3
+    ],
+  },
+  {
+    label: 'Troubleshooting',
+    icon: SearchCode,
+    shortcut: 'g+t',
+    href: '/troubleshooting',
+    children: [
+      { href: '/troubleshooting/console',    label: 'Console'    },  // ◆ E1
+      { href: '/troubleshooting/blockers',   label: 'Blockers'   },  // ◆ E4
+      { href: '/troubleshooting/root-cause', label: 'Root Cause' },  // ◆ E3
+      { href: '/troubleshooting/comms-audit',label: 'Comms Audit'},  // ◆ E2
+    ],
+  },
+  {
+    label: 'Blueprint',
+    icon: FolderOpen,
+    shortcut: 'g+b',
+    href: '/blueprint',
+    children: [
+      { href: '/blueprint',         label: 'Explorer'             },
+      { href: '/blueprint/compare', label: 'Compare'              },  // ◆ F1
+    ],
+  },
+];
+
+const STANDALONE_ITEMS = [
+  { href: '/notifications', label: 'Notifications', icon: Bell,     shortcut: 'g+n', badge: true },
+  { href: '/activity-log',  label: 'Activity Log',  icon: ScrollText,shortcut: 'g+l' },  // ◆ F2
+  { href: '/webhooks',      label: 'Webhooks',      icon: Webhook,  shortcut: 'g+w' },  // ◆ F4
 ];
 
 const BOTTOM_ITEMS = [
@@ -3362,6 +4766,523 @@ export const api = {
 
 **`src/lib/constants.ts`** — all status color mappings (see Section 11 for full table).
 
+### 5.12 New Frontend Pages — v1.5 Features
+
+---
+
+#### Agent Cost Tracker (`/agents/cost`)
+
+**Key components:**
+
+```typescript
+// CostDashboard.tsx — page root
+// Props: period: 'day' | 'week' | 'month'; onPeriodChange: (p) => void
+
+// CostBreakdownChart.tsx — pie/bar breakdown
+// Props: data: CostSummary; view: 'byAgent' | 'byModel' | 'byPhase'
+
+// CostTopTasksTable.tsx — top 10 most expensive tasks
+// Props: tasks: CostSummary['topExpensiveTasks']
+
+// CostAnomalyAlert.tsx — anomaly warning banner
+// Props: alerts: Array<{ agentId; reason; threshold; actual }>
+
+// CostTrendChart.tsx — daily cost trend (Recharts BarChart)
+// Props: trend: TimeSeriesPoint[]; budgetLine?: number
+```
+
+**Hook: `src/hooks/useCost.ts`:**
+
+```typescript
+'use client';
+import { useState, useEffect, useCallback } from 'react';
+import { CostSummary } from '@/types';
+import { api } from '@/lib/api';
+
+export function useCost(period: 'day' | 'week' | 'month' = 'week') {
+  const [summary, setSummary] = useState<CostSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const data = await api.get<CostSummary>(`/api/cost/summary?period=${period}`);
+      setSummary(data);
+      setError(null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [period]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  return { summary, loading, error, refresh };
+}
+```
+
+---
+
+#### Task Lifecycle Tracker (`/pipeline/task-tracker`)
+
+**Key components:**
+
+```typescript
+// TaskLifecycleTimeline.tsx — vertical timeline
+// Props: taskId: string; events: TaskLifecycleEvent[]
+// Renders each event with timestamp, duration since previous, agent badge, and
+// context link (to git commit, notification, QA result)
+
+// TaskSelector.tsx — search/select a task to inspect
+// Props: onSelect: (taskId: string) => void
+
+// TimelineEventDot.tsx — coloured dot per event type
+// Props: eventType: TaskLifecycleEvent['eventType']
+```
+
+**Hook: `src/hooks/useTaskLifecycle.ts`:**
+
+```typescript
+export function useTaskLifecycle(taskId: string | null) {
+  // Returns: { task: Task | null; events: TaskLifecycleEvent[]; loading; error }
+  // Fetches GET /api/task-lifecycle/:taskId when taskId is non-null
+}
+```
+
+---
+
+#### Activity Feed & Audit Log (`/activity-log`)
+
+**Key components:**
+
+```typescript
+// AuditLogFeed.tsx — reverse-chronological log with virtual scrolling
+// Props: entries: AuditLogEntry[]; loading: boolean
+// Uses react-window for performance on large log datasets
+
+// AuditLogFilters.tsx — filter panel
+// Props: filters: AuditLogFilters; onChange: (f: AuditLogFilters) => void
+// Supports: eventType multi-select, vmId, agentId, date range, severity
+
+// AuditLogExport.tsx — export button with format selector
+// Props: filters: AuditLogFilters
+// Calls GET /api/audit-log/export?format=csv|json and triggers download
+
+// AuditLogEntry.tsx — single entry row
+// Props: entry: AuditLogEntry; expanded: boolean; onToggle: () => void
+```
+
+**Hook: `src/hooks/useAuditLog.ts`:**
+
+```typescript
+export function useAuditLog(filters: AuditLogFilters = {}) {
+  // Returns: { entries: AuditLogEntry[]; total; page; hasMore; loading; error; loadMore() }
+  // Infinite scroll via loadMore() — appends next page to entries array
+}
+```
+
+---
+
+#### Blocker Chain Visualiser (`/troubleshooting/blockers`)
+
+**Key components:**
+
+```typescript
+// BlockerChainDiagram.tsx — React Flow graph of blocker chain
+// Props: chain: BlockerChain
+// Renders each blocker item as a node; edges show dependency direction
+// Node colour matches task status; blocked nodes pulse with slow-blink
+
+// BlockerImpactScore.tsx — impact score badge with tooltip
+// Props: score: number; downstreamCount: number
+
+// BlockerList.tsx — left panel listing all active blockers
+// Props: chains: BlockerChain[]; onSelect: (chain: BlockerChain) => void
+// Sorted by impactScore descending (highest impact first)
+```
+
+---
+
+#### Project Health Score Badge (`HealthScoreBadge.tsx` in `layout/Header`)
+
+```typescript
+// Visible in header on every page (persistent indicator)
+// Props: score: ProjectHealthScore
+
+// Renders: coloured badge (green/yellow/red) showing the numeric score
+// Click opens a popover with per-dimension breakdown:
+//   - Dimension name, weight, raw score, weighted score
+//   - Sparkline showing 14-day trend
+
+// Hook: src/hooks/useHealthScore.ts
+export function useHealthScore() {
+  // Returns: { healthScore: ProjectHealthScore | null; loading }
+  // Polls GET /api/health-score every 60s (background interval)
+  // Also updates on SSE health_score events
+}
+```
+
+---
+
+#### Webhook Configuration (`/webhooks`)
+
+**Key components:**
+
+```typescript
+// WebhookConfigCard.tsx — card for a single webhook config
+// Props: config: WebhookConfig; onToggle; onTest; onDelete
+
+// WebhookForm.tsx — create/edit form
+// Props: initial?: Partial<WebhookConfig>; onSave: (config: WebhookConfig) => void
+// Fields: name, channel selector, trigger selector, target URL / key
+// On save: POST /api/webhooks or PATCH /api/webhooks/:id
+
+// WebhookTestResult.tsx — inline test result display
+// Props: result: { success; statusCode?; error? } | null
+```
+
+---
+
+### 5.13 New Frontend Pages — v2.0 Features
+
+---
+
+#### Agent Decision Graph (`/agents/decision-graph`)
+
+**Key components:**
+
+```typescript
+// DecisionGraphCanvas.tsx — React Flow canvas for decision tree
+// Props: graph: DecisionGraph; onNodeClick: (node: DecisionNode) => void
+// Node types: reasoning (blue), tool_call (purple), model_response (green/red),
+//             branch (orange), skipped (gray)
+// Edge: shows data flow label on hover
+// Right panel: node detail drawer showing full prompt/response on click
+
+// DecisionGraphNodeCard.tsx — custom React Flow node
+// Props: node data: DecisionNode
+// Shows: type badge, outcome colour, token count, latency
+
+// AgentSessionPicker.tsx — session selector dropdown for the page
+// Props: sessions: Array<{ sessionId; startedAt; taskId }>; onSelect
+```
+
+**Hook: `src/hooks/useDecisionGraph.ts`:**
+
+```typescript
+export function useDecisionGraph(vmId: string, agentId: string, sessionId: string | null) {
+  // Returns: { graph: DecisionGraph | null; loading; error }
+  // Fetches GET /api/decision-graph/:vmId/:agentId/sessions/:sessionId when sessionId set
+}
+```
+
+---
+
+#### Agent Session Replay (`/agents/session-replay`)
+
+**Key components:**
+
+```typescript
+// SessionReplayTimeline.tsx — horizontal scrubber + step list
+// Props: replay: SessionReplay; currentSeq: number; onSeek: (seq: number) => void
+
+// SessionReplayPlayer.tsx — playback controls
+// Props: replay: SessionReplay; onPlay; onPause; onSkip; speed: 1|2|4
+// Buttons: Play/Pause, Step Back, Step Forward, Skip to Error, Skip to Longest
+// Speed selector: 1× / 2× / 4×
+
+// SessionStepDetail.tsx — full content panel for paused step
+// Props: step: SessionReplayEvent; costUsd?: number
+
+// SessionReplayScrubber.tsx — visual timeline bar
+// Each step rendered as a coloured segment; width proportional to duration
+// Click anywhere to seek
+```
+
+**Hook: `src/hooks/useSessionReplay.ts`:**
+
+```typescript
+export function useSessionReplay(vmId: string, agentId: string, sessionId: string | null) {
+  // Returns: { replay: SessionReplay | null; currentStep: SessionReplayEvent | null;
+  //            seek(seq): void; loading; error }
+  // Loads manifest on sessionId change; fetches full step content on seek
+}
+```
+
+---
+
+#### Pipeline Analytics (`/pipeline/analytics`)
+
+**Key components:**
+
+```typescript
+// BottleneckHeatmap.tsx — phase × run matrix
+// Cells coloured by deviation from average (green = faster, red = slower)
+
+// PipelineAnalyticsChart.tsx — phase duration trend lines (Recharts LineChart)
+// Each phase has its own line; one chart per phase showing duration over last N runs
+
+// ThroughputMetricsCard.tsx — 3 KPI cards
+// Cards: Tasks/Day (velocity), Cycle Time (days), Lead Time (days)
+
+// PredictiveAlertBanner.tsx — warning/critical banner list
+// Props: alerts: BottleneckAnalysis['predictiveAlerts']
+```
+
+---
+
+#### Iteration Manager (`/project/iterations`)
+
+**Key components:**
+
+```typescript
+// IterationList.tsx — list of all iterations
+// Props: iterations: Iteration[]; activeId?: string; onSelect: (id) => void
+
+// IterationDetail.tsx — selected iteration detail
+// Sub-components:
+//   BurndownChart (existing)
+//   BurnupChart (new — Recharts AreaChart with completed points by day)
+//   ScopeCreepIndicator (badge showing # tasks added mid-iteration)
+//   VelocityTrendChart (sparkline of last 5 iterations)
+//   CarryoverList (tasks not completed)
+
+// Hook: src/hooks/useIterations.ts
+export function useIterations() {
+  // Returns: { iterations: Iteration[]; active: Iteration | null; loading; error }
+}
+```
+
+---
+
+#### Dependency Map (`/project/dependencies`)
+
+**Key components:**
+
+```typescript
+// DependencyGraph.tsx — React Flow DAG
+// Props: nodes: DependencyNode[]; edges: DependencyEdge[]
+// Critical path nodes and edges highlighted in amber
+// Click node → opens Task Lifecycle Tracker in slide panel
+
+// DependencyScopeToggle.tsx — switch between Task view and Module view
+// Props: scope: 'task' | 'module'; onChange: (scope) => void
+
+// Hook: src/hooks/useDependencies.ts
+export function useDependencies(scope: 'task' | 'module' = 'task') {
+  // Returns: { nodes; edges; criticalPath; loading; error }
+}
+```
+
+---
+
+#### Root Cause Analyser (`/troubleshooting/root-cause`)
+
+**Key components:**
+
+```typescript
+// RootCauseChainView.tsx — visual chain from symptom to root cause
+// Each chain step rendered as a linked card
+// Confidence badge: High (green) / Medium (yellow) / Low (gray)
+
+// SymptomSelector.tsx — start analysis from notification/task/gate
+// Props: onSubmit: (symptomType, symptomId) => void; loading: boolean
+
+// SuggestedResolutionCard.tsx
+// Props: resolution: string; similarIssues: string[]
+```
+
+---
+
+#### Risk Register (`/project/risks`)
+
+**Key components:**
+
+```typescript
+// RiskHeatMap.tsx — 3×3 probability × impact grid
+// Each cell shows number of risks and a compact risk list on hover
+
+// RiskTable.tsx — full sortable/filterable risk table
+// Props: risks: Risk[]; onFilter
+// Columns: ID, Title, Category, Probability, Impact, Status, Owner, Date
+
+// AutoDetectedRiskBanner.tsx — banner for system-generated risks
+// Props: risks: Risk[]; onDismiss
+
+// Hook: src/hooks/useRisks.ts
+export function useRisks(filters: { status?: RiskStatus; category?: RiskCategory } = {}) {
+  // Returns: { risks; heatmap; autoDetected; loading; error }
+}
+```
+
+---
+
+#### Blueprint Diff (`/blueprint/compare`)
+
+**Key components:**
+
+```typescript
+// BlueprintDiffViewer.tsx — split diff view with syntax highlighting
+// Props: diff: BlueprintDiff; viewMode: 'unified' | 'split'
+
+// VersionSelector.tsx — pick two commits or dates
+// Props: commits: BlueprintCommit[]; onSelectFrom; onSelectTo
+
+// DiffChangeSummaryBar.tsx — +additions / -deletions counter
+// Props: summary: BlueprintDiff['changeSummary']
+```
+
+---
+
+#### Troubleshooting Console (`/troubleshooting/console`)
+
+**Key components:**
+
+```typescript
+// TroubleshootingConsole.tsx — main workspace
+// Left panel: IssueSelector (pick notification/task/gate)
+// Centre panel: ContextPanel (all gathered context)
+// Right panel: SuggestedActions
+
+// ContextPanel.tsx
+// Sub-sections: Agents Involved, Tasks Affected, Pipeline Phase,
+//               Related Notifications, Related Git Commits,
+//               Related QA Results
+
+// CorrelationTimeline.tsx — all events on a single timeline
+// Props: events: TroubleshootContext['correlationTimeline']
+```
+
+---
+
+### 5.14 New Frontend Pages — v2.5 Features
+
+---
+
+#### Agent Comparison Matrix (`/agents/comparison`)
+
+**Key components:**
+
+```typescript
+// AgentComparisonTable.tsx — sortable multi-column comparison table
+// Props: agents: AgentComparison[]; metric: keyof AgentComparison
+// Outlier highlighting: top performer (green row), underperformer (red row)
+// Column click sorts ascending/descending
+
+// VelocitySparkline.tsx — inline trend chart per agent
+// Props: data: TimeSeriesPoint[]; width: number
+```
+
+---
+
+#### Pipeline YAML Preview (`/pipeline/yaml`)
+
+**Key components:**
+
+```typescript
+// LobsterYAMLPreview.tsx (enhanced from existing)
+// Now includes:
+//   - Structured step flow (vertical node diagram)
+//   - Validation error panel
+//   - Diff viewer vs previous YAML version
+
+// YAMLValidationPanel.tsx
+// Props: errors: LobsterYAMLStep['validationErrors'][]; warnings: string[]
+
+// YAMLStepFlowDiagram.tsx — vertical flow diagram of YAML steps
+// Props: steps: LobsterYAMLStep[]
+// Shows agent assignment, on_pass/on_fail branches
+```
+
+---
+
+#### Defect Deep-Dive (`/quality/defects`)
+
+**Key components:**
+
+```typescript
+// DefectAgingChart.tsx — bar chart of open defects by age bucket
+// Props: data: Array<{ ageBucket: string; critical: number; major: number; minor: number }>
+
+// DefectHeatmap.tsx — module × severity matrix
+// Props: data: DefectAnalysis['moduleHeatmap']
+
+// BugEscapeRateCard.tsx — KPI card
+// Props: escapeRate: number; trend: TimeSeriesPoint[]
+
+// RootCauseBreakdown.tsx — donut chart
+// Props: breakdown: DefectAnalysis['rootCauseBreakdown']
+```
+
+---
+
+#### Deployment Diff Viewer (`/operations/deployments`)
+
+**Key components:**
+
+```typescript
+// DeploymentDiffViewer.tsx — file diff with syntax highlighting
+// Props: diff: DeploymentDiff; selectedFile?: string
+
+// DeploymentVersionSelector.tsx
+// Props: history: Deployment[]; onSelectFrom; onSelectTo
+
+// RollbackChainCard.tsx — what-would-be-reverted display
+// Props: chain: { willRevert: ReleaseNote[]; affectedEnvs: DeploymentEnvironment[] }
+
+// SmokeTestResultsTable.tsx
+// Props: results: DeploymentDiff['smokeTestResults']
+```
+
+---
+
+#### SLO Forecast (`/operations/slo-forecast`)
+
+**Key components:**
+
+```typescript
+// SLOForecastChart.tsx — Recharts ComposedChart
+// Historical error budget (solid line) + projection (dashed line)
+// Exhaustion date marked with vertical reference line
+
+// SLORunwayCard.tsx — "N days until exhaustion" KPI card
+// Props: forecast: SLOForecast
+// Color: green (> 30 days) / yellow (10–30 days) / red (< 10 days)
+
+// WhatIfScenarioPanel.tsx
+// Props: scenarios: SLOForecast['scenarios']; onScenarioSelect
+
+// SLOBreachHistoryTable.tsx
+// Props: breaches: SLOForecast['breachHistory']
+```
+
+---
+
+### 5.15 Updated `.env.example` — New Variables
+
+Add the following to the existing `.env.example` (after the polling section):
+
+```bash
+# ─── Cost Tracking ────────────────────────────────────────────────────────────
+# Daily budget threshold in USD — triggers anomaly alert if exceeded
+GATEFORGE_COST_DAILY_BUDGET_USD=100
+
+# ─── Webhook Dispatcher ───────────────────────────────────────────────────────
+# SMTP for email channel (optional)
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=gateforge@yourdomain.com
+
+# ─── Audit Log ────────────────────────────────────────────────────────────────
+# Log retention in days (30 / 90 / 180 / 365)
+AUDIT_LOG_RETENTION_DAYS=90
+# Path to append-only audit log file
+AUDIT_LOG_PATH=/data/config/audit.log
+```
+
 ---
 
 ## 6. Implementation Phases & Task Breakdown
@@ -3457,6 +5378,116 @@ export const api = {
 **Phase 4 Total:** 47 story points
 
 **Grand Total: 248 story points across 54 tasks**
+
+### Phase 1.5: Governance & Observability (Weeks 13–17) — v1.5 Features
+
+**Objective:** Add cost governance, lifecycle tracking, audit trail, comms audit, health scoring, blocker visualisation, and webhook alerting.
+
+| Task ID | Title | Assigned VM | Dependencies | Acceptance Criteria | Points |
+|---------|-------|-------------|--------------|---------------------|--------|
+| TASK-PORTAL-055 | Backend: `services/costTracker.ts` — token aggregation + pricing engine | VM-3 dev-01 | TASK-PORTAL-016 | Aggregates token records from gateway; computes USD cost using pricing table; anomaly detection flags agent at >3× avg; runaway alert fires at >30 min active | 8 |
+| TASK-PORTAL-056 | Backend: `routes/cost.ts` — 4 endpoints (summary, records, alerts, pricing) | VM-3 dev-01 | TASK-PORTAL-055 | All 4 endpoints respond; period filter works; pagination correct; budget utilisation pct computed | 5 |
+| TASK-PORTAL-057 | Frontend: Cost Tracker page — `CostDashboard`, `CostBreakdownChart`, `CostTrendChart` | VM-3 dev-02 | TASK-PORTAL-056 | Period selector switches day/week/month; pie chart shows by-agent breakdown; bar chart shows daily trend; anomaly banner appears when alerts present | 8 |
+| TASK-PORTAL-058 | Frontend: `useCost` hook | VM-3 dev-02 | TASK-PORTAL-057 | Hook fetches summary on mount and on period change; exposes refresh; no state leak between period switches | 3 |
+| TASK-PORTAL-059 | Backend: `routes/task-lifecycle.ts` — task timeline from Blueprint | VM-3 dev-01 | TASK-PORTAL-022 | Endpoint returns ordered `TaskLifecycleEvent[]` for a task; event types correctly classified; duration since previous event computed | 5 |
+| TASK-PORTAL-060 | Frontend: Task Lifecycle Tracker page — `TaskLifecycleTimeline`, `TaskSelector` | VM-3 dev-02 | TASK-PORTAL-059 | Vertical timeline renders all events; coloured dots per event type; task selector search works; click on timeline event opens context (git/notification link) | 8 |
+| TASK-PORTAL-061 | Frontend: `useTaskLifecycle` hook | VM-3 dev-02 | TASK-PORTAL-060 | Returns task + events when taskId is set; null-safe when taskId is null | 2 |
+| TASK-PORTAL-062 | Backend: `routes/pipeline-history.ts` — run list, run detail, run compare | VM-3 dev-01 | TASK-PORTAL-025 | Run list paginated; run detail returns all phases; compare endpoint returns PipelineRunComparison with phase delta times | 8 |
+| TASK-PORTAL-063 | Frontend: Pipeline Run History page — `PipelineRunList`, `PipelineRunCompare` | VM-3 dev-02 | TASK-PORTAL-062 | Run list table with filters; click run opens frozen pipeline view; compare selector picks 2 runs and shows side-by-side phase durations bar chart | 8 |
+| TASK-PORTAL-064 | Frontend: `usePipelineHistory` hook | VM-3 dev-02 | TASK-PORTAL-063 | Paginated run list; comparison loads both runs in parallel | 3 |
+| TASK-PORTAL-065 | Backend: `services/auditLogger.ts` — append-only log writer | VM-3 dev-01 | TASK-PORTAL-002 | Records written to AUDIT_LOG_PATH; file is append-only; no record is ever modified; retention policy deletes records older than AUDIT_LOG_RETENTION_DAYS on startup | 5 |
+| TASK-PORTAL-066 | Backend: `routes/audit-log.ts` — query, detail, export | VM-3 dev-01 | TASK-PORTAL-065 | Filters by eventType, vmId, agentId, date range, severity; pagination works; CSV export generates valid CSV; JSON export is parseable | 8 |
+| TASK-PORTAL-067 | Frontend: Activity Log page — `AuditLogFeed`, `AuditLogFilters`, `AuditLogExport` | VM-3 dev-02 | TASK-PORTAL-066 | Virtual-scrolled feed handles 10k+ entries; filter panel updates feed; export button triggers file download | 8 |
+| TASK-PORTAL-068 | Frontend: `useAuditLog` hook with infinite scroll | VM-3 dev-02 | TASK-PORTAL-067 | Infinite scroll loads next page on scroll; total count displayed; loadMore appends without duplicates | 5 |
+| TASK-PORTAL-069 | Backend: `routes/comms-audit.ts` — message log, stats, search | VM-3 dev-01 | TASK-PORTAL-016 | Message log paginated; full payload available on single message endpoint; search returns matches up to 100; delivery latency and retry count computed | 8 |
+| TASK-PORTAL-070 | Frontend: Comms Audit page — `CommsAuditLog`, `MessageFlowDiagram` | VM-3 dev-02 | TASK-PORTAL-069 | Message table with HMAC status badge; click row shows full payload; sequence diagram rendered for filtered time window | 8 |
+| TASK-PORTAL-071 | Backend: `services/healthScore.ts` — 7-dimension composite scorer | VM-3 dev-01 | TASK-PORTAL-031 | Computes score every 60s; all 7 dimensions weighted correctly; score stored in 14-day rolling history; webhook trigger fires on >10pt drop in 1 hour | 8 |
+| TASK-PORTAL-072 | Backend: `routes/health-score.ts` — current score + history | VM-3 dev-01 | TASK-PORTAL-071 | Current score endpoint returns all dimension detail; history returns 14-day TimeSeriesPoint array | 3 |
+| TASK-PORTAL-073 | Frontend: `HealthScoreBadge` in Header + `useHealthScore` hook | VM-3 dev-02 | TASK-PORTAL-072 | Badge visible on every page in header; colour matches tier (green/yellow/red); popover shows dimension breakdown; sparkline shows 14-day trend | 5 |
+| TASK-PORTAL-074 | Backend: `routes/blockers.ts` — blocker chain with impact scoring | VM-3 dev-01 | TASK-PORTAL-031 | Returns all blocked items; each chain traces full dependency depth; impact score = count of downstream items; sorted by impact score desc | 5 |
+| TASK-PORTAL-075 | Frontend: Blocker Chain Visualiser — `BlockerChainDiagram`, `BlockerList` | VM-3 dev-02 | TASK-PORTAL-074 | Left panel lists all blockers by impact; right panel renders React Flow chain graph; blocked nodes pulse; click node opens task lifecycle tracker | 8 |
+| TASK-PORTAL-076 | Backend: `services/webhookDispatcher.ts` — multi-channel dispatcher | VM-3 dev-01 | TASK-PORTAL-071 | Dispatches to all 5 channel types (Slack, email, PagerDuty, HTTP, Telegram); retries 3× with exponential backoff on failure; test endpoint fires real payload | 8 |
+| TASK-PORTAL-077 | Backend: `routes/webhooks.ts` — CRUD + test | VM-3 dev-01 | TASK-PORTAL-076 | All 6 endpoints (list, get, create, test, toggle, delete) work; POST validates required fields per channel type | 5 |
+| TASK-PORTAL-078 | Frontend: Webhooks page — `WebhookConfigCard`, `WebhookForm` | VM-3 dev-02 | TASK-PORTAL-077 | List of webhooks with enabled/disabled toggle; create form validates per channel; test button shows inline result; delete with confirmation | 8 |
+
+**Phase 1.5 Total:** 149 story points
+
+---
+
+### Phase 2.0: Intelligence & History (Weeks 18–26) — v2.0 Features
+
+**Objective:** Decision graph, session replay, pipeline analytics, root cause analysis, troubleshooting console, iteration manager, dependency map, blueprint diff, release manager, decision timeline, and risk register.
+
+| Task ID | Title | Assigned VM | Dependencies | Acceptance Criteria | Points |
+|---------|-------|-------------|--------------|---------------------|--------|
+| TASK-PORTAL-079 | Backend: `routes/decision-graph.ts` — session list + graph endpoint | VM-3 dev-01 | TASK-PORTAL-016 | Session list endpoint returns available sessions with node count; graph endpoint returns DecisionGraph with all nodes and edges; full node content loads on demand | 8 |
+| TASK-PORTAL-080 | Frontend: Decision Graph page — `DecisionGraphCanvas`, `AgentSessionPicker` | VM-3 dev-02 | TASK-PORTAL-079 | React Flow canvas renders all nodes colour-coded by type and outcome; click node opens detail drawer with full prompt/response; session picker loads available sessions | 13 |
+| TASK-PORTAL-081 | Frontend: `useDecisionGraph` hook | VM-3 dev-02 | TASK-PORTAL-080 | Fetches graph on sessionId change; node detail fetch is lazy (on click) | 3 |
+| TASK-PORTAL-082 | Backend: `routes/session-replay.ts` — manifest + step content | VM-3 dev-01 | TASK-PORTAL-016 | Session list returns replay-available sessions; manifest endpoint returns SessionReplay with step list; individual step content loads full prompt/response | 8 |
+| TASK-PORTAL-083 | Frontend: Session Replay page — `SessionReplayTimeline`, `SessionReplayPlayer`, `SessionStepDetail` | VM-3 dev-02 | TASK-PORTAL-082 | Horizontal scrubber with coloured step segments; Play/Pause/Skip controls; speed selector (1×/2×/4×); pause shows full step content; Jump to Error and Jump to Longest step work | 13 |
+| TASK-PORTAL-084 | Frontend: `useSessionReplay` hook | VM-3 dev-02 | TASK-PORTAL-083 | Manifest fetched on sessionId change; step content lazily loaded on seek; playback timer respects speed multiplier | 5 |
+| TASK-PORTAL-085 | Backend: `services/pipelineAnalytics.ts` — bottleneck detection + throughput | VM-3 dev-01 | TASK-PORTAL-062 | Phase stats computed from run history; bottleneck identified when current > 1.5× avg; throughput metrics (tasks/day, cycle time, lead time) computed correctly | 8 |
+| TASK-PORTAL-086 | Backend: `routes/pipeline-analytics.ts` — bottlenecks, phase durations, throughput | VM-3 dev-01 | TASK-PORTAL-085 | All 3 endpoints return typed data; bottleneck endpoint identifies correct phase in test scenario | 5 |
+| TASK-PORTAL-087 | Frontend: Pipeline Analytics page — `BottleneckHeatmap`, `PipelineAnalyticsChart`, `ThroughputMetricsCard` | VM-3 dev-02 | TASK-PORTAL-086 | Phase × run heatmap renders with deviation colour scale; trend lines show phase durations over last N runs; 3 KPI cards show velocity, cycle time, lead time; predictive alert banners display | 8 |
+| TASK-PORTAL-088 | Backend: `services/rootCauseEngine.ts` — upstream trace + confidence scoring | VM-3 dev-01 | TASK-PORTAL-031 | Traces upstream from symptom through pipeline state and agent logs; builds RootCauseChain with ≥3 steps; confidence = high when full trace available; similar issue lookup returns past chain IDs | 13 |
+| TASK-PORTAL-089 | Backend: `routes/root-cause.ts` — analyse + history | VM-3 dev-01 | TASK-PORTAL-088 | POST /analyse returns chain within 5s; history endpoint paginated; GET /:id returns stored chain | 3 |
+| TASK-PORTAL-090 | Frontend: Root Cause Analyser page — `RootCauseChainView`, `SymptomSelector` | VM-3 dev-02 | TASK-PORTAL-089 | Symptom selector allows picking notification/task/gate; chain renders as linked cards; confidence badge colour-coded; suggested resolution displayed; similar issues linked | 8 |
+| TASK-PORTAL-091 | Backend: `routes/troubleshoot.ts` — context aggregator | VM-3 dev-01 | TASK-PORTAL-031 | POST /context gathers all relevant data (agents, tasks, phase, notifications, commits, QA) and returns TroubleshootContext within 3s | 8 |
+| TASK-PORTAL-092 | Frontend: Troubleshooting Console page | VM-3 dev-02 | TASK-PORTAL-091 | Three-panel layout: issue selector, context panel, suggested actions; correlation timeline renders all events in order; action links navigate to relevant page | 13 |
+| TASK-PORTAL-093 | Backend: `routes/iterations.ts` — list, active, detail, metrics | VM-3 dev-01 | TASK-PORTAL-031 | All 4 endpoints return typed Iteration data; burndown and burnup arrays have one point per day; velocity trend covers last 5 iterations | 5 |
+| TASK-PORTAL-094 | Frontend: Iteration Manager page — `IterationList`, `IterationDetail`, `BurnupChart` | VM-3 dev-02 | TASK-PORTAL-093 | Iteration list shows all iterations with status badge; active iteration detail shows burndown + burnup + velocity trend + scope creep indicator; carryover tasks listed | 8 |
+| TASK-PORTAL-095 | Frontend: `useIterations` hook | VM-3 dev-02 | TASK-PORTAL-094 | Returns all iterations + active iteration; auto-refreshes every 60s | 2 |
+| TASK-PORTAL-096 | Backend: `routes/dependencies.ts` — task/module graph, critical path | VM-3 dev-01 | TASK-PORTAL-031 | Graph endpoint returns nodes and edges; critical path computation returns correct longest chain; upstream/downstream endpoint returns both directions for a given task | 8 |
+| TASK-PORTAL-097 | Frontend: Dependency Map page — `DependencyGraph`, `DependencyScopeToggle` | VM-3 dev-02 | TASK-PORTAL-096 | React Flow DAG renders task or module scope; critical path highlighted in amber; blocked tasks show pulse animation; click node opens task lifecycle tracker | 8 |
+| TASK-PORTAL-098 | Frontend: `useDependencies` hook | VM-3 dev-02 | TASK-PORTAL-097 | Returns nodes, edges, criticalPath; scope toggle triggers re-fetch | 2 |
+| TASK-PORTAL-099 | Backend: `routes/blueprint-diff.ts` — diff between commits or dates | VM-3 dev-01 | TASK-PORTAL-022 | Diff computed using simple-git; file-level additions/deletions tallied; author attribution from commit metadata; approval status parsed from Blueprint review docs | 8 |
+| TASK-PORTAL-100 | Frontend: Blueprint Compare page — `BlueprintDiffViewer`, `VersionSelector` | VM-3 dev-02 | TASK-PORTAL-099 | Version selector shows commit log; side-by-side or unified diff view toggle; additions green, deletions red; change summary bar shows totals | 8 |
+| TASK-PORTAL-101 | Backend: `routes/releases.ts` — list, detail, notes, compare | VM-3 dev-01 | TASK-PORTAL-031 | All 4 endpoints return typed Release data; release notes auto-generated from linked task titles and commit messages; compare returns added/removed/changed note sets | 8 |
+| TASK-PORTAL-102 | Frontend: Release Manager page — `ReleaseList`, `ReleaseDetail` | VM-3 dev-02 | TASK-PORTAL-101 | Release list with status badges (planned/staging/released/rolled-back); detail shows included features, bugs fixed, breaking changes, deployment status per environment | 8 |
+| TASK-PORTAL-103 | Backend: `routes/decisions.ts` — decision timeline with filters | VM-3 dev-01 | TASK-PORTAL-022 | Parses decision-log.md and notification history; all 5 entry types identified; filter by type and date range works | 5 |
+| TASK-PORTAL-104 | Frontend: Decision Timeline page — `DecisionTimeline` | VM-3 dev-02 | TASK-PORTAL-103 | Vertical timeline renders all decision types; type filter chips; expandable entries showing rationale and affected items | 5 |
+| TASK-PORTAL-105 | Backend: `routes/risks.ts` — CRUD + auto-detected risks + heatmap | VM-3 dev-01 | TASK-PORTAL-031 | Risk list with filters; heatmap endpoint returns 9-cell matrix; auto-detected risks generated from pipeline data (coverage threshold, agent blocking, SLO budget) | 8 |
+| TASK-PORTAL-106 | Frontend: Risk Register page — `RiskTable`, `RiskHeatMap`, `AutoDetectedRiskBanner` | VM-3 dev-02 | TASK-PORTAL-105 | 3×3 heat map renders with risks in correct cells; risk table sortable by all columns; auto-detected risk banner dismissible | 8 |
+| TASK-PORTAL-107 | Frontend: `useRisks` hook | VM-3 dev-02 | TASK-PORTAL-106 | Returns risks, heatmap data, autoDetected list; filter props re-trigger fetch | 2 |
+
+**Phase 2.0 Total:** 205 story points
+
+---
+
+### Phase 2.5: Advanced Analytics (Weeks 27–32) — v2.5 Features
+
+**Objective:** Agent comparison matrix, YAML validation preview, defect deep-dive, deployment diff viewer, and SLO forecasting.
+
+| Task ID | Title | Assigned VM | Dependencies | Acceptance Criteria | Points |
+|---------|-------|-------------|--------------|---------------------|--------|
+| TASK-PORTAL-108 | Frontend: Agent Comparison Matrix page — `AgentComparisonTable`, `VelocitySparkline` | VM-3 dev-02 | TASK-PORTAL-016 | Comparison table shows all 8 metrics per agent; sortable by any column; top performer row highlighted green; underperformer red; velocity sparklines per agent | 8 |
+| TASK-PORTAL-109 | Backend: Comparison data endpoint `GET /api/agents/comparison` | VM-3 dev-01 | TASK-PORTAL-055 | Returns AgentComparison[] for all agents; metrics derived from cost records, task history, and QA pass rates | 5 |
+| TASK-PORTAL-110 | Frontend: YAML Preview page enhancement — `YAMLValidationPanel`, `YAMLStepFlowDiagram` | VM-3 dev-02 | TASK-PORTAL-025 | Validation panel lists errors with step references; step flow diagram renders agent assignments and on_pass/on_fail branches; diff vs previous version shown | 8 |
+| TASK-PORTAL-111 | Backend: YAML validation endpoint `GET /api/pipeline/yaml/validate` | VM-3 dev-01 | TASK-PORTAL-025 | Parses active Lobster YAML; returns LobsterYAMLStep[] with validation errors; checks for unreachable steps, missing on_fail, undefined agent references, circular deps | 5 |
+| TASK-PORTAL-112 | Frontend: Defect Deep-Dive page — `DefectAgingChart`, `DefectHeatmap`, `RootCauseBreakdown` | VM-3 dev-02 | TASK-PORTAL-035 | Aging chart shows defects by age bucket per severity; module × severity heatmap cell colour scales with density; bug escape rate KPI card; root cause donut chart | 8 |
+| TASK-PORTAL-113 | Backend: `routes/defect-analysis.ts` — DefectAnalysis + aging | VM-3 dev-01 | TASK-PORTAL-035 | Period filter works; module heatmap computed from open defect data; escape rate = UAT/Prod defects / total defects; root cause categories auto-classified from defect titles | 8 |
+| TASK-PORTAL-114 | Frontend: Deployment Diff Viewer page — `DeploymentDiffViewer`, `RollbackChainCard`, `SmokeTestResultsTable` | VM-3 dev-02 | TASK-PORTAL-041 | Deployment version selector shows history; file diff with syntax highlighting; rollback chain shows what would be reverted; smoke test results table per deployment | 8 |
+| TASK-PORTAL-115 | Backend: `routes/deployment-diff.ts` — file diff + rollback chain | VM-3 dev-01 | TASK-PORTAL-041 | Diff computed from Git between two version tags; config changes detected; rollback chain identifies affected notes and environments | 8 |
+| TASK-PORTAL-116 | Frontend: SLO Forecast page — `SLOForecastChart`, `SLORunwayCard`, `WhatIfScenarioPanel` | VM-3 dev-02 | TASK-PORTAL-041 | Forecast chart shows historical + projected budget; exhaustion date reference line; runway KPI card colour-coded by urgency; what-if scenario adjusts projection in real time | 8 |
+| TASK-PORTAL-117 | Backend: `routes/slo-forecast.ts` — forecasts + scenarios | VM-3 dev-01 | TASK-PORTAL-041 | Forecast extrapolates from current burn rate; estimated exhaustion date computed; scenario projections apply adjustmentFactor; historical compliance data returned | 8 |
+| TASK-PORTAL-118 | QA: Phase 1.5 full test pass (unit + integration + E2E) | VM-4 qc-01 | TASK-PORTAL-055 to 078 | All Phase 1.5 features pass QA gate criteria: unit ≥ 85% frontend, ≥ 90% backend; E2E covers cost dashboard, audit log, health score badge, webhook config | 13 |
+| TASK-PORTAL-119 | QA: Phase 2.0 full test pass | VM-4 qc-02 | TASK-PORTAL-079 to 107 | Decision graph renders correctly; session replay playback controls work; root cause trace produces correct chain in test scenario; iteration burndown computed correctly | 13 |
+| TASK-PORTAL-120 | QA: Phase 2.5 full test pass + final performance audit | VM-4 qc-01 | TASK-PORTAL-108 to 117 | All Phase 2.5 features pass QA gate; Lighthouse ≥ 90 maintained; bundle size under targets after all new React Flow + Recharts chunks; full accessibility audit | 13 |
+| TASK-PORTAL-121 | Documentation: Update README, add new .env vars, update CONTRIBUTING guide | VM-3 dev-01 | All tasks | README covers all 30 features; all new .env vars documented with examples; CONTRIBUTING lists new service contracts | 5 |
+
+**Phase 2.5 Total:** 118 story points
+
+---
+
+**Updated Grand Total: 775 story points across 121 tasks (all versions)**
+
+| Version | Phases | Story Points | Tasks |
+|---------|--------|--------------|-------|
+| v1.0 | Phases 1–4 | 248 | 54 |
+| v1.5 | Phase 1.5 | 149 | 24 |
+| v2.0 | Phase 2.0 | 205 | 29 |
+| v2.5 | Phase 2.5 | 118 | 14 |
+| **Total** | | **775** | **121** |
 
 ---
 
@@ -4307,8 +6338,370 @@ event: ping
 data: {"ts":"2026-04-07T14:30:00Z"}
 ```
 
+### 12.7 Cost Summary (`GET /api/cost/summary?period=week`)
+
+```json
+{
+  "ok": true,
+  "data": {
+    "period": "week",
+    "totalCostUsd": 127.43,
+    "budgetUsd": 700.00,
+    "budgetUtilizationPct": 18.2,
+    "byAgent": [
+      { "agentId": "architect", "vmId": "vm-1", "costUsd": 62.14, "tokenCount": 827000 },
+      { "agentId": "dev-01",    "vmId": "vm-3", "costUsd": 28.70, "tokenCount": 957000 },
+      { "agentId": "dev-02",    "vmId": "vm-3", "costUsd": 21.30, "tokenCount": 710000 },
+      { "agentId": "qc-01",     "vmId": "vm-4", "costUsd": 8.44,  "tokenCount": 4220000 },
+      { "agentId": "qc-02",     "vmId": "vm-4", "costUsd": 4.88,  "tokenCount": 2440000 },
+      { "agentId": "operator",  "vmId": "vm-5", "costUsd": 1.97,  "tokenCount": 985000 }
+    ],
+    "byModel": [
+      { "model": "claude-opus-4.6",   "costUsd": 62.14, "tokenCount": 827000 },
+      { "model": "claude-sonnet-4.6", "costUsd": 50.00, "tokenCount": 1667000 },
+      { "model": "minimax-2.7",       "costUsd": 15.29, "tokenCount": 7645000 }
+    ],
+    "byPhase": [
+      { "phase": "Requirements",  "costUsd": 14.20 },
+      { "phase": "Architecture",  "costUsd": 22.40 },
+      { "phase": "Development",   "costUsd": 68.90 },
+      { "phase": "QA",            "costUsd": 18.33 },
+      { "phase": "Deployment",    "costUsd": 3.60 }
+    ],
+    "topExpensiveTasks": [
+      { "taskId": "FEAT-038", "taskTitle": "JWT refresh token rotation", "costUsd": 18.44 },
+      { "taskId": "FEAT-041", "taskTitle": "Payment gateway integration", "costUsd": 15.20 },
+      { "taskId": "ARCH-009", "taskTitle": "Database sharding strategy", "costUsd": 12.77 }
+    ],
+    "trend": [
+      { "timestamp": "2026-04-01", "value": 15.20 },
+      { "timestamp": "2026-04-02", "value": 18.40 },
+      { "timestamp": "2026-04-03", "value": 22.10 },
+      { "timestamp": "2026-04-04", "value": 19.80 },
+      { "timestamp": "2026-04-05", "value": 11.30 },
+      { "timestamp": "2026-04-06", "value": 9.40 },
+      { "timestamp": "2026-04-07", "value": 11.23 }
+    ],
+    "anomalyAlerts": []
+  }
+}
+```
+
+### 12.8 Pipeline Run History (`GET /api/pipeline-history?page=1&pageSize=3`)
+
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "runId": "run-iter-003",
+      "iterationId": "iter-003",
+      "iterationLabel": "Iteration 3 — Core Authentication & Session Management",
+      "startedAt": "2026-03-28T09:00:00Z",
+      "completedAt": null,
+      "durationMs": null,
+      "outcome": "in-progress",
+      "totalTasks": 18,
+      "blockedCount": 1,
+      "qualityGatesPassRate": 0.667,
+      "totalCostUsd": 127.43,
+      "phases": [
+        { "phaseId": 1, "name": "Requirements", "durationMs": 108000000, "taskCount": 12, "blockedCount": 0, "gateDecision": "PROMOTE" },
+        { "phaseId": 2, "name": "Architecture",  "durationMs": 68400000,  "taskCount": 8,  "blockedCount": 0, "gateDecision": "PROMOTE" },
+        { "phaseId": 3, "name": "Development",   "durationMs": null,       "taskCount": 18, "blockedCount": 1, "gateDecision": null },
+        { "phaseId": 4, "name": "QA",            "durationMs": null,       "taskCount": 0,  "blockedCount": 0, "gateDecision": null }
+      ]
+    },
+    {
+      "runId": "run-iter-002",
+      "iterationId": "iter-002",
+      "iterationLabel": "Iteration 2 — User Profile & Notification Service",
+      "startedAt": "2026-03-10T09:00:00Z",
+      "completedAt": "2026-03-27T17:30:00Z",
+      "durationMs": 1544400000,
+      "outcome": "completed",
+      "totalTasks": 22,
+      "blockedCount": 0,
+      "qualityGatesPassRate": 1.0,
+      "totalCostUsd": 98.17,
+      "phases": [
+        { "phaseId": 1, "name": "Requirements", "durationMs": 86400000,  "taskCount": 10, "blockedCount": 0, "gateDecision": "PROMOTE" },
+        { "phaseId": 2, "name": "Architecture",  "durationMs": 57600000,  "taskCount": 6,  "blockedCount": 0, "gateDecision": "PROMOTE" },
+        { "phaseId": 3, "name": "Development",   "durationMs": 864000000, "taskCount": 22, "blockedCount": 0, "gateDecision": "PROMOTE" },
+        { "phaseId": 4, "name": "QA",            "durationMs": 259200000, "taskCount": 22, "blockedCount": 0, "gateDecision": "PROMOTE" },
+        { "phaseId": 5, "name": "Deployment",    "durationMs": 172800000, "taskCount": 3,  "blockedCount": 0, "gateDecision": "PROMOTE" },
+        { "phaseId": 6, "name": "Iteration",     "durationMs": 104400000, "taskCount": 1,  "blockedCount": 0, "gateDecision": "PROMOTE" }
+      ]
+    }
+  ],
+  "total": 3,
+  "page": 1,
+  "pageSize": 3,
+  "hasMore": false
+}
+```
+
+### 12.9 Project Health Score (`GET /api/health-score`)
+
+```json
+{
+  "ok": true,
+  "data": {
+    "score": 73,
+    "tier": "yellow",
+    "computedAt": "2026-04-07T14:30:00Z",
+    "dimensions": [
+      {
+        "name": "Pipeline Progress",
+        "weight": 0.20,
+        "rawScore": 50,
+        "weightedScore": 10.0,
+        "detail": "3 of 6 phases completed in current iteration"
+      },
+      {
+        "name": "Agent Availability",
+        "weight": 0.15,
+        "rawScore": 83,
+        "weightedScore": 12.5,
+        "detail": "5 of 6 configured agents online and active"
+      },
+      {
+        "name": "Task Velocity",
+        "weight": 0.15,
+        "rawScore": 67,
+        "weightedScore": 10.0,
+        "detail": "12 of 18 planned tasks completed (67%)"
+      },
+      {
+        "name": "Quality Gate Health",
+        "weight": 0.15,
+        "rawScore": 67,
+        "weightedScore": 10.0,
+        "detail": "2 of 3 active gates passing (HOLD on user-service)"
+      },
+      {
+        "name": "Blocker Count",
+        "weight": 0.15,
+        "rawScore": 80,
+        "weightedScore": 12.0,
+        "detail": "1 active blocker (FEAT-041)"
+      },
+      {
+        "name": "SLO Compliance",
+        "weight": 0.10,
+        "rawScore": 100,
+        "weightedScore": 10.0,
+        "detail": "All 3 SLOs within error budget"
+      },
+      {
+        "name": "Cost Efficiency",
+        "weight": 0.10,
+        "rawScore": 90,
+        "weightedScore": 9.0,
+        "detail": "Week spend $127 of $700 budget (18%)"
+      }
+    ],
+    "trend": [
+      { "timestamp": "2026-03-25", "value": 81 },
+      { "timestamp": "2026-03-26", "value": 79 },
+      { "timestamp": "2026-03-27", "value": 77 },
+      { "timestamp": "2026-03-28", "value": 74 },
+      { "timestamp": "2026-03-29", "value": 76 },
+      { "timestamp": "2026-03-30", "value": 75 },
+      { "timestamp": "2026-03-31", "value": 74 },
+      { "timestamp": "2026-04-01", "value": 72 },
+      { "timestamp": "2026-04-02", "value": 73 },
+      { "timestamp": "2026-04-03", "value": 74 },
+      { "timestamp": "2026-04-04", "value": 75 },
+      { "timestamp": "2026-04-05", "value": 74 },
+      { "timestamp": "2026-04-06", "value": 72 },
+      { "timestamp": "2026-04-07", "value": 73 }
+    ]
+  }
+}
+```
+
+### 12.10 Audit Log Entries (`GET /api/audit-log?page=1&pageSize=5`)
+
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "id": "audit-3847",
+      "eventType": "task.status_changed",
+      "timestamp": "2026-04-07T13:55:22Z",
+      "actor": "dev-02@VM-3",
+      "vmId": "vm-3",
+      "summary": "Task FEAT-041 status changed from in-progress to blocked",
+      "detail": {
+        "taskId": "FEAT-041",
+        "previousStatus": "in-progress",
+        "newStatus": "blocked",
+        "blockedReason": "FR-055 specifies Stripe and PayPal but architecture.md only defines Stripe"
+      },
+      "severity": "warning",
+      "immutable": true
+    },
+    {
+      "id": "audit-3846",
+      "eventType": "notification.dispatched",
+      "timestamp": "2026-04-07T13:55:22Z",
+      "actor": "dev-02@VM-3",
+      "vmId": "vm-3",
+      "summary": "BLOCKED notification dispatched for FEAT-041",
+      "detail": {
+        "notificationId": "notif-089",
+        "priority": "BLOCKED",
+        "taskId": "FEAT-041"
+      },
+      "severity": "warning",
+      "immutable": true
+    },
+    {
+      "id": "audit-3845",
+      "eventType": "blueprint.updated",
+      "timestamp": "2026-04-07T13:41:09Z",
+      "actor": "qc-02@VM-4",
+      "vmId": "vm-4",
+      "summary": "Blueprint updated: added project/queries/QUERY-009.md",
+      "detail": {
+        "gitSha": "f3a9b1c",
+        "filesChanged": ["project/queries/QUERY-009.md"],
+        "commitMessage": "docs: add QUERY-009 payment gateway options"
+      },
+      "severity": "info",
+      "immutable": true
+    },
+    {
+      "id": "audit-3844",
+      "eventType": "agent.status_changed",
+      "timestamp": "2026-04-07T13:22:44Z",
+      "actor": "system",
+      "vmId": "vm-3",
+      "summary": "Agent dev-01@VM-3 status changed from idle to active",
+      "detail": {
+        "agentId": "dev-01",
+        "previousStatus": "idle",
+        "newStatus": "active",
+        "currentTaskId": "FEAT-038"
+      },
+      "severity": "info",
+      "immutable": true
+    },
+    {
+      "id": "audit-3843",
+      "eventType": "gate.evaluated",
+      "timestamp": "2026-04-07T12:00:00Z",
+      "actor": "qc-01@VM-4",
+      "vmId": "vm-4",
+      "summary": "Quality gate evaluated for user-service: HOLD",
+      "detail": {
+        "module": "user-service",
+        "gateType": "qa",
+        "decision": "HOLD",
+        "failedCriteria": ["unit coverage 93.1% < 95% threshold", "e2e coverage 79.5% < 85% threshold"]
+      },
+      "severity": "warning",
+      "immutable": true
+    }
+  ],
+  "total": 3847,
+  "page": 1,
+  "pageSize": 5,
+  "hasMore": true
+}
+```
+
+### 12.11 Blocker Chains (`GET /api/blockers`)
+
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "blockedItemId": "FEAT-041",
+      "blockedItemTitle": "Payment gateway integration",
+      "blockedItemType": "task",
+      "chain": [
+        {
+          "depth": 0,
+          "itemId": "FEAT-041",
+          "itemTitle": "Payment gateway integration",
+          "itemType": "task",
+          "status": "blocked",
+          "assignedAgentId": "dev-02",
+          "estimatedResolutionAt": null
+        },
+        {
+          "depth": 1,
+          "itemId": "ARCH-DECISION-002",
+          "itemTitle": "Architect must resolve QUERY-009 (PayPal vs Stripe only)",
+          "itemType": "task",
+          "status": "in-progress",
+          "assignedAgentId": "architect",
+          "estimatedResolutionAt": "2026-04-07T17:00:00Z"
+        }
+      ],
+      "impactScore": 3,
+      "downstreamItemIds": ["FEAT-045", "FEAT-047", "TEST-TASK-032"]
+    }
+  ]
+}
+```
+
+### 12.12 SLO Forecast (`GET /api/slo-forecast/slo-error-rate`)
+
+```json
+{
+  "ok": true,
+  "data": {
+    "sloId": "slo-error-rate",
+    "sloName": "Error Rate < 1%",
+    "currentBudgetPct": 43.0,
+    "currentBurnRateMultiplier": 2.1,
+    "estimatedExhaustionDate": "2026-04-19T00:00:00Z",
+    "projectionData": [
+      { "date": "2026-04-07", "budgetPctRemaining": 43.0, "isProjected": false },
+      { "date": "2026-04-08", "budgetPctRemaining": 37.5, "isProjected": true },
+      { "date": "2026-04-09", "budgetPctRemaining": 32.0, "isProjected": true },
+      { "date": "2026-04-10", "budgetPctRemaining": 26.5, "isProjected": true },
+      { "date": "2026-04-11", "budgetPctRemaining": 21.0, "isProjected": true },
+      { "date": "2026-04-12", "budgetPctRemaining": 15.5, "isProjected": true },
+      { "date": "2026-04-13", "budgetPctRemaining": 10.0, "isProjected": true },
+      { "date": "2026-04-14", "budgetPctRemaining": 4.5,  "isProjected": true },
+      { "date": "2026-04-15", "budgetPctRemaining": 0.0,  "isProjected": true }
+    ],
+    "scenarios": [
+      {
+        "label": "Reduce error rate by 50%",
+        "adjustmentFactor": 0.5,
+        "newExhaustionDate": "2026-05-08T00:00:00Z"
+      },
+      {
+        "label": "Fix current spike (return to baseline)",
+        "adjustmentFactor": 0.2,
+        "newExhaustionDate": null
+      }
+    ],
+    "historicalCompliance": [
+      { "month": "2026-01", "achievedPct": 99.5, "targetPct": 99.0 },
+      { "month": "2026-02", "achievedPct": 99.3, "targetPct": 99.0 },
+      { "month": "2026-03", "achievedPct": 98.8, "targetPct": 99.0 }
+    ],
+    "breachHistory": [
+      {
+        "startedAt": "2026-03-15T02:00:00Z",
+        "resolvedAt": "2026-03-15T04:30:00Z",
+        "rootCause": "Deployment of iter-002-build-007 introduced uncaught exception in notification-service"
+      }
+    ]
+  }
+}
+```
+
 ---
 
-*GateForge Admin Portal — Implementation Guide v1.0*  
+*GateForge Admin Portal — Implementation Guide v2.5*  
 *Author: GateForge Agent Team | Generated: 2026-04-07*  
 *Status: Implementation-Ready — Approved for development*
