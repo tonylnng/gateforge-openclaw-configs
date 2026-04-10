@@ -11,6 +11,8 @@ GateForge is a **multi-agent software development lifecycle (SDLC) pipeline** de
 
 GateForge is not a single AI working alone. It is a coordinated team of specialised AI agents, each with a defined role, strict boundaries, and structured communication protocols. The agents operate like a real engineering team: an architect leads, designers plan infrastructure, developers write code, QC agents test it, and an operator deploys it.
 
+**GateForge agents are NOT chatbots generating free-form output. Every agent follows industry-standard methodology, structured checklists, and measurable quality gates. This is a best-practice-first engineering pipeline.**
+
 **Key facts:**
 
 - **Platform**: Multiple OpenClaw instances running on Mac (VMware Fusion), each in its own isolated VM
@@ -19,6 +21,23 @@ GateForge is not a single AI working alone. It is a coordinated team of speciali
 - **Mobile**: React Native (cross-platform)
 - **Orchestration**: Lobster Pipeline (YAML-based, deterministic task workflows) — enabled from day one
 - **Source of truth**: A shared Git repository called the **Blueprint**, owned and maintained by the System Architect
+
+---
+
+## Host Environment
+
+| Property | Value |
+|----------|-------|
+| **Machine** | Apple M4 Pro |
+| **RAM** | 24 GB |
+| **Storage** | 512 GB NVMe SSD |
+| **Hypervisor** | VMware Fusion |
+| **VM Network** | Host-only, 192.168.72.0/24 |
+| **VM Count** | 5 isolated VMs |
+
+VMware Fusion supports **VM resource overcommit** — all 5 VMs share the host's physical resources. Not all VMs run at peak simultaneously, so the total allocated resources across VMs may exceed the host's physical capacity without issue.
+
+The **US VM** is a separate deployment target accessed via Tailscale VPN. It runs the product (Dev → UAT → Production) and does not run OpenClaw.
 
 ---
 
@@ -77,6 +96,21 @@ GateForge uses a **hub-and-spoke** architecture. The System Architect (VM-1) is 
 
 ---
 
+## Network Topology
+
+| VM | Role | Model | IP | Gateway Port |
+|----|------|-------|----|--------------:|
+| VM-1 | System Architect | Claude Opus 4.6 | 192.168.72.10 | 18789 |
+| VM-2 | System Designer | Claude Sonnet 4.6 | 192.168.72.11 | 18789 |
+| VM-3 | Developers (1..N) | Claude Sonnet 4.6 | 192.168.72.12 | 18789 |
+| VM-4 | QC Agents (1..N) | MiniMax 2.7 | 192.168.72.13 | 18789 |
+| VM-5 | Operator | MiniMax 2.7 | 192.168.72.14 | 18789 |
+| US VM | Deployment Target (UAT + Production) | — | Tailscale | — |
+
+All VMs are on subnet `192.168.72.x` within VMware Fusion on Mac. The US VM is accessed via Tailscale SSH — it runs the product only, not OpenClaw.
+
+---
+
 ## The 5 Roles in Detail
 
 ### Role 1: System Architect (VM-1)
@@ -111,6 +145,25 @@ The System Architect is the **prime coordinator** — the brain of GateForge. It
 
 **Key guideline document**: `BLUEPRINT-GUIDE.md` — requirements gathering methodology, Blueprint documentation standards, technical consideration checklists (CQRS, circuit breaker/sentinel, security, access rights), and project management with backlog tracking, iteration cycles, release planning, and bug/enhancement logging
 
+#### Best-Practice Standards — System Architect
+
+| Domain | Standard / Methodology |
+|--------|----------------------|
+| **Requirements** | IEEE 830 / ISO/IEC/IEEE 29148 |
+| **Architecture** | C4 model (Context, Container, Component, Code) |
+| **Project management** | Backlog (MoSCoW + P0–P3), iteration cycles, release planning |
+| **Status reporting** | Structured progress reports on demand via Telegram |
+| **Bug/enhancement logging** | BUG-NNN, ENH-NNN with severity matrix |
+
+**Quick commands** (Tony can send these via Telegram at any time):
+
+| Command | Response |
+|---------|----------|
+| `What is the progress?` | Structured status report across all modules and agents |
+| `Show bugs` | Current open bugs with priority, module, and assignee |
+| `Log bug: ...` | Create a new BUG-NNN entry in the backlog |
+| `Show backlog` | Full backlog summary by priority and status |
+
 ---
 
 ### Role 2: System Designer (VM-2)
@@ -140,6 +193,31 @@ The System Designer is the **infrastructure and application architecture special
 
 **Key guideline document**: `RESILIENCE-SECURITY-GUIDE.md` — local resilience patterns, security measurement, IT industry news monitoring, database resilience, Kubernetes resilience
 
+#### Best-Practice Standards — System Designer
+
+| Domain | Standard / Methodology |
+|--------|----------------------|
+| **Security** | OWASP Top 10, STRIDE threat modelling |
+| **Infrastructure** | 12-factor app methodology, SRE principles |
+| **Resilience** | Circuit breaker, bulkhead, retry with backoff |
+
+**Mandatory Design Checklist** (every design deliverable must address all 10 items):
+
+| # | Item |
+|---|------|
+| 1 | Rollback strategy defined |
+| 2 | STRIDE/OWASP threat model completed |
+| 3 | Circuit breaker / bulkhead patterns applied |
+| 4 | Database migration scripts (up + down) |
+| 5 | Health check endpoints defined |
+| 6 | Kubernetes network policies specified |
+| 7 | Secrets management strategy (no plaintext) |
+| 8 | TLS 1.3 enforced for all external communication |
+| 9 | Monitoring alerts and dashboards defined |
+| 10 | DR RPO/RTO targets documented |
+
+**Design deliverable types**: K8s architecture, security assessment, resilience patterns, DB design, monitoring design
+
 ---
 
 ### Role 3: Developers (VM-3) — Multiple Agents
@@ -168,6 +246,43 @@ Developers are **module implementation specialists**. Multiple Developer agents 
 **Key guideline document**: `DEVELOPMENT-GUIDE.md` — web/mobile development best practices, coding standards, application logging mechanism
 
 **Agent scaling**: This VM can run 3, 5, or 10 Developer agents depending on the project size. Each agent gets its own workspace (`~/.openclaw/workspace-dev-01`, `~/.openclaw/workspace-dev-02`, etc.) and its own per-agent `SOUL.md`.
+
+#### Best-Practice Standards — Developers
+
+| Domain | Standard / Methodology |
+|--------|----------------------|
+| **Language** | TypeScript strict mode |
+| **Commits** | Conventional commits (`feat:` \| `fix:` \| `refactor:` \| `docs:` \| `test:`) |
+| **Logging** | Pino JSON with traceId propagation |
+| **Methodology** | 12-factor app, NestJS conventions |
+
+**Naming conventions:**
+
+| Element | Convention | Example |
+|---------|-----------|---------|
+| Variables / functions | camelCase | `getUserById` |
+| Classes / interfaces / types | PascalCase | `OrderService` |
+| Constants / env vars | UPPER_CASE | `MAX_RETRY_COUNT` |
+| Files / directories | kebab-case | `order-processing.service.ts` |
+
+**14-Point PR Checklist** (every pull request must pass all items):
+
+| # | Check |
+|---|-------|
+| 1 | TypeScript strict mode — no `any` types |
+| 2 | All functions have JSDoc documentation |
+| 3 | Conventional commit messages |
+| 4 | No hardcoded secrets or credentials |
+| 5 | Unit tests written and passing |
+| 6 | Error handling with structured error codes |
+| 7 | Input validation on all public APIs |
+| 8 | Structured logging (Pino JSON, traceId) |
+| 9 | No console.log statements |
+| 10 | Environment-specific config via env vars |
+| 11 | Database queries use parameterised statements |
+| 12 | API responses follow standard envelope format |
+| 13 | Feature branch named `feature/TASK-XXX-description` |
+| 14 | Completion report with integration points documented |
 
 ---
 
@@ -202,6 +317,24 @@ QC Agents are **quality assurance specialists**. They design test cases, execute
 
 **Agent scaling**: This VM can run 3, 5, or 10 QC agents depending on the project size. Each agent gets its own workspace and per-agent `SOUL.md`.
 
+#### Best-Practice Standards — QC Agents
+
+| Domain | Standard / Methodology |
+|--------|----------------------|
+| **Test documentation** | IEEE 829 |
+| **QA methodology** | ISTQB |
+| **Decision model** | PROMOTE / HOLD / ROLLBACK |
+
+**Quality gate thresholds:**
+
+| Test Type | Target | Warning Zone | Critical (→ ROLLBACK) |
+|-----------|--------|-------------|----------------------|
+| Unit | ≥ 95% | 70%–95% | < 70% |
+| Integration | ≥ 90% | 63%–90% | < 63% |
+| E2E | ≥ 85% | 60%–85% | < 60% |
+
+**Test types executed**: unit, integration, E2E, performance, security
+
 ---
 
 ### Role 5: Operator (VM-5)
@@ -234,181 +367,78 @@ The Operator is the **deployment, CI/CD, and monitoring specialist**. It manages
 
 ---
 
-## How Agents Communicate
+## Agent Communication Security
 
-### Cross-VM Communication (Agent ↔ Agent)
+GateForge uses a **three-layer security model** to protect all inter-agent communication. Each layer addresses a different class of threat.
 
-All inter-agent communication is initiated by the System Architect (VM-1) using HTTP API calls to the target VM's gateway:
+### Layer 1: Network Isolation
 
-```
-Architect → HTTP POST http://<target-IP>:<port>/hooks/agent
-  Headers: Authorization: Bearer ${TARGET_TOKEN}
-  Body: { "agentId": "<id>", "message": "<structured JSON>", "sessionKey": "pipeline:gateforge:<id>:<task>" }
-```
+- All VMs run on a private `192.168.72.x` subnet (VMware Fusion host-only network)
+- No VM is exposed to the public internet
+- Optional `iptables` hardening: spoke VMs accept inbound connections only from `192.168.72.10` (the Architect)
+- The US VM is accessed exclusively via Tailscale VPN
 
-No spoke agent can initiate contact with another spoke. If a Developer has a question about a design, the Developer includes it in its structured report. The Architect reads it and routes the question to the Designer.
+### Layer 2: Hook Token (Transport)
 
-### Intra-VM Communication (Agents within same VM)
+- Every HTTP request to `/hooks/agent` must include a `Bearer` token in the `Authorization` header
+- OpenClaw rejects any request without a valid token before it reaches the agent
+- **Stops**: random or unauthorized requests from any source on the network
 
-On VMs with multiple agents (VM-3 Developers, VM-4 QC), agents on the same VM can use `sessions_send` for local coordination:
+### Layer 3: HMAC Signature (Identity)
 
-- Developers: coordinate integration points, shared utilities, overlapping code areas
-- QC agents: coordinate test scope, share test fixtures, report shared infrastructure issues
+- Each spoke VM has a **unique 64-character hex secret** (generated with `openssl rand -hex 32`)
+- The spoke signs the entire request payload using `HMAC-SHA256(payload, secret)`
+- The signature is sent in the `X-Agent-Signature` header — the **secret is never transmitted**
+- The Architect independently computes the HMAC using its local copy of the spoke's secret and compares
+- A `metadata.timestamp` field in the payload must be within **5 minutes** of current time (replay protection)
+- **Stops**: impersonation, replay attacks, forged messages
 
-### Message Format
+### Security Matrix — Attack vs. Layer
 
-All inter-agent messages use **structured JSON** — never free-form prose:
+| Attack | Layer 1 (Network) | Layer 2 (Token) | Layer 3 (HMAC) |
+|--------|:------------------:|:----------------:|:--------------:|
+| External attacker | **Blocked** | — | — |
+| Internal unauthorized request | — | **Blocked** | — |
+| Stolen token + forged message | — | Passes | **Blocked** |
+| Intercepted + replayed request | — | Passes | **Blocked** (timestamp) |
+| Impersonate another VM | — | Passes | **Blocked** (wrong secret) |
 
-```json
-{
-  "taskId": "TASK-001",
-  "type": "implementation|design|testing|deployment",
-  "priority": "P0|P1|P2",
-  "module": "module-name",
-  "description": "Clear task description",
-  "acceptanceCriteria": ["Criterion 1", "Criterion 2"],
-  "blueprintRef": "blueprint.md#section",
-  "deadline": "2026-04-15T00:00:00Z",
-  "dependencies": ["TASK-000"]
-}
-```
+### HMAC Verification Pseudocode
 
----
-
-## The Blueprint — Single Source of Truth
-
-The Blueprint is a Git repository that every agent can read but only the Architect can write to. It contains the complete project definition:
+This is executed by the Architect on every inbound notification:
 
 ```
-blueprint-repo/
-├── blueprint.md              ← Master requirements + business logic
-├── architecture.md           ← System architecture (Designer contributes)
-├── coding-standards.md       ← Coding conventions
-├── api-specs/                ← OpenAPI specs per service
-├── infrastructure/           ← K8s design, DB schema, security, monitoring
-├── qa/                       ← QA framework, test cases, test reports
-├── releases/                 ← Release notes, deployment runbooks
-├── status.md                 ← Current task status (updated by Architect)
-├── decision-log.md           ← Append-only decision record
-└── .github/workflows/ci.yml  ← CI/CD pipeline
+ON notification received:
+  sourceVm = request.headers["X-Source-VM"]
+  signature = request.headers["X-Agent-Signature"]
+  body = request.body (raw string)
+  
+  IF sourceVm NOT IN ["vm-2", "vm-3", "vm-4", "vm-5"]:
+    LOG "[SECURITY] Unknown VM: {sourceVm}"
+    REJECT
+  
+  secret = registry[sourceVm].hmacSecret
+  expectedSig = HMAC-SHA256(body, secret)
+  
+  IF signature != expectedSig:
+    LOG "[SECURITY] HMAC mismatch for {sourceVm}"
+    REJECT
+  
+  timestamp = JSON.parse(body).metadata.timestamp
+  IF abs(NOW - timestamp) > 5 minutes:
+    LOG "[SECURITY] Stale notification from {sourceVm} (replay?)"
+    REJECT
+  
+  ACCEPT → process based on priority level
 ```
 
-**Access pattern:**
+### Why HMAC Instead of Secret-in-Body
 
-| Agent | Read | Write Blueprint | Write Own Area |
-|-------|------|----------------|----------------|
-| System Architect | Full | Full (owner) | N/A |
-| System Designer | Full | No (proposes via report) | infrastructure/ |
-| Developer (N) | Full | No (proposes via report) | code + api-specs/ |
-| QC (N) | Full | No (proposes via report) | qa/ |
-| Operator | Full | No (proposes via report) | releases/ |
-
-Other agents propose Blueprint changes in their structured reports. The Architect reviews, approves or rejects, and commits changes to Git.
-
----
-
-## The Lobster Pipeline — Deterministic Workflow Orchestration
-
-GateForge uses **Lobster Pipeline** from day one for deterministic, YAML-based task orchestration. Lobster replaces ad-hoc agent-to-agent messaging with predictable, repeatable workflows.
-
-**Why Lobster:**
-- Deterministic — same input always produces same execution path
-- Auditable — every step is logged with inputs and outputs
-- Retryable — failed steps can be retried without re-running the entire pipeline
-- Composable — small pipelines combine into larger SDLC flows
-
-**Example — Code Review Loop** (runs up to 3 iterations):
-```yaml
-# code-review.lobster
-steps:
-  - id: develop
-    agent: dev-01
-    action: implement
-    input: ${task}
-
-  - id: test
-    agent: qc-01
-    action: test
-    input: ${develop.output}
-
-  - id: parse-results
-    action: evaluate
-    input: ${test.output}
-    on_fail: goto develop    # Loop back (max 3x)
-    on_pass: complete
-```
-
-The Architect invokes Lobster pipelines using the `lobster` tool. The pipeline coordinates agents across VMs automatically.
-
----
-
-## SDLC Pipeline Phases
-
-The GateForge pipeline follows these phases for every feature or release:
-
-### Phase 1: Requirements & Feasibility
-Tony sends requirements via Telegram → Architect clarifies, decomposes, creates initial Blueprint (v0.1)
-
-### Phase 2: Architecture & Infrastructure Design
-Architect dispatches design tasks to Designer (VM-2) → Designer reads Blueprint, produces infrastructure/security/DB design → Architect reviews, updates Blueprint (v0.2)
-
-### Phase 3: Development (Parallel)
-Architect dispatches module tasks to Developers (VM-3) → Each Developer reads Blueprint, implements their module, pushes to feature branch → Architect collects reports, resolves integration conflicts, updates Blueprint (v0.3)
-
-### Phase 4: Quality Assurance (Parallel)
-Architect dispatches test tasks to QC agents (VM-4) → QC agents pull code, design test cases, execute tests, produce test reports → Architect reviews results, routes defects back to Developers if needed, updates Blueprint (v0.4)
-
-### Phase 5: Deployment & Release
-Architect dispatches deployment to Operator (VM-5) → Operator builds CI/CD pipeline, deploys to US VM (Dev → UAT), runs smoke tests → Architect makes Go/No-Go decision → If Go: deploy to Production → Notify Tony via Telegram
-
-### Phase 6: Iteration
-Tony provides feedback → New requirements restart at Phase 1, bugs go through Hotfix flow, enhancements go through Phases 2-5 incrementally
-
----
-
-## Quality Gates
-
-No task advances without passing its quality gate:
-
-| Gate | Criteria |
-|------|----------|
-| **Design Gate** | Security assessment included, rollback strategy defined, Blueprint updated |
-| **Code Gate** | Unit tests pass, coding standards met, JSDoc complete, no hardcoded secrets |
-| **QA Gate** | Unit ≥ 95%, Integration ≥ 90%, E2E ≥ 85%, no P0/P1 open defects |
-| **Release Gate** | All QA gates pass, deployment runbook ready, rollback tested, smoke tests pass |
-
-**QA Decision Model:**
-- **PROMOTE** — All thresholds met → advance to next phase
-- **HOLD** — Warning zone (between threshold and critical) → fix and retest
-- **ROLLBACK** — Critical failure (< 70% of target) → revert and investigate
-
----
-
-## Network Topology
-
-| VM | Role | Model | IP | Gateway Port |
-|----|------|-------|----|--------------|
-| VM-1 | System Architect | Claude Opus 4.6 | 192.168.72.10 | :18789 |
-| VM-2 | System Designer | Claude Sonnet 4.6 | 192.168.72.11 | :18789 |
-| VM-3 | Developers (1..N) | Claude Sonnet 4.6 | 192.168.72.12 | :18789 |
-| VM-4 | QC Agents (1..N) | MiniMax 2.7 | 192.168.72.13 | :18789 |
-| VM-5 | Operator | MiniMax 2.7 | 192.168.72.14 | :18789 |
-| US VM | Deployment Target (UAT + Production) | — | Tailscale | — |
-
-All VMs are on subnet `192.168.72.x` within VMware Fusion on Mac. The US VM is accessed via Tailscale SSH — it runs the product only, not OpenClaw.
-
----
-
-## Core Design Principles
-
-1. **Hub-and-Spoke** — All communication routes through the System Architect. No direct agent-to-agent communication between VMs.
-2. **Blueprint as Single Source of Truth** — Git-managed, Architect-owned. All agents read it; only the Architect writes to it.
-3. **Stateless Specialists** — Developer, QC, Designer, and Operator agents are stateless per task. They receive a task, execute, return structured output, and release context. This controls token costs and prevents context contamination.
-4. **Structured Communication** — All inter-agent messages use structured JSON with defined schemas. No free-form prose between agents.
-5. **Deny-by-Default Security** — Agents only have tools they need. Developers cannot browse the web. QC agents cannot push code. The Designer cannot message other agents.
-6. **Quality-Gate Driven** — No task advances without passing its gate. No exceptions.
-7. **Lobster-First Orchestration** — All repeatable workflows are defined as Lobster YAML pipelines for deterministic execution.
-8. **Maximum 3 Retries** — If a task fails 3 times, it escalates to the human (Tony) via Telegram. No infinite loops.
+| Concern | Secret in body | HMAC signature |
+|---------|---------------|----------------|
+| Secret exposed in transit? | Yes | No — only the signature |
+| Replay protection | No | Yes — timestamp + 5-min window |
+| Forgery if request intercepted | Trivial | Impossible without the secret |
 
 ---
 
@@ -487,14 +517,6 @@ curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
   -d "${PAYLOAD}"
 ```
 
-### Why HMAC Instead of Secret-in-Body
-
-| Concern | Secret in body | HMAC signature |
-|---------|---------------|----------------|
-| Secret exposed in transit? | Yes | No — only the signature |
-| Replay protection | No | Yes — timestamp in payload |
-| Forgery if request intercepted | Trivial | Impossible without the secret |
-
 ### Architect's Notification Hook Configuration
 
 On VM-1, the Architect's OpenClaw is configured to receive notifications:
@@ -518,6 +540,8 @@ Even if a notification passes all authentication, the Architect will only perfor
 - Any notification requesting actions outside the normal SDLC pipeline is escalated to Tony via Telegram
 
 ---
+
+## Communication Examples
 
 ### Example A: Designer Has a Query (Blocked Task)
 
@@ -639,6 +663,257 @@ Architect sends HTTP POST to relevant agent(s) with resolution
 
 ---
 
+## The Blueprint Repository — Single Source of Truth
+
+The Blueprint is a Git repository that every agent can read but only the Architect can write to. It contains the complete project definition, structured as follows:
+
+```
+blueprint-repo/
+├── requirements/
+│   ├── user-requirements.md
+│   ├── functional-requirements.md
+│   └── non-functional-requirements.md
+├── architecture/
+│   ├── technical-architecture.md
+│   ├── data-model.md
+│   └── api-specifications/
+├── design/
+│   ├── infrastructure/
+│   ├── security/
+│   ├── resilience/
+│   ├── database/
+│   └── monitoring/
+├── qa/
+│   ├── test-plan.md
+│   ├── test-cases/
+│   ├── performance/
+│   ├── reports/
+│   ├── metrics.md
+│   └── defects/
+├── operations/
+│   ├── deployment-runbook.md
+│   ├── deployment-log.md
+│   ├── operation-log.md
+│   ├── sla-slo-tracking.md
+│   └── incident-reports/
+├── development/
+│   ├── coding-standards.md
+│   └── modules/
+├── project/
+│   ├── backlog.md
+│   ├── backlog/
+│   ├── iterations/
+│   ├── releases/
+│   ├── decision-log.md
+│   └── status.md
+└── CHANGELOG.md
+```
+
+### Blueprint Ownership
+
+| Directory | Primary Owner | Access |
+|-----------|--------------|--------|
+| `requirements/` | System Architect | Architect writes; all read |
+| `architecture/` | System Architect | Architect writes; Designer proposes |
+| `design/` | System Designer (proposes) | Architect approves and commits |
+| `qa/` | QC Agents (propose) | Architect approves and commits |
+| `operations/` | Operator (proposes) | Architect approves and commits |
+| `development/` | Developers (propose) | Architect approves and commits |
+| `project/` | System Architect | Architect writes; all read |
+| `CHANGELOG.md` | System Architect | Architect writes |
+
+### Git Commit Conventions by Agent
+
+| Agent | Prefix | Example |
+|-------|--------|---------|
+| Architect | `docs:` / `feat:` / `fix:` | `docs: update architecture for auth module — TASK-003` |
+| Designer | `docs:` | `docs: add K8s network policy design — TASK-010` |
+| Developer | `feat:` / `fix:` / `refactor:` / `test:` | `feat: implement order-processing service — TASK-022` |
+| QC | `test:` / `docs:` | `test: add integration tests for auth module — TASK-QC-005` |
+| Operator | `docs:` / `fix:` | `docs: add deployment runbook v1.2 — TASK-OPS-003` |
+
+**Access pattern:**
+
+| Agent | Read | Write Blueprint | Propose Changes |
+|-------|------|----------------|-----------------|
+| System Architect | Full | Full (owner) | N/A |
+| System Designer | Full | No | Via structured report → Git |
+| Developer (N) | Full | No | Via structured report → Git |
+| QC (N) | Full | No | Via structured report → Git |
+| Operator | Full | No | Via structured report → Git |
+
+Other agents propose Blueprint changes in their structured reports. The Architect reviews, approves or rejects, and commits changes to Git.
+
+---
+
+## The Lobster Pipeline — Deterministic Workflow Orchestration
+
+GateForge uses **Lobster Pipeline** from day one for deterministic, YAML-based task orchestration. Lobster replaces ad-hoc agent-to-agent messaging with predictable, repeatable workflows.
+
+**Why Lobster:**
+- Deterministic — same input always produces same execution path
+- Auditable — every step is logged with inputs and outputs
+- Retryable — failed steps can be retried without re-running the entire pipeline
+- Composable — small pipelines combine into larger SDLC flows
+
+**Example — Code Review Loop** (runs up to 3 iterations):
+```yaml
+# code-review.lobster
+steps:
+  - id: develop
+    agent: dev-01
+    action: implement
+    input: ${task}
+
+  - id: test
+    agent: qc-01
+    action: test
+    input: ${develop.output}
+
+  - id: parse-results
+    action: evaluate
+    input: ${test.output}
+    on_fail: goto develop    # Loop back (max 3x)
+    on_pass: complete
+```
+
+The Architect invokes Lobster pipelines using the `lobster` tool. The pipeline coordinates agents across VMs automatically.
+
+---
+
+## SDLC Pipeline Phases
+
+The GateForge pipeline follows these phases for every feature or release:
+
+### Phase 1: Requirements & Feasibility
+Tony sends requirements via Telegram → Architect clarifies, decomposes, creates initial Blueprint (v0.1)
+
+### Phase 2: Architecture & Infrastructure Design
+Architect dispatches design tasks to Designer (VM-2) → Designer reads Blueprint, produces infrastructure/security/DB design → Architect reviews, updates Blueprint (v0.2)
+
+### Phase 3: Development (Parallel)
+Architect dispatches module tasks to Developers (VM-3) → Each Developer reads Blueprint, implements their module, pushes to feature branch → Architect collects reports, resolves integration conflicts, updates Blueprint (v0.3)
+
+### Phase 4: Quality Assurance (Parallel)
+Architect dispatches test tasks to QC agents (VM-4) → QC agents pull code, design test cases, execute tests, produce test reports → Architect reviews results, routes defects back to Developers if needed, updates Blueprint (v0.4)
+
+### Phase 5: Deployment & Release
+Architect dispatches deployment to Operator (VM-5) → Operator builds CI/CD pipeline, deploys to US VM (Dev → UAT), runs smoke tests → Architect makes Go/No-Go decision → If Go: deploy to Production → Notify Tony via Telegram
+
+### Phase 6: Iteration
+Tony provides feedback → New requirements restart at Phase 1, bugs go through Hotfix flow, enhancements go through Phases 2-5 incrementally
+
+---
+
+## Quality Gates
+
+No task advances without passing its quality gate:
+
+| Gate | Criteria |
+|------|----------|
+| **Design Gate** | Security assessment included, rollback strategy defined, Blueprint updated |
+| **Code Gate** | Unit tests pass, coding standards met, JSDoc complete, no hardcoded secrets |
+| **QA Gate** | Unit ≥ 95%, Integration ≥ 90%, E2E ≥ 85%, no P0/P1 open defects |
+| **Release Gate** | All QA gates pass, deployment runbook ready, rollback tested, smoke tests pass |
+
+**QA Decision Model:**
+- **PROMOTE** — All thresholds met → advance to next phase
+- **HOLD** — Warning zone (between threshold and critical) → fix and retest
+- **ROLLBACK** — Critical failure (< 70% of target) → revert and investigate
+
+---
+
+## Project Backlog & Status Reporting
+
+### Backlog Hierarchy
+
+The project backlog operates at two levels:
+
+| Level | Scope | Location |
+|-------|-------|----------|
+| **Global backlog** | All tasks across all modules | `project/backlog.md` |
+| **Module backlog** | Tasks for a specific module | `project/backlog/<module-name>.md` |
+
+### Backlog Item Schema
+
+Every backlog item follows this structure:
+
+| Field | Values |
+|-------|--------|
+| **ID** | `TASK-NNN`, `BUG-NNN`, or `ENH-NNN` |
+| **Type** | `TASK` \| `BUG` \| `ENH` |
+| **Priority** | `P0` (critical) \| `P1` (high) \| `P2` (medium) \| `P3` (low) |
+| **MoSCoW** | `Must` \| `Should` \| `Could` \| `Won't` |
+| **Status** | `backlog` \| `in-progress` \| `blocked` \| `in-review` \| `done` |
+| **Assigned to** | Agent ID (e.g., `dev-01`, `designer`, `qc-02`) |
+| **Module** | Module name (e.g., `auth`, `orders`, `billing`) |
+| **Iteration** | Iteration number (e.g., `iter-1`, `iter-2`) |
+
+### Severity Matrix (Bugs)
+
+| Severity | Description | Response |
+|----------|-------------|----------|
+| **P0 — Critical** | System down, data loss, security breach | Immediate hotfix, escalate to Tony |
+| **P1 — High** | Major feature broken, no workaround | Fix in current iteration |
+| **P2 — Medium** | Feature degraded, workaround exists | Schedule for next iteration |
+| **P3 — Low** | Cosmetic, minor inconvenience | Backlog for future iteration |
+
+### Status Report Template
+
+When Tony asks for progress, the Architect responds with this structured format via Telegram:
+
+```
+📊 GateForge Status Report — {date}
+
+Iteration: iter-{N} | Sprint: {start} → {end}
+
+MODULES:
+  auth         ████████░░  80%  (dev-01: in-review)
+  orders       ██████░░░░  60%  (dev-02: in-progress)
+  billing      ████░░░░░░  40%  (dev-01: in-progress)
+  notifications ██░░░░░░░░  20%  (designer: design phase)
+
+BLOCKERS: 1
+  TASK-015 — multi-currency strategy (awaiting your decision)
+
+BUGS: 3 open
+  BUG-008 [P1] orders — discount calculation edge case
+  BUG-012 [P2] auth — token refresh timing
+  BUG-015 [P3] billing — invoice number format
+
+NEXT ACTIONS:
+  1. Resolve TASK-015 blocker (needs your input)
+  2. Dev-01 completing auth module review
+  3. QC starting orders integration tests
+```
+
+### Quick Commands
+
+| Command | Response |
+|---------|----------|
+| `What is the progress?` | Full status report (as above) |
+| `Show bugs` | Open bugs by priority and module |
+| `Log bug: ...` | Create new BUG-NNN entry |
+| `Show backlog` | Backlog summary by priority and status |
+| `Show iteration` | Current iteration tasks and progress |
+| `Show releases` | Release history and upcoming release plan |
+
+---
+
+## Core Design Principles
+
+1. **Hub-and-Spoke** — All communication routes through the System Architect. No direct agent-to-agent communication between VMs.
+2. **Blueprint as Single Source of Truth** — Git-managed, Architect-owned. All agents read it; only the Architect writes to it.
+3. **Stateless Specialists** — Developer, QC, Designer, and Operator agents are stateless per task. They receive a task, execute, return structured output, and release context. This controls token costs and prevents context contamination.
+4. **Structured Communication** — All inter-agent messages use structured JSON with defined schemas. No free-form prose between agents.
+5. **Deny-by-Default Security** — Agents only have tools they need. Developers cannot browse the web. QC agents cannot push code. The Designer cannot message other agents.
+6. **Quality-Gate Driven** — No task advances without passing its gate. No exceptions.
+7. **Lobster-First Orchestration** — All repeatable workflows are defined as Lobster YAML pipelines for deterministic execution.
+8. **Maximum 3 Retries** — If a task fails 3 times, it escalates to the human (Tony) via Telegram. No infinite loops.
+9. **Best-Practice-First** — Every agent follows industry-standard methodology (IEEE, ISO, OWASP, ISTQB, SRE, 12-factor). GateForge does not invent ad-hoc processes — it applies proven engineering standards with structured enforcement.
+
+---
+
 ## What Happens Next
 
 Now that you understand the full GateForge picture, here is the onboarding sequence:
@@ -684,7 +959,7 @@ Report to the System Architect (or await tasks if you are a spoke agent) that yo
 Each VM directory in this configuration package contains:
 
 | File | Purpose |
-|------|---------|
+|------|---------| 
 | `SOUL.md` | Agent identity, role, behavioural constraints, output format |
 | `AGENTS.md` | Registry of known agents (local + remote) |
 | `USER.md` | Human operator context, project metadata, Lobster config |
