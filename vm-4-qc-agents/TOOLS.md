@@ -74,7 +74,7 @@ git push origin test/TASK-XXX-description
 | `MINIMAX_API_KEY` | MiniMax 2.7 API access |
 | `ARCHITECT_NOTIFY_URL` | Architect notification endpoint (`http://192.168.72.10:18789/hooks/agent`) |
 | `ARCHITECT_HOOK_TOKEN` | Bearer token for Architect hook authentication |
-| `AGENT_SECRET` | This VM's unique secret for identity verification with the Architect |
+| `AGENT_SECRET` | This VM's unique HMAC signing secret — used to sign notification payloads, never transmitted |
 
 ### MiniMax API Configuration
 

@@ -116,48 +116,34 @@ After completing any deployment, operational event, or encountering an issue tha
 | `[COMPLETED]` | Deployment successful, smoke tests pass, monitoring confirmed |
 | `[INFO]` | Scaling event, routine maintenance, certificate rotation |
 
-### How to Notify
+### How to Notify (HMAC-Signed)
 
-After `git push`, execute via `exec`:
+After `git push`, build the payload, sign it with HMAC-SHA256, and send the signature in a header. The secret **never appears in the request**.
 
 ```bash
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[COMPLETED] DEP-005 — v1.0.0 deployed to UAT. Smoke tests pass. Monitoring stable for 15 min. See operations/deployment-log.md","metadata":{"sourceVm":"vm-5","sourceRole":"operator","priority":"COMPLETED","taskId":"DEP-005","timestamp":"'${TIMESTAMP}'"}}'
+SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
 curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
   -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "X-Agent-Signature: ${SIGNATURE}" \
+  -H "X-Source-VM: vm-5" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "agent-notify",
-    "agentId": "architect",
-    "message": "[COMPLETED] DEP-005 — v1.0.0 deployed to UAT. Smoke tests pass. Monitoring stable for 15 min. See operations/deployment-log.md",
-    "sessionKey": "notify:vm5:operator",
-    "metadata": {
-      "agentSecret": "'"${AGENT_SECRET}"'",
-      "sourceVm": "vm-5",
-      "sourceRole": "operator",
-      "priority": "COMPLETED",
-      "taskId": "DEP-005"
-    }
-  }'
+  -d "${PAYLOAD}"
 ```
 
 ### Example: Deployment Failed
 
 ```bash
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[CRITICAL] DEP-006 — v1.1.0 deployment to Production FAILED. Rolled back to v1.0.0. Root cause: database migration timeout. See operations/incident-reports/INC-001.md","metadata":{"sourceVm":"vm-5","sourceRole":"operator","priority":"CRITICAL","taskId":"DEP-006","timestamp":"'${TIMESTAMP}'"}}'
+SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
 curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
   -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "X-Agent-Signature: ${SIGNATURE}" \
+  -H "X-Source-VM: vm-5" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "agent-notify",
-    "agentId": "architect",
-    "message": "[CRITICAL] DEP-006 — v1.1.0 deployment to Production FAILED. Rolled back to v1.0.0. Root cause: database migration timeout. See operations/incident-reports/INC-001.md",
-    "sessionKey": "notify:vm5:operator",
-    "metadata": {
-      "agentSecret": "'"${AGENT_SECRET}"'",
-      "sourceVm": "vm-5",
-      "sourceRole": "operator",
-      "priority": "CRITICAL",
-      "taskId": "DEP-006"
-    }
-  }'
+  -d "${PAYLOAD}"
 ```
 
 ## Constraints

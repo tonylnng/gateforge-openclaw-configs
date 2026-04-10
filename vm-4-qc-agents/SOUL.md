@@ -110,48 +110,34 @@ After completing any test cycle or encountering an issue that requires Architect
 | `[COMPLETED]` | Test cycle finished, report and defects committed to Git |
 | `[INFO]` | Partial test results, test environment status update |
 
-### How to Notify
+### How to Notify (HMAC-Signed)
 
-After `git push`, execute via `exec`:
+After `git push`, build the payload, sign it with HMAC-SHA256, and send the signature in a header. The secret **never appears in the request**.
 
 ```bash
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[COMPLETED] TASK-QC-010 — order-processing tests done. 2 defects found. Gate: HOLD. See qa/reports/TEST-REPORT-ITER-002-orders.md","metadata":{"sourceVm":"vm-4","sourceRole":"qc-agents","priority":"COMPLETED","taskId":"TASK-QC-010","timestamp":"'${TIMESTAMP}'"}}'
+SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
 curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
   -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "X-Agent-Signature: ${SIGNATURE}" \
+  -H "X-Source-VM: vm-4" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "agent-notify",
-    "agentId": "architect",
-    "message": "[COMPLETED] TASK-QC-010 — order-processing tests done. 2 defects found (DEF-008, DEF-009). Gate: HOLD. See qa/reports/TEST-REPORT-ITER-002-orders.md",
-    "sessionKey": "notify:vm4:qc-agents",
-    "metadata": {
-      "agentSecret": "'"${AGENT_SECRET}"'",
-      "sourceVm": "vm-4",
-      "sourceRole": "qc-agents",
-      "priority": "COMPLETED",
-      "taskId": "TASK-QC-010"
-    }
-  }'
+  -d "${PAYLOAD}"
 ```
 
 ### Example: Critical Security Issue Found
 
 ```bash
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[CRITICAL] Security scan found SQL injection in order-processing /v1/orders?filter= endpoint. Gate: ROLLBACK. See qa/defects/DEF-012.md","metadata":{"sourceVm":"vm-4","sourceRole":"qc-agents","priority":"CRITICAL","taskId":"TASK-QC-SEC-001","timestamp":"'${TIMESTAMP}'"}}'
+SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
 curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
   -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "X-Agent-Signature: ${SIGNATURE}" \
+  -H "X-Source-VM: vm-4" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "agent-notify",
-    "agentId": "architect",
-    "message": "[CRITICAL] Security scan found SQL injection in order-processing /v1/orders?filter= endpoint. Gate: ROLLBACK. See qa/defects/DEF-012.md",
-    "sessionKey": "notify:vm4:qc-agents",
-    "metadata": {
-      "agentSecret": "'"${AGENT_SECRET}"'",
-      "sourceVm": "vm-4",
-      "sourceRole": "qc-agents",
-      "priority": "CRITICAL",
-      "taskId": "TASK-QC-SEC-001"
-    }
-  }'
+  -d "${PAYLOAD}"
 ```
 
 ## Constraints

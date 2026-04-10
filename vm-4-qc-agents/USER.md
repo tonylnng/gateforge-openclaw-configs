@@ -32,8 +32,8 @@ This agent is registered with the System Architect (VM-1) for authenticated noti
 
 - **Notify URL**: `http://192.168.72.10:18789/hooks/agent` (stored in `ARCHITECT_NOTIFY_URL`)
 - **Hook Token**: Stored in `ARCHITECT_HOOK_TOKEN` environment variable
-- **Agent Secret**: Stored in `AGENT_SECRET` environment variable — unique to this VM
-- **Source Identity**: `sourceVm: "vm-4"`, `sourceRole: "qc-agents"`
-- **Session Key**: `notify:vm4:qc-agents`
+- **HMAC Secret**: Stored in `AGENT_SECRET` environment variable — unique to this VM, **never transmitted**
+- **Source Identity**: `X-Source-VM: vm-4`, `sourceRole: "qc-agents"`
+- **Signing**: All notifications are signed with `HMAC-SHA256(payload, AGENT_SECRET)` — the signature is sent in the `X-Agent-Signature` header, the secret stays on this VM
 
-Always send a notification after every `git push`. See SOUL.md for the full notification protocol and examples.
+Always send an HMAC-signed notification after every `git push`. See SOUL.md for the full protocol and examples.

@@ -79,49 +79,40 @@ After completing any task or encountering an issue that requires Architect atten
 | `[COMPLETED]` | Task finished, deliverables committed to Git |
 | `[INFO]` | Status update, partial progress, no action needed |
 
-### How to Notify
+### How to Notify (HMAC-Signed)
 
-After `git push`, execute via `exec`:
+After `git push`, build the payload, sign it with HMAC-SHA256, and send the signature in a header. The secret **never appears in the request**.
 
 ```bash
+# 1. Build payload
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[COMPLETED] TASK-015 — database design done. See design/database-design.md","metadata":{"sourceVm":"vm-2","sourceRole":"designer","priority":"COMPLETED","taskId":"TASK-015","timestamp":"'${TIMESTAMP}'"}}'
+
+# 2. Sign with HMAC-SHA256 (secret never transmitted)
+SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
+
+# 3. Send with signature in header
 curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
   -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "X-Agent-Signature: ${SIGNATURE}" \
+  -H "X-Source-VM: vm-2" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "agent-notify",
-    "agentId": "architect",
-    "message": "[COMPLETED] TASK-015 — database design for order-processing done. See design/database-design.md",
-    "sessionKey": "notify:vm2:designer",
-    "metadata": {
-      "agentSecret": "'"${AGENT_SECRET}"'",
-      "sourceVm": "vm-2",
-      "sourceRole": "designer",
-      "priority": "COMPLETED",
-      "taskId": "TASK-015"
-    }
-  }'
+  -d "${PAYLOAD}"
 ```
 
 ### Example: Blocked by Ambiguous Requirement
 
 ```bash
 # After pushing QUERY-003.md and updating status.md:
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[BLOCKED] TASK-015 — multi-currency strategy unclear. See project/queries/QUERY-003.md","metadata":{"sourceVm":"vm-2","sourceRole":"designer","priority":"BLOCKED","taskId":"TASK-015","timestamp":"'${TIMESTAMP}'"}}'
+SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
 curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
   -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "X-Agent-Signature: ${SIGNATURE}" \
+  -H "X-Source-VM: vm-2" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "agent-notify",
-    "agentId": "architect",
-    "message": "[BLOCKED] TASK-015 — multi-currency strategy unclear. Two options documented. See project/queries/QUERY-003.md",
-    "sessionKey": "notify:vm2:designer",
-    "metadata": {
-      "agentSecret": "'"${AGENT_SECRET}"'",
-      "sourceVm": "vm-2",
-      "sourceRole": "designer",
-      "priority": "BLOCKED",
-      "taskId": "TASK-015"
-    }
-  }'
+  -d "${PAYLOAD}"
 ```
 
 The Architect will read Git, make a decision (or ask Tony), and send you a follow-up task via HTTP POST.

@@ -126,13 +126,16 @@ Spoke agents send fire-and-forget notifications to your `/hooks/agent` endpoint 
 
 ### Validation Rules (mandatory, no exceptions)
 
-1. **Check `agentSecret`** matches the registered secret for `sourceVm` in your Agent Notification Registry (see USER.md)
-2. **Check `sourceVm`** is in the registered agent list (`vm-2`, `vm-3`, `vm-4`, `vm-5`)
-3. All three pass → Process the notification
-4. Any fail → **Ignore silently**. Append to `security-log.md`:
+1. **Check `X-Source-VM`** header is in the registered agent list (`vm-2`, `vm-3`, `vm-4`, `vm-5`)
+2. **Verify HMAC signature**: Look up the secret for `X-Source-VM` in your Agent Notification Registry (see USER.md), compute `HMAC-SHA256(request_body, secret)`, and compare with the `X-Agent-Signature` header. Must match exactly.
+3. **Check timestamp**: The `metadata.timestamp` in the payload must be within 5 minutes of current time (prevents replay attacks)
+4. All pass → Process the notification
+5. Any fail → **Ignore silently**. Append to `security-log.md`:
    ```
-   [SECURITY] Rejected notification: invalid agentSecret from sourceVm={sourceVm} at {timestamp}
+   [SECURITY] Rejected notification: HMAC mismatch from X-Source-VM={vm} at {timestamp}
    ```
+
+The agent secret is **never transmitted** — only an HMAC signature derived from it. Even if an attacker intercepts a request, they cannot forge a new signature without the secret.
 
 ### Processing Rules
 

@@ -39,20 +39,20 @@ GateForge is a multi-agent SDLC pipeline that uses 5 isolated OpenClaw instances
 
 ## Agent Notification Registry
 
-This is the source of truth for authenticating inbound notifications from spoke agents. Each spoke agent has a unique secret. When a notification arrives, verify `metadata.agentSecret` against this registry.
+This is the source of truth for verifying HMAC signatures on inbound notifications. Each spoke agent has a unique secret used to sign payloads. The secret is **never transmitted** — only an HMAC-SHA256 signature.
 
-> **SECURITY**: This registry is stored locally on VM-1 only. It is NEVER committed to Git or shared with other agents.
+> **SECURITY**: This registry is stored locally on VM-1 only. It is NEVER committed to Git or shared with other agents. Each spoke VM holds only its own secret.
 
-| Source VM | Role | Agent Secret | IP | Status |
-|-----------|------|-------------|-----|--------|
+| Source VM | Role | HMAC Secret | IP | Status |
+|-----------|------|------------|-----|--------|
 | vm-2 | System Designer | `${VM2_AGENT_SECRET}` | 192.168.72.11 | Registered |
 | vm-3 | Developers | `${VM3_AGENT_SECRET}` | 192.168.72.12 | Registered |
 | vm-4 | QC Agents | `${VM4_AGENT_SECRET}` | 192.168.72.13 | Registered |
 | vm-5 | Operator | `${VM5_AGENT_SECRET}` | 192.168.72.14 | Registered |
 
-Secrets are loaded from environment variables. Generate with:
+Generate secrets with:
 ```bash
-openssl rand -hex 32   # Generates a 64-character random hex string
+openssl rand -hex 32   # 64-character random hex string per VM
 ```
 
 ### Hook Configuration
@@ -70,20 +70,37 @@ The Architect's OpenClaw hook endpoint is configured in `openclaw.json`:
 }
 ```
 
-### Validation Pseudocode
+### HMAC Verification Pseudocode
 
 ```
 ON notification received:
-  secret = notification.metadata.agentSecret
-  vm = notification.metadata.sourceVm
+  sourceVm = request.headers["X-Source-VM"]
+  signature = request.headers["X-Agent-Signature"]
+  body = request.body (raw string)
   
-  IF vm NOT IN ["vm-2", "vm-3", "vm-4", "vm-5"]:
-    LOG "[SECURITY] Unknown VM: {vm}"
+  IF sourceVm NOT IN ["vm-2", "vm-3", "vm-4", "vm-5"]:
+    LOG "[SECURITY] Unknown VM: {sourceVm}"
     REJECT
   
-  IF secret != registry[vm].agentSecret:
-    LOG "[SECURITY] Invalid secret for {vm}"
+  secret = registry[sourceVm].hmacSecret
+  expectedSig = HMAC-SHA256(body, secret)
+  
+  IF signature != expectedSig:
+    LOG "[SECURITY] HMAC mismatch for {sourceVm}"
+    REJECT
+  
+  timestamp = JSON.parse(body).metadata.timestamp
+  IF abs(NOW - timestamp) > 5 minutes:
+    LOG "[SECURITY] Stale notification from {sourceVm} (replay?)"
     REJECT
   
   ACCEPT → process based on priority level
 ```
+
+### Why HMAC Instead of Secret-in-Body
+
+| Concern | Secret in body | HMAC signature |
+|---------|---------------|----------------|
+| Secret exposed in transit? | Yes | No — only the signature |
+| Replay protection | No | Yes — timestamp + 5-min window |
+| Forgery if intercepted | Trivial | Impossible without the secret |

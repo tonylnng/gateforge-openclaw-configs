@@ -420,19 +420,21 @@ GateForge solves this with a **fire-and-forget notification** mechanism: after p
 
 ### Two-Layer Authentication
 
-Notifications require **two credentials** — even if someone obtains the hook token, they cannot impersonate a registered agent without its unique secret.
+Notifications require **two credentials** — even if someone intercepts a request, they cannot forge a new one without the secret.
 
-| Layer | What It Is | What It Stops |
-|-------|-----------|---------------|
-| **Hook Token** (transport) | Shared secret to access the Architect's `/hooks/agent` endpoint | Random/unauthorized requests |
-| **Agent Secret** (identity) | Unique per-VM secret registered with the Architect | Impersonation — even with the hook token |
+| Layer | What It Is | Transmitted? | What It Stops |
+|-------|-----------|-------------|---------------|
+| **Hook Token** (transport) | Shared Bearer token for `/hooks/agent` | Yes (in header) | Random/unauthorized requests |
+| **HMAC Signature** (identity) | HMAC-SHA256 of payload signed with per-VM secret | Signature only (secret never sent) | Impersonation — even with the hook token |
+
+The agent secret **never leaves the VM**. Only a cryptographic signature (HMAC-SHA256) is transmitted. Even if an attacker captures the full HTTP request, they cannot forge a valid signature for a different payload without the secret.
 
 ### Architect Validation Rules
 
 When the Architect receives a notification, it MUST verify three things before processing:
 
 1. **Hook token valid?** — OpenClaw rejects invalid tokens automatically
-2. **Agent secret matches registered VM?** — Architect checks `agentSecret` against its registry
+2. **HMAC signature valid?** — Architect looks up the secret for `X-Source-VM`, computes `HMAC-SHA256(body, secret)`, and compares with `X-Agent-Signature`
 3. **Source VM is in the registered agent list?** — Unknown VMs are rejected
 
 All three must pass. Any failure is logged to `security-log.md` and ignored silently.
@@ -447,30 +449,51 @@ All three must pass. Any failure is logged to `security-log.md` and ignored sile
 | `[COMPLETED]` | Task done, results committed to Git | Process in normal flow |
 | `[INFO]` | Status update, no action needed | Low priority |
 
-### How Spoke Agents Send Notifications
+### How Spoke Agents Send Notifications (HMAC-Signed)
 
-After `git push`, the spoke agent runs:
+After `git push`, the spoke agent constructs the payload, signs it with its secret, and sends the signature in a header. The secret never appears in the request.
 
 ```bash
+# 1. Build the payload
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[BLOCKED] TASK-015 by designer. See project/queries/QUERY-003.md","metadata":{"sourceVm":"vm-2","sourceRole":"designer","priority":"BLOCKED","taskId":"TASK-015","timestamp":"'${TIMESTAMP}'"}}'
+
+# 2. Sign with HMAC-SHA256 (secret never transmitted)
+SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
+
+# 3. Send with signature in header
 curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
   -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "X-Agent-Signature: ${SIGNATURE}" \
+  -H "X-Source-VM: vm-2" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "agent-notify",
-    "agentId": "architect",
-    "message": "[BLOCKED] TASK-015 by designer. See project/queries/QUERY-003.md",
-    "sessionKey": "notify:vm2:designer",
-    "metadata": {
-      "agentSecret": "'"${AGENT_SECRET}"'",
-      "sourceVm": "vm-2",
-      "sourceRole": "designer",
-      "priority": "BLOCKED",
-      "taskId": "TASK-015"
-    }
-  }'
+  -d "${PAYLOAD}"
 ```
 
 This is fire-and-forget — the spoke does NOT wait for a response.
+
+### Quick Reference — Minimal HMAC Notification
+
+```bash
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[COMPLETED] TASK-015","metadata":{"sourceVm":"vm-2","sourceRole":"designer","priority":"COMPLETED","taskId":"TASK-015","timestamp":"'${TIMESTAMP}'"}}'
+SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
+
+curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
+  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "X-Agent-Signature: ${SIGNATURE}" \
+  -H "X-Source-VM: vm-2" \
+  -H "Content-Type: application/json" \
+  -d "${PAYLOAD}"
+```
+
+### Why HMAC Instead of Secret-in-Body
+
+| Concern | Secret in body | HMAC signature |
+|---------|---------------|----------------|
+| Secret exposed in transit? | Yes | No — only the signature |
+| Replay protection | No | Yes — timestamp in payload |
+| Forgery if request intercepted | Trivial | Impossible without the secret |
 
 ### Architect's Notification Hook Configuration
 

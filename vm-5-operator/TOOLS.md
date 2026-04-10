@@ -73,7 +73,7 @@ exec("gh run list --workflow=ci.yml --limit=5")
 | `GITHUB_TOKEN` | GitHub API access for CI/CD triggers |
 | `ARCHITECT_NOTIFY_URL` | Architect notification endpoint (`http://192.168.72.10:18789/hooks/agent`) |
 | `ARCHITECT_HOOK_TOKEN` | Bearer token for Architect hook authentication |
-| `AGENT_SECRET` | This VM's unique secret for identity verification with the Architect |
+| `AGENT_SECRET` | This VM's unique HMAC signing secret — used to sign notification payloads, never transmitted |
 
 ### MiniMax API Configuration
 

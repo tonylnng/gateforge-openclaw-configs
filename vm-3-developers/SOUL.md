@@ -86,49 +86,35 @@ After completing any task or encountering an issue that requires Architect atten
 | `[COMPLETED]` | Task finished, code committed and pushed |
 | `[INFO]` | Partial progress, integration point discovered, no action needed |
 
-### How to Notify
+### How to Notify (HMAC-Signed)
 
-After `git push`, execute via `exec`:
+After `git push`, build the payload, sign it with HMAC-SHA256, and send the signature in a header. The secret **never appears in the request**.
 
 ```bash
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[COMPLETED] TASK-001 — order-processing API implemented. See development/modules/order-processing.md","metadata":{"sourceVm":"vm-3","sourceRole":"developers","priority":"COMPLETED","taskId":"TASK-001","timestamp":"'${TIMESTAMP}'"}}'
+SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
 curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
   -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "X-Agent-Signature: ${SIGNATURE}" \
+  -H "X-Source-VM: vm-3" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "agent-notify",
-    "agentId": "architect",
-    "message": "[COMPLETED] TASK-001 — order-processing API implemented. See development/modules/order-processing.md",
-    "sessionKey": "notify:vm3:developers",
-    "metadata": {
-      "agentSecret": "'"${AGENT_SECRET}"'",
-      "sourceVm": "vm-3",
-      "sourceRole": "developers",
-      "priority": "COMPLETED",
-      "taskId": "TASK-001"
-    }
-  }'
+  -d "${PAYLOAD}"
 ```
 
 ### Example: Disputing a QC Defect Report
 
 ```bash
 # After pushing project/disputes/DISPUTE-001.md:
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[DISPUTE] DEF-008 — developer disputes QC finding. Behaviour is by-design per US-012. See project/disputes/DISPUTE-001.md","metadata":{"sourceVm":"vm-3","sourceRole":"developers","priority":"DISPUTE","taskId":"BUG-TRIAGE-008","timestamp":"'${TIMESTAMP}'"}}'
+SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
 curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
   -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "X-Agent-Signature: ${SIGNATURE}" \
+  -H "X-Source-VM: vm-3" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "agent-notify",
-    "agentId": "architect",
-    "message": "[DISPUTE] DEF-008 — developer disputes QC finding. Behaviour is by-design per US-012. See project/disputes/DISPUTE-001.md",
-    "sessionKey": "notify:vm3:developers",
-    "metadata": {
-      "agentSecret": "'"${AGENT_SECRET}"'",
-      "sourceVm": "vm-3",
-      "sourceRole": "developers",
-      "priority": "DISPUTE",
-      "taskId": "BUG-TRIAGE-008"
-    }
-  }'
+  -d "${PAYLOAD}"
 ```
 
 ## Constraints
