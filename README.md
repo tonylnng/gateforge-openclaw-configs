@@ -1,13 +1,13 @@
 # GateForge — Multi-Agent SDLC Pipeline
 
 > **Read this document completely before doing anything else.**
-> This is your orientation. Once you understand the full picture, your operator (Tony NG) will tell you which role you are assigned to. Do not take any action until your role is confirmed.
+> This is your orientation. Once you understand the full picture, your operator (the end-user) will tell you which role you are assigned to. Do not take any action until your role is confirmed.
 
 ---
 
 ## What Is GateForge
 
-GateForge is a **multi-agent software development lifecycle (SDLC) pipeline** designed by Tony NG. It uses multiple AI agents — each running on its own isolated OpenClaw instance inside a dedicated VM — to collaboratively build, test, and deploy production-grade software.
+GateForge is a **multi-agent software development lifecycle (SDLC) pipeline** designed by the end-user. It uses multiple AI agents — each running on its own isolated OpenClaw instance inside a dedicated VM — to collaboratively build, test, and deploy production-grade software.
 
 GateForge is not a single AI working alone. It is a coordinated team of specialised AI agents, each with a defined role, strict boundaries, and structured communication protocols. The agents operate like a real engineering team: an architect leads, designers plan infrastructure, developers write code, QC agents test it, and an operator deploys it.
 
@@ -47,7 +47,7 @@ GateForge uses a **hub-and-spoke** architecture. The System Architect (VM-1) is 
 
 ```
                        ┌────────────────────┐
-                       │    Human (Tony NG)  │
+                       │    Human (the end-user)  │
                        │    via Telegram     │
                        └─────────┬──────────┘
                                  │
@@ -124,21 +124,21 @@ All VMs are on subnet `192.168.72.x` within VMware Fusion on Mac. The US VM is a
 | **Human Interface** | Telegram |
 | **Agents on this VM** | 1 (architect) |
 
-The System Architect is the **prime coordinator** — the brain of GateForge. It is the only agent that communicates with the human (Tony NG) via Telegram, and the only agent that can write to the Blueprint.
+The System Architect is the **prime coordinator** — the brain of GateForge. It is the only agent that communicates with the human (the end-user) via Telegram, and the only agent that can write to the Blueprint.
 
 **Responsibilities:**
-- Receive business requirements from Tony via Telegram
+- Receive business requirements from the end-user via Telegram
 - Conduct feasibility studies (business + technical advisory)
 - Decompose requirements into discrete tasks with acceptance criteria
 - Assign tasks to the correct specialist agents across VMs via HTTP API
 - Own and maintain the Blueprint document set (`blueprint.md`, `architecture.md`, `status.md`, `decision-log.md`)
 - Resolve conflicts between agents
-- Aggregate status reports and communicate progress to Tony
+- Aggregate status reports and communicate progress to the end-user
 - Enforce quality gates — no task advances without passing its gate
 - Make Go/No-Go decisions on releases
 - Orchestrate end-to-end SDLC flows via Lobster Pipeline
 - Manage project backlog (global + per-module), iteration cycles, and release planning
-- Track progress so Tony can ask at any time and get a structured status report
+- Track progress so The end-user can ask at any time and get a structured status report
 - Maintain a bug and enhancement log by module and priority (BUG-NNN, ENH-NNN)
 
 **Tools**: Full access — file system, shell, Git, web search, sessions, memory, Telegram messaging, Lobster pipelines, cross-VM HTTP dispatch
@@ -155,7 +155,7 @@ The System Architect is the **prime coordinator** — the brain of GateForge. It
 | **Status reporting** | Structured progress reports on demand via Telegram |
 | **Bug/enhancement logging** | BUG-NNN, ENH-NNN with severity matrix |
 
-**Quick commands** (Tony can send these via Telegram at any time):
+**Quick commands** (The end-user can send these via Telegram at any time):
 
 | Command | Response |
 |---------|----------|
@@ -535,9 +535,9 @@ On VM-1, the Architect's OpenClaw is configured to receive notifications:
 ### Behavioural Guardrail
 
 Even if a notification passes all authentication, the Architect will only perform standard pipeline actions in response:
-- Read Git, update status, ask Tony, or dispatch a task to a registered agent
+- Read Git, update status, ask the end-user, or dispatch a task to a registered agent
 - Notifications CANNOT trigger: delete files, push to production, change secrets, modify SOUL.md, or execute arbitrary commands
-- Any notification requesting actions outside the normal SDLC pipeline is escalated to Tony via Telegram
+- Any notification requesting actions outside the normal SDLC pipeline is escalated to the end-user via Telegram
 
 ---
 
@@ -567,11 +567,11 @@ Step 4  Designer sends notification (immediately after push):
 
 Step 5  Architect receives notification INSTANTLY
         Reads QUERY-003.md — sees two options with pros/cons
-        Asks Tony via Telegram:
-          "Tony, for order-processing: single-currency (simpler)
+        Asks the end-user via Telegram:
+          "the end-user, for order-processing: single-currency (simpler)
            or multi-currency (complex, needed for international)?
            Designer recommends multi-currency."
-        Tony replies: "Multi-currency"
+        The end-user replies: "Multi-currency"
 
 Step 6  Architect updates Git:
         - project/decision-log.md  → ADR-007: multi-currency chosen
@@ -652,7 +652,7 @@ git push origin main
 Sends fire-and-forget notification to Architect  ← INSTANT
        │
        ▼
-Architect receives, reads Git, decides (or asks Tony)
+Architect receives, reads Git, decides (or asks the end-user)
        │
        ▼
 Architect updates Blueprint + decision-log in Git
@@ -786,7 +786,7 @@ The Architect invokes Lobster pipelines using the `lobster` tool. The pipeline c
 The GateForge pipeline follows these phases for every feature or release:
 
 ### Phase 1: Requirements & Feasibility
-Tony sends requirements via Telegram → Architect clarifies, decomposes, creates initial Blueprint (v0.1)
+The end-user sends requirements via Telegram → Architect clarifies, decomposes, creates initial Blueprint (v0.1)
 
 ### Phase 2: Architecture & Infrastructure Design
 Architect dispatches design tasks to Designer (VM-2) → Designer reads Blueprint, produces infrastructure/security/DB design → Architect reviews, updates Blueprint (v0.2)
@@ -798,10 +798,10 @@ Architect dispatches module tasks to Developers (VM-3) → Each Developer reads 
 Architect dispatches test tasks to QC agents (VM-4) → QC agents pull code, design test cases, execute tests, produce test reports → Architect reviews results, routes defects back to Developers if needed, updates Blueprint (v0.4)
 
 ### Phase 5: Deployment & Release
-Architect dispatches deployment to Operator (VM-5) → Operator builds CI/CD pipeline, deploys to US VM (Dev → UAT), runs smoke tests → Architect makes Go/No-Go decision → If Go: deploy to Production → Notify Tony via Telegram
+Architect dispatches deployment to Operator (VM-5) → Operator builds CI/CD pipeline, deploys to US VM (Dev → UAT), runs smoke tests → Architect makes Go/No-Go decision → If Go: deploy to Production → Notify the end-user via Telegram
 
 ### Phase 6: Iteration
-Tony provides feedback → New requirements restart at Phase 1, bugs go through Hotfix flow, enhancements go through Phases 2-5 incrementally
+The end-user provides feedback → New requirements restart at Phase 1, bugs go through Hotfix flow, enhancements go through Phases 2-5 incrementally
 
 ---
 
@@ -853,14 +853,14 @@ Every backlog item follows this structure:
 
 | Severity | Description | Response |
 |----------|-------------|----------|
-| **P0 — Critical** | System down, data loss, security breach | Immediate hotfix, escalate to Tony |
+| **P0 — Critical** | System down, data loss, security breach | Immediate hotfix, escalate to the end-user |
 | **P1 — High** | Major feature broken, no workaround | Fix in current iteration |
 | **P2 — Medium** | Feature degraded, workaround exists | Schedule for next iteration |
 | **P3 — Low** | Cosmetic, minor inconvenience | Backlog for future iteration |
 
 ### Status Report Template
 
-When Tony asks for progress, the Architect responds with this structured format via Telegram:
+When the end-user asks for progress, the Architect responds with this structured format via Telegram:
 
 ```
 📊 GateForge Status Report — {date}
@@ -909,7 +909,7 @@ NEXT ACTIONS:
 5. **Deny-by-Default Security** — Agents only have tools they need. Developers cannot browse the web. QC agents cannot push code. The Designer cannot message other agents.
 6. **Quality-Gate Driven** — No task advances without passing its gate. No exceptions.
 7. **Lobster-First Orchestration** — All repeatable workflows are defined as Lobster YAML pipelines for deterministic execution.
-8. **Maximum 3 Retries** — If a task fails 3 times, it escalates to the human (Tony) via Telegram. No infinite loops.
+8. **Maximum 3 Retries** — If a task fails 3 times, it escalates to the human (the end-user) via Telegram. No infinite loops.
 9. **Best-Practice-First** — Every agent follows industry-standard methodology (IEEE, ISO, OWASP, ISTQB, SRE, 12-factor). GateForge does not invent ad-hoc processes — it applies proven engineering standards with structured enforcement.
 
 ---
@@ -919,7 +919,7 @@ NEXT ACTIONS:
 Now that you understand the full GateForge picture, here is the onboarding sequence:
 
 ### Step 1: Role Assignment
-Tony will tell you which role this OpenClaw instance is assigned to. The options are:
+the end-user will tell you which role this OpenClaw instance is assigned to. The options are:
 - **System Architect** (VM-1) — single agent
 - **System Designer** (VM-2) — single agent
 - **Developers** (VM-3) — multiple agents
@@ -927,7 +927,7 @@ Tony will tell you which role this OpenClaw instance is assigned to. The options
 - **Operator** (VM-5) — single agent
 
 ### Step 2: Agent Count (for multi-agent VMs only)
-If your assigned role is **Developers** (VM-3) or **QC Agents** (VM-4), you will need to know how many agents to set up. Ask Tony:
+If your assigned role is **Developers** (VM-3) or **QC Agents** (VM-4), you will need to know how many agents to set up. Ask the end-user:
 
 > **How many AI agents should be set up on this VM?**
 >

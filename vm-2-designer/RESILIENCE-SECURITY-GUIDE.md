@@ -3,7 +3,7 @@
 | Field         | Value                                              |
 |---------------|----------------------------------------------------|
 | **Version**   | 1.0.0                                              |
-| **Owner**     | Tony NG                                            |
+| **Owner**     | the end-user                                            |
 | **Agent**     | System Designer (VM-2, Claude Sonnet 4.6)          |
 | **Port**      | 18789                                              |
 | **IP**        | 192.168.72.11                                      |
@@ -1373,7 +1373,7 @@ Source: [Jit.io — STRIDE Threat Model Guide](https://www.jit.io/resources/app-
 - [ ] Confirm incident is real (not false positive)
 - [ ] Identify affected services and data
 - [ ] Identify blast radius (users, data, systems)
-- [ ] Notify incident commander: Tony NG
+- [ ] Notify incident commander: the end-user
 
 ## 3. Containment (Target: < 1 hour for CRITICAL)
 - [ ] Isolate affected service (scale to 0 or block ingress)
@@ -2536,9 +2536,9 @@ The System Designer **must** verify every item below before submitting any desig
 | Blueprint (Master)          | `blueprint.md`                               | System Architect  |
 | Architecture                | `architecture.md`                            | System Architect  |
 | Coding Standards            | `coding-standards.md`                        | System Architect  |
-| SOUL Configuration          | `openclaw-configs/vm-2-designer/SOUL.md`     | Tony NG           |
+| SOUL Configuration          | `openclaw-configs/vm-2-designer/SOUL.md`     | the end-user           |
 | Infrastructure Designs      | `infrastructure/`                            | System Designer   |
-| This Guide                  | `openclaw-configs/vm-2-designer/RESILIENCE-SECURITY-GUIDE.md` | Tony NG |
+| This Guide                  | `openclaw-configs/vm-2-designer/RESILIENCE-SECURITY-GUIDE.md` | the end-user |
 
 ---
 

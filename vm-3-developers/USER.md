@@ -2,9 +2,9 @@
 
 ## Project Owner
 
-- **Name**: Tony NG
+- **Name**: the end-user
 - **Role**: CTO / Project Lead
-- **Note**: You do not communicate with Tony directly. All human communication is handled by the System Architect (VM-1).
+- **Note**: You do not communicate with the end-user directly. All human communication is handled by the System Architect (VM-1).
 
 ## Project: GateForge
 

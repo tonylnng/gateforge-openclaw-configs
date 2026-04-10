@@ -2,7 +2,7 @@
 
 **Document Status:** Draft  
 **Version:** 0.2  
-**Author:** Tony NG (CTO / Project Lead)  
+**Author:** the end-user (CTO / Project Lead)  
 **Created:** 2026-04-07  
 **Last Updated:** 2026-04-07  
 **Reference Project:** [ClawDeck](https://github.com/tonylnng/clawdeck)
@@ -103,7 +103,7 @@
 
 ### What Is the GateForge Admin Portal?
 
-The GateForge Admin Portal is a purpose-built observability and transparency dashboard for the GateForge multi-agent SDLC pipeline. It provides Tony NG (CTO / Project Lead) with a single-pane-of-glass view into all five VM-resident AI agent groups, their activities, SDLC pipeline progress, quality gate outcomes, and system health — all in real time.
+The GateForge Admin Portal is a purpose-built observability and transparency dashboard for the GateForge multi-agent SDLC pipeline. It provides the end-user (CTO / Project Lead) with a single-pane-of-glass view into all five VM-resident AI agent groups, their activities, SDLC pipeline progress, quality gate outcomes, and system health — all in real time.
 
 The portal is **read-only by design**. It observes and reports; it never sends instructions to agents.
 
@@ -111,7 +111,7 @@ The portal is **read-only by design**. It observes and reports; it never sends i
 
 GateForge operates as a fully autonomous multi-agent pipeline: five VM clusters run distinct specialised AI agents (System Architect, System Designer, Developers, QC Agents, and Operator), communicating through a tightly controlled hub-and-spoke topology. This architecture intentionally routes all human interaction through the System Architect (VM-1) via Telegram.
 
-Without a monitoring layer, Tony's only window into the pipeline is the System Architect's Telegram messages — a single-channel, summary-level view. The Admin Portal exposes the full picture:
+Without a monitoring layer, the end-user's only window into the pipeline is the System Architect's Telegram messages — a single-channel, summary-level view. The Admin Portal exposes the full picture:
 
 - What every agent is doing right now
 - Where the SDLC pipeline is in its journey through six phases
@@ -126,13 +126,13 @@ Without a monitoring layer, Tony's only window into the pipeline is the System A
 
 | Principle | Description |
 |-----------|-------------|
-| **Read-Only Observation** | The portal never issues commands or prompts to any agent. Tony interacts with the pipeline exclusively via Telegram → System Architect. |
+| **Read-Only Observation** | The portal never issues commands or prompts to any agent. the end-user interacts with the pipeline exclusively via Telegram → System Architect. |
 | **Hub-and-Spoke Alignment** | The portal mirrors the hub-and-spoke model. VM-1 (Architect) is prominently identified as the coordinator; all other VMs are spokes. |
 | **Real-Time Transparency** | SSE-based live updates surface agent activity, notifications, and pipeline changes without manual refresh. |
 | **Status Fidelity** | Every status value in the portal (task status, agent activity, gate decisions, priority levels) maps exactly to the GateForge canonical definitions. No invented states. |
 | **ClawDeck-Derived Architecture** | The portal inherits ClawDeck's proven tech stack (Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, Express.js, Docker Compose) and UI patterns (setup wizard, agent cards, SSE log streaming, dark/light mode). |
-| **Clarity Over Density** | Each view is optimised for rapid situational awareness. Tony should be able to determine overall system health within five seconds of opening any page. |
-| **Drill-Down Depth** | From any dashboard card, Tony can drill all the way down to an individual model response on a specific timestamp. |
+| **Clarity Over Density** | Each view is optimised for rapid situational awareness. the end-user should be able to determine overall system health within five seconds of opening any page. |
+| **Drill-Down Depth** | From any dashboard card, The end-user can drill all the way down to an individual model response on a specific timestamp. |
 | **Intelligence Over Raw Data** | Automated bottleneck detection, root cause analysis, SLO forecasting, and project health scoring transform raw data into actionable insights. |
 
 ### Feature Summary
@@ -156,7 +156,7 @@ The portal delivers 30 features across 6 categories:
 
 ```mermaid
 graph TB
-    subgraph Tony["Tony (CTO / Project Lead)"]
+    subgraph the end-user["the end-user (CTO / Project Lead)"]
         Browser["Admin Portal Browser\n(Next.js 14 + shadcn/ui)"]
         Telegram["Telegram Client"]
     end
@@ -221,7 +221,7 @@ graph TB
 
     style AdminPortal fill:#1e3a5f,color:#fff
     style GateForgeNetwork fill:#1a2e1a,color:#fff
-    style Tony fill:#2d1b4e,color:#fff
+    style the end-user fill:#2d1b4e,color:#fff
     style USDeployment fill:#3d2200,color:#fff
     style Blueprint fill:#3a2200,color:#fff
 ```
@@ -471,7 +471,7 @@ Triggered by clicking any agent card (or "Details →" link). Opens as a full-sc
 - Expandable nodes: click any node → side panel shows full prompt/response content
 - Node types distinguished by shape: circle = reasoning step, rectangle = tool call, diamond = decision point, hexagon = model response
 
-**Example use case:** Dev-01 submitted code that failed QA. Tony clicks dev-01 → Decision Graph → sees the agent called `git diff` (success), then `exec: npm test` (failed), then attempted a fix (re-edit), then `exec: npm test` again (still failed), then reported "blocked" to the Architect. The graph shows exactly where and why the loop stopped.
+**Example use case:** Dev-01 submitted code that failed QA. the end-user clicks dev-01 → Decision Graph → sees the agent called `git diff` (success), then `exec: npm test` (failed), then attempted a fix (re-edit), then `exec: npm test` again (still failed), then reported "blocked" to the Architect. The graph shows exactly where and why the loop stopped.
 
 **Data source:** OpenClaw gateway session traces
 
@@ -514,7 +514,7 @@ Triggered by clicking any agent card (or "Details →" link). Opens as a full-sc
 - **Per-step overlay**: token count, latency, and cost for each step displayed in a stats strip
 - **Session summary stats**: total steps, total tokens, total cost, total duration, error count
 
-**Example use case:** QC-01 took 45 minutes on a task that should take 10. Tony opens Session Replay → scrubs to the longest step → sees a retry loop where the agent tried the same test command 8 times with identical input. Root cause: flaky test environment.
+**Example use case:** QC-01 took 45 minutes on a task that should take 10. the end-user opens Session Replay → scrubs to the longest step → sees a retry loop where the agent tried the same test command 8 times with identical input. Root cause: flaky test environment.
 
 **Data source:** OpenClaw gateway session logs (time-ordered)
 
@@ -595,7 +595,7 @@ Triggered by clicking any agent card (or "Details →" link). Opens as a full-sc
 
 ### 3.10 Agent Comparison Matrix
 
-**What it does:** Side-by-side comparison of agent performance metrics across all agents or selected groups, enabling Tony to identify which agents are most productive, which are struggling, and whether workload is balanced.
+**What it does:** Side-by-side comparison of agent performance metrics across all agents or selected groups, enabling the end-user to identify which agents are most productive, which are struggling, and whether workload is balanced.
 
 **Why it matters:** With multiple developers (dev-01…dev-N) and multiple QC agents (qc-01…qc-N), understanding relative performance is essential for workload balancing and quality management.
 
@@ -620,7 +620,7 @@ Comparison table (rows = agents, columns = metrics):
 - **Filter**: by VM, by role (developers only / QC only / all)
 - **Iteration selector**: compare performance across different iterations
 
-**Example use case:** Dev-01 completes tasks in 15 min average but 40% fail QA first time. Dev-02 takes 25 min but 90% pass first time. Tony can see this instantly and decide whether speed or quality is the bottleneck.
+**Example use case:** Dev-01 completes tasks in 15 min average but 40% fail QA first time. Dev-02 takes 25 min but 90% pass first time. The end-user can see this instantly and decide whether speed or quality is the bottleneck.
 
 **Data source:** Aggregated from gateway session data, Blueprint task history, and QA gate results
 
@@ -758,7 +758,7 @@ Prominent card at the top of the gate sub-panel:
 
 | Phase # | Phase Name | GateForge Description | Primary Agent(s) | Quality Gate | Task Status in Phase |
 |---------|-----------|----------------------|-----------------|-------------|---------------------|
-| 1 | Requirements & Feasibility | Tony → Telegram → Architect → Blueprint v0.1 | VM-1 (Architect) | — | ready, in-progress, done |
+| 1 | Requirements & Feasibility | the end-user → Telegram → Architect → Blueprint v0.1 | VM-1 (Architect) | — | ready, in-progress, done |
 | 2 | Architecture & Infrastructure Design | Architect → Designer → Blueprint v0.2 | VM-1, VM-2 | Design Gate | in-progress, in-review, done |
 | 3 | Development (Parallel) | Architect → Developers → Blueprint v0.3 | VM-3 (dev-01…dev-N) | Code Gate | in-progress, in-review, blocked, done |
 | 4 | Quality Assurance (Parallel) | Architect → QC Agents → Blueprint v0.4 | VM-4 (qc-01…qc-N) | QA Gate | in-progress, in-review, blocked, done |
@@ -792,7 +792,7 @@ A collapsible panel at the bottom of the Pipeline View shows the raw Lobster YAM
 
 **What it does:** A log of all past pipeline runs (iterations) with the ability to inspect any historical run in full detail and compare runs side by side.
 
-**Why it matters:** The live Pipeline View shows the current state. But Tony needs to compare: "Was this iteration faster than the last one? Did we have more blockers this time? Which phase took longer?" History enables trend analysis and continuous improvement.
+**Why it matters:** The live Pipeline View shows the current state. But the end-user needs to compare: "Was this iteration faster than the last one? Did we have more blockers this time? Which phase took longer?" History enables trend analysis and continuous improvement.
 
 **What it shows:**
 
@@ -907,7 +907,7 @@ Bar chart: phase durations side by side (Recharts grouped bar chart).
 
 **What it does:** View the Lobster Pipeline YAML definition in a structured, readable format with validation checks. Read-only in v1.0; editable in a future version.
 
-**Why it matters:** The Lobster YAML defines the deterministic orchestration flow. Tony should be able to see and validate it without reading raw YAML.
+**Why it matters:** The Lobster YAML defines the deterministic orchestration flow. the end-user should be able to see and validate it without reading raw YAML.
 
 **What it shows:**
 
@@ -962,7 +962,7 @@ Each validation result shows: severity (Error / Warning), step name, description
 
 **What it does:** A detailed timeline view for any single task, showing every state change from creation to completion across all agents and all systems.
 
-**Why it matters:** When a task is delayed or blocked, Tony needs to see the full history: who created it, who assigned it, when it started, when it was blocked, why, when it was unblocked, when QA picked it up, etc.
+**Why it matters:** When a task is delayed or blocked, the end-user needs to see the full history: who created it, who assigned it, when it started, when it was blocked, why, when it was unblocked, when QA picked it up, etc.
 
 **What it shows (for a single task):**
 
@@ -1249,7 +1249,7 @@ Each event entry shows:
 
 ### Overview
 
-The Project Dashboard mirrors the content of `project/status.md` and `project/backlog.md`, giving Tony a high-level health view of the current project iteration.
+The Project Dashboard mirrors the content of `project/status.md` and `project/backlog.md`, giving the end-user a high-level health view of the current project iteration.
 
 ### 6.1 Project Health Summary
 
@@ -1407,7 +1407,7 @@ For the current iteration:
 
 **What it does:** Visual graph of task and module dependencies, showing which tasks depend on others and where chains of dependency create risk.
 
-**Why it matters:** In a multi-agent parallel development system, if FEAT-015 (User API) depends on FEAT-014 (Auth Module), and FEAT-014 is blocked, Tony needs to see the downstream cascade immediately.
+**Why it matters:** In a multi-agent parallel development system, if FEAT-015 (User API) depends on FEAT-014 (Auth Module), and FEAT-014 is blocked, the end-user needs to see the downstream cascade immediately.
 
 **What it shows:**
 
@@ -1744,14 +1744,14 @@ Table:
 
 ### 7.7 Defect Deep-Dive & Trend Analysis
 
-**What it does:** Extended defect analytics beyond the basic summary in the QA dashboard. Enables Tony to understand defect patterns, root causes, and relationships between code quality and defect density.
+**What it does:** Extended defect analytics beyond the basic summary in the QA dashboard. Enables the end-user to understand defect patterns, root causes, and relationships between code quality and defect density.
 
 **What it shows:**
 
 **Defect Lifecycle View:**
 
 For each defect, a timeline card showing:
-- Reported: timestamp + reporter (agent or Tony)
+- Reported: timestamp + reporter (agent or the end-user)
 - Assigned: timestamp + assignee
 - In-progress: start timestamp
 - Fixed: commit SHA + agent
@@ -1864,7 +1864,7 @@ Line chart: PROMOTE rate per gate type per iteration. Healthy systems trend towa
 
 ### Overview
 
-The Operations Dashboard provides Tony with live visibility into the deployment target (US VM), environment health, SLO compliance, and operational incidents.
+The Operations Dashboard provides the end-user with live visibility into the deployment target (US VM), environment health, SLO compliance, and operational incidents.
 
 ### 8.1 Deployment Status
 
@@ -1973,7 +1973,7 @@ Live view of any active Lobster YAML workflow being executed by VM-5 (Operator):
 
 ### 8.7 Deployment Diff & Rollback Viewer
 
-**What it does:** Shows exactly what changed between any two deployments and provides a visual diff. Enables Tony to understand the content of any deployment or rollback at the code and configuration level.
+**What it does:** Shows exactly what changed between any two deployments and provides a visual diff. Enables the end-user to understand the content of any deployment or rollback at the code and configuration level.
 
 **What it shows:**
 
@@ -2184,7 +2184,7 @@ Collapsible sidebar:
 
 ### 9.6 Troubleshooting Console
 
-**What it does:** A centralised troubleshooting workspace where Tony can investigate any issue — blocked task, failed gate, agent error, deployment failure — with all relevant context automatically aggregated in one place.
+**What it does:** A centralised troubleshooting workspace where The end-user can investigate any issue — blocked task, failed gate, agent error, deployment failure — with all relevant context automatically aggregated in one place.
 
 **Why it matters:** When something goes wrong, information is scattered across agent logs, notifications, task status, and pipeline state. The console aggregates everything related to a specific issue in one place, eliminating the need to manually correlate data across multiple views.
 
@@ -2445,7 +2445,7 @@ For each blocker:
 
 ### Overview
 
-The Setup & Configuration page guides Tony through the initial installation and linkage of all GateForge components, and provides an ongoing configuration health check dashboard. The pattern mirrors ClawDeck's setup wizard, extended for GateForge's multi-VM architecture.
+The Setup & Configuration page guides the end-user through the initial installation and linkage of all GateForge components, and provides an ongoing configuration health check dashboard. The pattern mirrors ClawDeck's setup wizard, extended for GateForge's multi-VM architecture.
 
 ### 10.1 Setup Wizard
 
@@ -2511,10 +2511,10 @@ Per-VM API key configuration (stored server-side only, never exposed to browser 
 | Field | Description |
 |-------|-------------|
 | Bot Token | Telegram Bot API token (from @BotFather) |
-| Chat ID | Tony's Telegram chat ID (auto-detect button via test message) |
+| Chat ID | the end-user's Telegram chat ID (auto-detect button via test message) |
 | Test Button | Sends a test message to the configured chat |
 
-The portal monitors Telegram messages between Tony and the Architect for display in the Notification Center timeline (read-only; the portal does not reply to Telegram messages).
+The portal monitors Telegram messages between the end-user and the Architect for display in the Notification Center timeline (read-only; the portal does not reply to Telegram messages).
 
 #### Step 5: Blueprint Repository
 
@@ -2594,7 +2594,7 @@ All configuration fields from the wizard are editable post-setup via an "Edit" b
 
 **Export**: Downloads a JSON file with all non-secret configuration values. Secrets are excluded (API keys, SSH keys, passwords, JWT secret). The file includes VM IPs, ports, agent IDs, Git URL, environment URLs.
 
-**Import**: Upload a previously exported JSON. The wizard pre-fills all non-secret fields. Tony must re-enter all secrets manually (security requirement: secrets are never persisted in the export file).
+**Import**: Upload a previously exported JSON. The wizard pre-fills all non-secret fields. The end-user must re-enter all secrets manually (security requirement: secrets are never persisted in the export file).
 
 ---
 
@@ -3177,7 +3177,7 @@ echo "Default login: ${ADMIN_USERNAME} / [your chosen password]"
 | `BLUEPRINT_SSH_KEY_PATH` | | `/data/ssh-keys/blueprint_rsa` | Path to SSH key for Git auth |
 | `BLUEPRINT_PAT_TOKEN` | | — | Alternative: Personal Access Token |
 | `TELEGRAM_BOT_TOKEN` | | — | Telegram Bot API token |
-| `TELEGRAM_CHAT_ID` | | — | Tony's Telegram chat ID |
+| `TELEGRAM_CHAT_ID` | | — | the end-user's Telegram chat ID |
 | `USVAM_TAILSCALE_ADDR` | | — | Tailscale address of US VM |
 | `USVAM_SSH_USER` | | `ubuntu` | SSH username for US VM |
 | `USVAM_SSH_KEY_PATH` | | `/data/ssh-keys/usvam_rsa` | SSH key for US VM health probe |
@@ -3303,7 +3303,7 @@ GATEFORGE ADMIN PORTAL
 ├── Webhooks              [g+w]   ← External alert config        [/webhooks]
 └── Settings              [g+s]   ← Setup wizard & configuration [/setup]
 ─────────────────────────────────
-  [👤 Tony NG]
+  [👤 the end-user]
   [🌓 Dark Mode]
   [⬚ Collapse]
 ```
@@ -3390,7 +3390,7 @@ Present on all authenticated pages:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ [≡ Sidebar]  Agent Dashboard          [↻ 8s ago]  [🔔 3]  [👤 Tony] │
+│ [≡ Sidebar]  Agent Dashboard          [↻ 8s ago]  [🔔 3]  [👤 the end-user] │
 │                                              [🟢 Health: 84]         │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -3446,13 +3446,13 @@ Items that were previously in this section and have now been moved into scope:
 
 | Enhancement | Priority | Description |
 |-------------|----------|-------------|
-| **Lobster Pipeline YAML Editor** | High | A sandboxed YAML editor (Monaco Editor) for Tony to draft Lobster workflow YAML. Would require a review/approval flow before the Architect can act on it. Not in any current version because all pipeline management currently flows through Telegram → Architect. The YAML Preview (Section 4.9) is read-only only. |
+| **Lobster Pipeline YAML Editor** | High | A sandboxed YAML editor (Monaco Editor) for the end-user to draft Lobster workflow YAML. Would require a review/approval flow before the Architect can act on it. Not in any current version because all pipeline management currently flows through Telegram → Architect. The YAML Preview (Section 4.9) is read-only only. |
 | **Multi-Project Support** | Medium | Support multiple concurrent GateForge projects (separate Blueprint repos, separate agent pools). Requires a project-selector in the nav and database-backed state instead of flat config files. |
-| **Role-Based Access Control** | Medium | Distinguish between Admin (Tony) and read-only Observer accounts. Observers can view but not access Setup or export configuration. |
+| **Role-Based Access Control** | Medium | Distinguish between Admin (the end-user) and read-only Observer accounts. Observers can view but not access Setup or export configuration. |
 | **Mobile App** | Low | React Native app using the same backend API. Most critical pages: Agent Dashboard, Notification Center. |
 | **AI-Assisted Report Narration** | Low | Auto-generated natural-language summaries of project health, sprint retrospectives, and release notes using an LLM. Requires careful read-only design (portal never triggers agent sessions). |
 | **Exportable PDF Reports** | Medium | PDF export for QA metrics, project status, and SLO compliance reports for stakeholder sharing. Distinct from CSV exports already specified (structured document format). |
-| **Slack Integration (Bidirectional)** | Low | Allow Tony to acknowledge notifications and add comments directly from Slack, synced back to the portal. Requires careful design to maintain read-only principle for agent interactions. |
+| **Slack Integration (Bidirectional)** | Low | Allow the end-user to acknowledge notifications and add comments directly from Slack, synced back to the portal. Requires careful design to maintain read-only principle for agent interactions. |
 | **Dark Mode Custom Theme** | Low | Custom color theme editor for the portal UI, beyond simple dark/light toggle. |
 | **Embedded Telemetry** | Medium | Direct OpenTelemetry ingestion from agents (instead of polling gateway). Would require gateway API changes. |
 | **Agent A/B Testing View** | Low | Compare output quality between two different model configurations for the same task prompt. Research-use only. |
@@ -3553,7 +3553,7 @@ Each dimension produces a score of 0.0–1.0.
 
 ### Overview
 
-Webhook & External Alerts pushes selected portal events to external channels (Slack, email, PagerDuty, custom HTTP webhook). This feature extends the portal's observability beyond the browser, ensuring Tony receives critical alerts wherever he is.
+Webhook & External Alerts pushes selected portal events to external channels (Slack, email, PagerDuty, custom HTTP webhook). This feature extends the portal's observability beyond the browser, ensuring the end-user receives critical alerts wherever he is.
 
 **Read-only principle maintained**: Webhooks push from the portal to external notification systems only. They never send instructions to agents or modify pipeline state.
 
@@ -3580,7 +3580,7 @@ Webhook & External Alerts pushes selected portal events to external channels (Sl
 | **Email** | SMTP host, port, username, password, from/to addresses | HTML email with alert summary and portal link |
 | **PagerDuty** | Integration key (Events API v2) | PagerDuty event with severity mapped from alert type |
 | **Custom HTTP POST** | Target URL, optional headers (key/value), payload template (Handlebars) | JSON POST with configurable template |
-| **Telegram** | Bot token + chat ID (separate from the Architect's Telegram) | Markdown message to Tony's personal chat |
+| **Telegram** | Bot token + chat ID (separate from the Architect's Telegram) | Markdown message to the end-user's personal chat |
 
 ### 17.3 Webhook Configuration UI
 
@@ -3737,7 +3737,7 @@ For each webhook:
 
 | Value Label | Description |
 |------------|-------------|
-| High | Tony uses this daily; directly unblocks investigation or decision-making |
+| High | the end-user uses this daily; directly unblocks investigation or decision-making |
 | Medium | Used weekly; significant improvement to workflow but not blocking |
 | Low | Nice-to-have; convenience feature |
 
@@ -3746,16 +3746,16 @@ For each webhook:
 ## 19. Summary: Capability Map by Version
 
 ### v1.0 — Core Observability (8 features)
-Tony can see what every agent is doing right now, where the pipeline is, what quality gates look like, what the Blueprint contains, and receive real-time notifications. The portal answers: **"What is happening?"**
+The end-user can see what every agent is doing right now, where the pipeline is, what quality gates look like, what the Blueprint contains, and receive real-time notifications. The portal answers: **"What is happening?"**
 
 ### v1.5 — Operational Intelligence (8 new features → 16 total)
-Tony can trace costs, audit inter-agent communications, track task lifecycle end-to-end, investigate blockers, and receive external alerts. The portal answers: **"What happened and what is it costing?"**
+The end-user can trace costs, audit inter-agent communications, track task lifecycle end-to-end, investigate blockers, and receive external alerts. The portal answers: **"What happened and what is it costing?"**
 
 ### v2.0 — Deep Analysis (11 new features → 27 total)
-Tony can debug agent decision trees, analyse pipeline bottlenecks, investigate root causes, manage iterations and dependencies, and compare blueprint versions. The portal answers: **"Why did this happen and how can we improve?"**
+The end-user can debug agent decision trees, analyse pipeline bottlenecks, investigate root causes, manage iterations and dependencies, and compare blueprint versions. The portal answers: **"Why did this happen and how can we improve?"**
 
 ### v2.5+ — Advanced Analytics (3 remaining features → 30 total)
-Tony can compare agents side by side, view YAML validation, deep-dive defect trends, inspect deployment diffs, and project SLO budget exhaustion. The portal answers: **"How are we trending and what will happen next?"**
+The end-user can compare agents side by side, view YAML validation, deep-dive defect trends, inspect deployment diffs, and project SLO budget exhaustion. The portal answers: **"How are we trending and what will happen next?"**
 
 ---
 
@@ -3958,7 +3958,7 @@ gateforge-admin-portal/
 ### Agent Dashboard
 
 **Given** the portal is running and all VMs are reachable,  
-**When** Tony opens the Agent Dashboard,  
+**When** the end-user opens the Agent Dashboard,  
 **Then** all agent cards load within 3 seconds, showing current status, latest task, and last AI output snippet for every configured agent.
 
 **Given** an agent's status changes to `blocked` on VM-3,  
@@ -3966,17 +3966,17 @@ gateforge-admin-portal/
 **Then** the corresponding dev agent card updates its status dot to orange BLOCKED with a slow blink, without a full page reload.
 
 **Given** the portal is in read-only mode,  
-**When** Tony clicks on any agent card,  
+**When** the end-user clicks on any agent card,  
 **Then** the Agent Detail modal opens showing conversation history (read-only), with no input field, send button, or any interactive prompt interface present.
 
 ### Lobster Pipeline View
 
 **Given** the pipeline is in Phase 3 (Development),  
-**When** Tony opens the Pipeline View,  
+**When** the end-user opens the Pipeline View,  
 **Then** Phase 3 node is highlighted with a glowing pulsing border, phases 1–2 show as Completed (green), and phases 4–6 show as Not Started (gray).
 
 **Given** a QA Gate decision of HOLD is recorded in Blueprint,  
-**When** Tony opens Phase 4 (QA) detail panel,  
+**When** the end-user opens Phase 4 (QA) detail panel,  
 **Then** a prominent orange HOLD banner is displayed with the specific failing gate criteria listed with red ✗ indicators.
 
 ### Notification Center
@@ -3987,24 +3987,24 @@ gateforge-admin-portal/
 
 ### Setup Wizard
 
-**Given** Tony completes Step 2 (VM Registry) and clicks "Test Connection" for VM-3,  
+**Given** the end-user completes Step 2 (VM Registry) and clicks "Test Connection" for VM-3,  
 **When** the test request is processed,  
 **Then** the result shows either "✓ Connected (Xms)" in green or "✗ Failed: [error reason]" in red within 5 seconds.
 
 ### Agent Decision Graph (v2.0)
 
-**Given** Tony clicks on an agent card and navigates to Decision Graph,  
+**Given** the end-user clicks on an agent card and navigates to Decision Graph,  
 **When** the graph loads,  
 **Then** the execution tree renders as a React Flow node graph with color-coded nodes (green/red/orange/gray), token counts visible per node, and expandable content on click — all within 5 seconds.
 
 **Given** a session had an error node,  
-**When** Tony loads the Decision Graph for that session,  
+**When** the end-user loads the Decision Graph for that session,  
 **Then** the error node is highlighted in red, and clicking it shows the full error response and the prompt that produced it.
 
 ### Agent Cost Tracker (v1.5)
 
 **Given** agents have been running for at least one hour,  
-**When** Tony opens the Cost Tracker,  
+**When** the end-user opens the Cost Tracker,  
 **Then** the total cost for today is displayed in dollars, with a bar chart breakdown by VM and a pie chart breakdown by model.
 
 **Given** an agent has exceeded the daily budget threshold,  
@@ -4014,7 +4014,7 @@ gateforge-admin-portal/
 ### Project Health Score (v1.5)
 
 **Given** the portal has data for all scoring dimensions,  
-**When** Tony views any portal page,  
+**When** the end-user views any portal page,  
 **Then** the health score badge is visible in the page header, color-coded green/yellow/red, and updates within 60 seconds of any dimension change.
 
 **Given** the health score drops below 50,  
@@ -4024,13 +4024,13 @@ gateforge-admin-portal/
 ### Pipeline Run History (v1.5)
 
 **Given** at least two pipeline iterations exist,  
-**When** Tony selects two runs for comparison,  
+**When** the end-user selects two runs for comparison,  
 **Then** a side-by-side view loads within 3 seconds showing phase durations, task counts, blocker counts, gate results, and cost per run for both selected iterations.
 
 ### Root Cause Analyser (v2.0)
 
 **Given** a pipeline phase is blocked,  
-**When** Tony opens the Root Cause Analyser and selects the blocked phase,  
+**When** the end-user opens the Root Cause Analyser and selects the blocked phase,  
 **Then** the cause chain is displayed within 10 seconds, showing at minimum the symptom, one intermediate cause, and a suggested root cause with confidence level and suggested resolution.
 
 ### Activity Feed & Audit Log (v1.5)
@@ -4072,6 +4072,6 @@ gateforge-admin-portal/
 *Document Status: Draft — v0.2*  
 *Previous version: v0.1 (8 features)*  
 *Current version: v0.2 (30 features — 8 original + 22 new)*  
-*Author: Tony NG (CTO / Project Lead)*  
+*Author: the end-user (CTO / Project Lead)*  
 *Last Updated: 2026-04-07*  
 *Reference Project: [ClawDeck](https://github.com/tonylnng/clawdeck)*

@@ -1,7 +1,7 @@
 # GateForge QA Framework — VM-4 QC Agents
 
 > **Version:** 1.0.0  
-> **Owner:** Tony NG  
+> **Owner:** the end-user  
 > **Target VM:** VM-4 (MiniMax 2.7)  
 > **Last Updated:** 2026-04-07  
 > **Status:** Active

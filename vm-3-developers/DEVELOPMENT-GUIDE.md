@@ -1,7 +1,7 @@
 # GateForge Developer — Development Standards & Best Practices Guide
 
 > **Version:** 1.0.0  
-> **Owner:** Tony NG  
+> **Owner:** the end-user  
 > **Target:** VM-3 Developer Agents (dev-01..dev-N)  
 > **Model:** Claude Sonnet 4.6 (`anthropic/claude-sonnet-4-6`)  
 > **Gateway Port:** 18789 | **IP:** 192.168.72.12  
@@ -3272,7 +3272,7 @@ When a task cannot proceed, immediately report a `blocked` status with dependenc
 2. Always include `blockedBy` with the dependency task ID
 3. If partial work is possible, set `canPartiallyProceed: true` and continue with what's available
 4. Never wait silently — the pipeline assumes progress unless told otherwise
-5. Maximum 3 retries per task before escalation to human (Tony NG)
+5. Maximum 3 retries per task before escalation to human (the end-user)
 
 ---
 

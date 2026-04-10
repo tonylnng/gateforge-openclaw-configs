@@ -69,7 +69,7 @@ Card grid with live status, latest AI output, click-to-detail. No changes needed
 - Latency per node
 - Expandable nodes showing full prompt/response content
 
-**Example use case:** Dev-01 submitted code that failed QA. Tony clicks dev-01 → Decision Graph → sees the agent called `git diff` (success), then `exec: npm test` (failed), then attempted a fix (re-edit), then `exec: npm test` again (still failed), then reported "blocked" to the Architect. Tony can see exactly where and why the loop stopped.
+**Example use case:** Dev-01 submitted code that failed QA. the end-user clicks dev-01 → Decision Graph → sees the agent called `git diff` (success), then `exec: npm test` (failed), then attempted a fix (re-edit), then `exec: npm test` again (still failed), then reported "blocked" to the Architect. The end-user can see exactly where and why the loop stopped.
 
 **Data source:** OpenClaw gateway session traces
 
@@ -89,7 +89,7 @@ Card grid with live status, latest AI output, click-to-detail. No changes needed
 - Overlay: token count, latency, cost per step
 - Jump to "first error" or "longest step"
 
-**Example use case:** QC-01 took 45 minutes on a task that should take 10. Tony opens Session Replay → scrubs to the longest step → sees a retry loop where the agent tried the same test command 8 times with identical input. Root cause: flaky test environment.
+**Example use case:** QC-01 took 45 minutes on a task that should take 10. the end-user opens Session Replay → scrubs to the longest step → sees a retry loop where the agent tried the same test command 8 times with identical input. Root cause: flaky test environment.
 
 **Data source:** OpenClaw gateway session logs (time-ordered)
 
@@ -134,7 +134,7 @@ Card grid with live status, latest AI output, click-to-detail. No changes needed
 
 **What it does:** Side-by-side comparison of agent performance metrics across all agents or selected groups.
 
-**Why it matters:** With multiple developers (dev-01, dev-02...dev-N) and multiple QC agents (qc-01, qc-02...qc-N), Tony needs to see which agents are most productive, which are struggling, and whether workload is balanced.
+**Why it matters:** With multiple developers (dev-01, dev-02...dev-N) and multiple QC agents (qc-01, qc-02...qc-N), the end-user needs to see which agents are most productive, which are struggling, and whether workload is balanced.
 
 **What it shows:**
 - Comparison table (rows = agents, columns = metrics):
@@ -148,7 +148,7 @@ Card grid with live status, latest AI output, click-to-detail. No changes needed
 - Highlight outliers (top performer in green, underperformer in red)
 - Trend sparklines per agent
 
-**Example use case:** Dev-01 completes tasks in 15 min average but 40% fail QA. Dev-02 takes 25 min but 90% pass first time. Tony can see this instantly and decide whether speed or quality is the bottleneck.
+**Example use case:** Dev-01 completes tasks in 15 min average but 40% fail QA. Dev-02 takes 25 min but 90% pass first time. The end-user can see this instantly and decide whether speed or quality is the bottleneck.
 
 ---
 
@@ -163,7 +163,7 @@ Six-phase horizontal pipeline with task counters and quality gates. No changes n
 
 **What it does:** A log of all past pipeline runs (iterations) with the ability to inspect any historical run in full detail.
 
-**Why it matters:** The current Pipeline View shows "now". But Tony needs to compare: "Was this iteration faster than the last one? Did we have more blockers this time? Which phase took longer?" History enables trend analysis and continuous improvement.
+**Why it matters:** The current Pipeline View shows "now". But the end-user needs to compare: "Was this iteration faster than the last one? Did we have more blockers this time? Which phase took longer?" History enables trend analysis and continuous improvement.
 
 **What it shows:**
 - **Run list:** Table of all pipeline runs with start/end date, duration, outcome (completed/aborted/in-progress), task counts
@@ -208,7 +208,7 @@ Six-phase horizontal pipeline with task counters and quality gates. No changes n
 
 **What it does:** View the Lobster Pipeline YAML definition in a structured, readable format with validation checks. Read-only in v1.0; editable in v2.0.
 
-**Why it matters:** The Lobster YAML defines the deterministic orchestration flow. Tony should be able to see it visually without reading raw YAML.
+**Why it matters:** The Lobster YAML defines the deterministic orchestration flow. the end-user should be able to see it visually without reading raw YAML.
 
 **What it shows:**
 - YAML source viewer with syntax highlighting
@@ -222,7 +222,7 @@ Six-phase horizontal pipeline with task counters and quality gates. No changes n
 
 **What it does:** A detailed timeline view for any single task, showing every state change from creation to completion.
 
-**Why it matters:** When a task is delayed or blocked, Tony needs to see the full history: who created it, who assigned it, when it started, when it was blocked, why, when it was unblocked, when QA picked it up, etc.
+**Why it matters:** When a task is delayed or blocked, the end-user needs to see the full history: who created it, who assigned it, when it started, when it was blocked, why, when it was unblocked, when QA picked it up, etc.
 
 **What it shows (for a single task):**
 - Vertical timeline with events:
@@ -276,7 +276,7 @@ Health cards, task table, backlog, burndown. No changes needed.
 
 **What it does:** Visual graph of task and module dependencies, showing which tasks depend on others and where chains of dependency create risk.
 
-**Why it matters:** In a multi-agent system, agents work in parallel. If FEAT-015 (User API) depends on FEAT-014 (Auth Module), and FEAT-014 is blocked, Tony needs to see the cascade immediately.
+**Why it matters:** In a multi-agent system, agents work in parallel. If FEAT-015 (User API) depends on FEAT-014 (Auth Module), and FEAT-014 is blocked, the end-user needs to see the cascade immediately.
 
 **What it shows:**
 - Directed acyclic graph (DAG) of task dependencies
@@ -397,7 +397,7 @@ Health cards, task table, backlog, burndown. No changes needed.
 
 ### ◆ E1. Troubleshooting Console
 
-**What it does:** A centralised troubleshooting workspace where Tony can investigate issues across agents, tasks, and pipeline phases.
+**What it does:** A centralised troubleshooting workspace where The end-user can investigate issues across agents, tasks, and pipeline phases.
 
 **Why it matters:** When something goes wrong, information is scattered across agent logs, notifications, task status, and pipeline state. The console aggregates everything related to a specific issue in one place.
 
@@ -665,10 +665,10 @@ GATEFORGE ADMIN PORTAL
 
 The original 8 features provide solid observability for "what is happening now." The 22 new features add:
 
-- **Depth** — Decision graphs, session replay, and task lifecycle tracking let Tony drill from a dashboard card all the way down to a specific model response on a specific timestamp
+- **Depth** — Decision graphs, session replay, and task lifecycle tracking let the end-user drill from a dashboard card all the way down to a specific model response on a specific timestamp
 - **History** — Pipeline run history, iteration manager, release manager, and audit logs give full retrospective capability
 - **Intelligence** — Bottleneck detection, root cause analysis, SLO forecasting, and project health scoring transform raw data into actionable insights
-- **Troubleshooting** — Console, blocker chains, and communication audit let Tony investigate any issue without switching between multiple views
+- **Troubleshooting** — Console, blocker chains, and communication audit let the end-user investigate any issue without switching between multiple views
 - **Governance** — Audit log, risk register, decision timeline, and webhook alerts support enterprise and regulated environments
 - **Cost Control** — Agent cost tracker with anomaly detection prevents invisible token spend from growing unchecked
 

@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | **Version** | 1.0.0 |
-| **Owner** | Tony NG |
+| **Owner** | the end-user |
 | **Target Agent** | System Architect (VM-1, Claude Opus 4.6) |
 | **Gateway** | `192.168.72.10:18789` |
 | **Last Updated** | 2026-04-07 |
@@ -385,7 +385,7 @@ Brief description of the project, its purpose, and business value.
 ## 2. Stakeholders
 | Name | Role | Responsibilities |
 |------|------|-----------------|
-| Tony NG | Product Owner | Final sign-off on all requirements |
+| the end-user | Product Owner | Final sign-off on all requirements |
 | System Architect | Technical Lead | Blueprint ownership, quality gates |
 
 ## 3. Scope
@@ -2693,7 +2693,7 @@ The Architect sends this sign-off payload to the human user via Telegram for fin
 
 ## 8. Project Management & Progress Tracking
 
-The System Architect is not only the technical coordinator — it is the **project manager** of the entire GateForge pipeline. Tony must be able to ask at any moment "What is the current progress?" and receive a precise, structured answer covering what is done, what is in progress, what is planned, and what is blocked.
+The System Architect is not only the technical coordinator — it is the **project manager** of the entire GateForge pipeline. The end-user must be able to ask at any moment "What is the current progress?" and receive a precise, structured answer covering what is done, what is in progress, what is planned, and what is blocked.
 
 This section defines the backlog structure, iteration cycle, release planning, and bug/enhancement logging mechanism that the Architect must maintain at all times.
 
@@ -2956,7 +2956,7 @@ Maintain each release in `releases/RELEASE-vX.Y.Z.md`:
 | Deploy to Dev | US VM (Dev) | 2026-04-25 | Operator |
 | QA Validation | US VM (Dev) | 2026-04-26 | QC agents |
 | Deploy to UAT | US VM (UAT) | 2026-04-27 | Operator |
-| UAT Sign-off | — | 2026-04-28 | Tony |
+| UAT Sign-off | — | 2026-04-28 | the end-user |
 | Deploy to Prod | US VM (Prod) | 2026-05-01 | Operator |
 
 ## Rollback Plan
@@ -2984,13 +2984,13 @@ Maintain each release in `releases/RELEASE-vX.Y.Z.md`:
 - [ ] Release notes generated with feature list + bug fixes
 - [ ] Deployment runbook reviewed and tested
 - [ ] Rollback procedure tested
-- [ ] Tony's Go/No-Go approval obtained via Telegram
+- [ ] the end-user's Go/No-Go approval obtained via Telegram
 
 ---
 
 ### 8.4 Bug & Enhancement Logging
 
-This is the mechanism for Tony (or any agent) to report bugs and request enhancements. The Architect must be able to receive, classify, and track these alongside the regular backlog.
+This is the mechanism for the end-user (or any agent) to report bugs and request enhancements. The Architect must be able to receive, classify, and track these alongside the regular backlog.
 
 #### 8.4.1 Bug Report Schema
 
@@ -3037,7 +3037,7 @@ This is the mechanism for Tony (or any agent) to report bugs and request enhance
 
 ```mermaid
 stateDiagram-v2
-    [*] --> reported : Tony or agent reports bug
+    [*] --> reported : the end-user or agent reports bug
     reported --> confirmed : Architect validates + reproduces
     reported --> wont_fix : Not a bug / by design
     confirmed --> in_progress : Assigned to developer
@@ -3068,7 +3068,7 @@ stateDiagram-v2
   "businessValue": "High | Medium | Low",
   "technicalComplexity": "S | M | L | XL",
   "acceptanceCriteria": ["AC-1", "AC-2"],
-  "notes": "Additional context from Tony"
+  "notes": "Additional context from the end-user"
 }
 ```
 
@@ -3076,7 +3076,7 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    [*] --> proposed : Tony requests enhancement
+    [*] --> proposed : the end-user requests enhancement
     proposed --> approved : Architect assesses feasibility
     proposed --> rejected : Not feasible / out of scope
     proposed --> deferred : Good idea, not now
@@ -3126,11 +3126,11 @@ Maintain a log file per module in the backlog directory:
 
 ### 8.5 Progress Reporting
 
-The Architect must be able to answer Tony's status inquiries instantly. Maintain these living documents and structured responses.
+The Architect must be able to answer the end-user's status inquiries instantly. Maintain these living documents and structured responses.
 
 #### 8.5.1 Status Inquiry Response Template
 
-When Tony asks "What is the current progress?" via Telegram, respond with this structure:
+When the end-user asks "What is the current progress?" via Telegram, respond with this structure:
 
 ```
 📊 GateForge Progress Report — [Date]
@@ -3200,9 +3200,9 @@ After receiving a structured report from any agent, the Architect must:
 
 ---
 
-### 8.6 Quick Commands for Tony
+### 8.6 Quick Commands for the end-user
 
-The Architect must recognise and respond to these quick commands from Tony via Telegram:
+The Architect must recognise and respond to these quick commands from the end-user via Telegram:
 
 | Command (natural language) | Action |
 |---------------------------|--------|
@@ -3217,7 +3217,7 @@ The Architect must recognise and respond to these quick commands from Tony via T
 | "Release status" | Show current release readiness with quality gate summary |
 | "Iteration velocity" | Show velocity trend across recent iterations |
 
-The Architect must parse Tony's intent even when the phrasing is informal. For example, "how's auth going?" should trigger the module status for the auth module.
+The Architect must parse the end-user's intent even when the phrasing is informal. For example, "how's auth going?" should trigger the module status for the auth module.
 
 ---
 
@@ -3288,13 +3288,13 @@ The Architect must parse Tony's intent even when the phrasing is informal. For e
 
 ## Appendix C: Managed Output Documents
 
-The System Architect is responsible for creating and maintaining the following documents in the Blueprint repository. When Tony provides requirements, the Architect must systematically produce this document set.
+The System Architect is responsible for creating and maintaining the following documents in the Blueprint repository. When The end-user provides requirements, the Architect must systematically produce this document set.
 
 ### Document Ownership Map
 
 | Document | Path in Blueprint Repo | When to Create | When to Update |
 |----------|----------------------|----------------|----------------|
-| User Requirements | `requirements/user-requirements.md` | When Tony provides initial requirements | When Tony adds/changes requirements |
+| User Requirements | `requirements/user-requirements.md` | When The end-user provides initial requirements | When the end-user adds/changes requirements |
 | Functional Requirements | `requirements/functional-requirements.md` | After user requirements are captured | When FRs are decomposed, refined, or added |
 | Non-Functional Requirements | `requirements/non-functional-requirements.md` | During initial architecture phase | When performance/security/scalability targets change |
 | Technical Architecture | `architecture/technical-architecture.md` | After requirements are stable | When architecture decisions change |
@@ -3310,7 +3310,7 @@ The System Architect is responsible for creating and maintaining the following d
 
 ### Requirement Transformation Workflow
 
-When Tony provides requirements via Telegram, follow this sequence:
+When The end-user provides requirements via Telegram, follow this sequence:
 
 ```
 Step 1: Capture raw input → requirements/user-requirements.md
@@ -3362,4 +3362,4 @@ All templates are in the `gateforge-blueprint-template` repository. When startin
 
 ---
 
-*This document is the authoritative reference for the GateForge System Architect agent (VM-1). It is maintained by Tony NG and versioned alongside the agent's SOUL configuration. All architectural decisions, requirements processes, and quality standards defined herein are binding on the multi-agent SDLC pipeline.*
+*This document is the authoritative reference for the GateForge System Architect agent (VM-1). It is maintained by the end-user and versioned alongside the agent's SOUL configuration. All architectural decisions, requirements processes, and quality standards defined herein are binding on the multi-agent SDLC pipeline.*

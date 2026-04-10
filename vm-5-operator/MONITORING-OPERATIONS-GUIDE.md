@@ -4,7 +4,7 @@
 |--------------|----------------------------------------------|
 | **Version**  | 1.0.0                                        |
 | **Date**     | 2026-04-07                                   |
-| **Owner**    | Tony NG — System Architect                   |
+| **Owner**    | the end-user — System Architect                   |
 | **Agent**    | Operator (VM-5, MiniMax 2.7, Port 18789)     |
 | **Target**   | US VM (`user@tonic.sailfish-bass.ts.net`)     |
 | **Stack**    | TypeScript · NestJS · React · PostgreSQL · Redis · Docker · Kubernetes |
@@ -57,7 +57,7 @@
 │  │ :9093         │                 │ Log collector  │               │
 │  └───────┬───────┘                 └────────────────┘               │
 │          │                                                          │
-│          ├──→ Telegram Bot (Tony NG)                                │
+│          ├──→ Telegram Bot (the end-user)                                │
 │          ├──→ Email Alerts                                          │
 │          └──→ Webhook → Lobster Pipeline                            │
 │                                                                      │
@@ -1897,7 +1897,7 @@ Started: {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}
 ⏰ <b>Immediate action required</b>
 🔗 <a href="http://grafana.gateforge.io:3000">Dashboard</a> | <a href="http://alertmanager.gateforge.io:9093">Silence</a>
 
-@TonyNG
+@end-user
 {{ end }}
 ```
 
@@ -1958,7 +1958,7 @@ config:
 │   → Scale up if HPA trigger met                            │
 │                                                            │
 │ Level 2: Operator Agent (5–15 min)                         │
-│   → Telegram alert to Tony NG                              │
+│   → Telegram alert to the end-user                              │
 │   → Operator Agent assesses and reports to Architect (VM-1)│
 │   → Automated rollback if deployment-related               │
 │                                                            │
@@ -1967,7 +1967,7 @@ config:
 │   → Email escalation if Telegram unacknowledged            │
 │                                                            │
 │ Level 4: Human Escalation (30+ min)                        │
-│   → Phone call / urgent contact to Tony NG                 │
+│   → Phone call / urgent contact to the end-user                 │
 │   → Full incident war room                                 │
 │   → Maximum 3 retries per automated action before human    │
 │     escalation (per GateForge SDLC constraints)            │
@@ -2664,7 +2664,7 @@ Generate this report on the 1st of each month. Automate via Lobster pipeline or 
 ### Report Generated
 - By: Operator Agent (VM-5)
 - Date: {DATE}
-- Reviewed by: Tony NG
+- Reviewed by: the end-user
 ```
 
 ---

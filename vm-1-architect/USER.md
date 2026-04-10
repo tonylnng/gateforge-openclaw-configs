@@ -2,7 +2,7 @@
 
 ## Project Owner
 
-- **Name**: Tony NG
+- **Name**: the end-user
 - **Role**: CTO / Project Lead
 - **Communication**: Telegram (primary channel to System Architect)
 

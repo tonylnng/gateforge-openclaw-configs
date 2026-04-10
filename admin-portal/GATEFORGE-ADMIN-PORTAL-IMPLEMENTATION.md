@@ -639,7 +639,7 @@ BLUEPRINT_SSH_KEY_PATH=/data/ssh-keys/blueprint_rsa
 BLUEPRINT_PAT_TOKEN=
 
 # ─── Telegram ─────────────────────────────────────────────────────────────────
-# Read-only monitoring of Tony ↔ Architect messages
+# Read-only monitoring of the end-user ↔ Architect messages
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 
@@ -5767,7 +5767,7 @@ Request headers:
 
 ### 10.3 Monitoring Telegram (Read-Only)
 
-The portal uses the Telegram Bot API in polling mode (no webhook) to read messages in Tony ↔ Architect conversations:
+The portal uses the Telegram Bot API in polling mode (no webhook) to read messages in the end-user ↔ Architect conversations:
 
 ```typescript
 // telegramMonitor.ts — simplified polling loop

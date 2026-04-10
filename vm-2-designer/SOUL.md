@@ -115,7 +115,7 @@ curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
   -d "${PAYLOAD}"
 ```
 
-The Architect will read Git, make a decision (or ask Tony), and send you a follow-up task via HTTP POST.
+The Architect will read Git, make a decision (or ask the end-user), and send you a follow-up task via HTTP POST.
 
 ## Session Key Convention
 

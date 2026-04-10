@@ -21,7 +21,7 @@
 
 ### What Is GateForge
 
-GateForge is a **multi-agent software development lifecycle (SDLC) pipeline** designed by Tony NG (CTO / Project Lead). It uses 5 isolated AI agent instances — each running on its own VM inside OpenClaw — to collaboratively build, test, and deploy production-grade software.
+GateForge is a **multi-agent software development lifecycle (SDLC) pipeline** designed by the end-user (CTO / Project Lead). It uses 5 isolated AI agent instances — each running on its own VM inside OpenClaw — to collaboratively build, test, and deploy production-grade software.
 
 GateForge is not a single AI working alone. It is a coordinated engineering team of specialised AI agents:
 
@@ -38,7 +38,7 @@ GateForge is not a single AI working alone. It is a coordinated engineering team
 GateForge uses a **hub-and-spoke** architecture:
 
 ```
-                         Tony (Human)
+                         the end-user (Human)
                               │
                          via Telegram
                               │
@@ -64,7 +64,7 @@ GateForge uses a **hub-and-spoke** architecture:
 ```
 
 **Key rules:**
-- Only the Architect communicates with Tony (via Telegram)
+- Only the Architect communicates with the end-user (via Telegram)
 - Only the Architect writes to the Blueprint (Git repository — single source of truth)
 - No spoke-to-spoke communication — all messages route through the Architect
 - All inter-agent messages use structured JSON, never free-form prose
@@ -77,12 +77,12 @@ GateForge follows six phases for every feature or release:
 
 | Phase | What Happens | Key Agent | Outcome |
 |-------|-------------|-----------|---------|
-| 1. Requirements & Feasibility | Tony sends requirements via Telegram → Architect clarifies and decomposes | Architect | Blueprint v0.1 |
+| 1. Requirements & Feasibility | The end-user sends requirements via Telegram → Architect clarifies and decomposes | Architect | Blueprint v0.1 |
 | 2. Architecture & Infrastructure | Architect dispatches design tasks → Designer produces infrastructure/security/DB design | Designer | Blueprint v0.2 |
 | 3. Development (Parallel) | Architect dispatches module tasks → Developers implement, push to feature branches | Developers | Blueprint v0.3 |
 | 4. Quality Assurance (Parallel) | Architect dispatches test tasks → QC agents design and execute tests | QC Agents | Blueprint v0.4 |
 | 5. Deployment & Release | Architect dispatches to Operator → Deploy to US VM (Dev → UAT → Prod) | Operator | Production release |
-| 6. Iteration | Tony feedback → new requirements or hotfix flow | All | Next cycle |
+| 6. Iteration | the end-user feedback → new requirements or hotfix flow | All | Next cycle |
 
 ### Quality Gates
 
@@ -99,7 +99,7 @@ No task advances without passing its quality gate:
 
 ## The Problem This Project Solves
 
-Tony's only current window into GateForge is **Telegram messages from the System Architect** — a single-channel, summary-level view. He cannot see:
+the end-user's only current window into GateForge is **Telegram messages from the System Architect** — a single-channel, summary-level view. He cannot see:
 
 - What each agent is currently doing or whether it is idle, active, or blocked
 - Where the SDLC pipeline is in its journey through six phases
@@ -116,7 +116,7 @@ Tony's only current window into GateForge is **Telegram messages from the System
 
 ## What Is the GateForge Admin Portal
 
-The GateForge Admin Portal is a **read-only observability dashboard** that gives Tony a single-pane-of-glass view into the entire GateForge multi-agent pipeline.
+The GateForge Admin Portal is a **read-only observability dashboard** that gives the end-user a single-pane-of-glass view into the entire GateForge multi-agent pipeline.
 
 ### One Sentence
 
@@ -128,11 +128,11 @@ These principles are non-negotiable. Every feature, every component, every API e
 
 | Principle | What It Means | Why It Matters |
 |-----------|--------------|----------------|
-| **Read-Only** | The portal NEVER sends commands, prompts, or messages to any agent. It observes only. Tony continues to interact with the pipeline exclusively via Telegram → Architect. | Preserves the hub-and-spoke contract. If the portal could send instructions, it would bypass the Architect and break the communication model. |
-| **Real-Time** | Live status updates via Server-Sent Events (SSE). No manual page refresh needed. Agent status changes appear within 2 seconds. | Tony needs to see what is happening now, not what happened last time he refreshed. |
+| **Read-Only** | The portal NEVER sends commands, prompts, or messages to any agent. It observes only. the end-user continues to interact with the pipeline exclusively via Telegram → Architect. | Preserves the hub-and-spoke contract. If the portal could send instructions, it would bypass the Architect and break the communication model. |
+| **Real-Time** | Live status updates via Server-Sent Events (SSE). No manual page refresh needed. Agent status changes appear within 2 seconds. | the end-user needs to see what is happening now, not what happened last time he refreshed. |
 | **Status Fidelity** | Every status value in the portal maps exactly to GateForge's canonical definitions. No invented states, no renamed labels, no approximate mappings. | If the portal says "in-progress" it must mean the same thing as "in-progress" in the Blueprint backlog. Misaligned status values would create confusion. |
-| **5-Second Comprehension** | Tony should understand overall system health within 5 seconds of opening any page. | Executive users need rapid situational awareness, not data exploration. |
-| **Graceful Degradation** | If a VM is unreachable, the portal shows "offline" for that VM and continues working for all others. One failure never breaks the whole portal. | VMs are independent. A network issue on VM-4 should not prevent Tony from seeing VM-3's developer status. |
+| **5-Second Comprehension** | the end-user should understand overall system health within 5 seconds of opening any page. | Executive users need rapid situational awareness, not data exploration. |
+| **Graceful Degradation** | If a VM is unreachable, the portal shows "offline" for that VM and continues working for all others. One failure never breaks the whole portal. | VMs are independent. A network issue on VM-4 should not prevent the end-user from seeing VM-3's developer status. |
 
 ---
 
@@ -187,7 +187,7 @@ The main view of the portal. A responsive card grid showing every agent across a
 
 **Click any card → Agent Detail View** with 4 tabs: Conversation History (full AI response timeline with token count and latency), Task History (completed/in-progress/blocked with filters), Tools & Access (tool list, file system scope, masked env vars), and Performance (response time trends, token usage, task completion rate).
 
-**Why it matters:** The primary situational awareness view. Tony can see at a glance which agents are active, which are blocked, and what they are working on — information that was previously available only via Telegram relay.
+**Why it matters:** The primary situational awareness view. The end-user can see at a glance which agents are active, which are blocked, and what they are working on — information that was previously available only via Telegram relay.
 
 **Multi-agent VMs:** VM-3 (Developers) and VM-4 (QC) display grouped cards with sub-agent IDs (dev-01, dev-02, qc-01, qc-02). Auto-refresh via SSE — no polling from the browser.
 
@@ -268,7 +268,7 @@ A visual horizontal pipeline showing the 6 SDLC phases as connected nodes.
 
 **Click any phase node → Phase detail panel:** All tasks in this phase with status/agent/priority, quality gate criteria checklist, and PROMOTE / HOLD / ROLLBACK decision indicator for QA phases. Dropdown for pipeline history to view past iterations.
 
-**Why it matters:** Gives Tony the full pipeline status that was previously available only via Architect Telegram updates. Shows the exact phase, task counts, and gate decisions in one visual.
+**Why it matters:** Gives the end-user the full pipeline status that was previously available only via Architect Telegram updates. Shows the exact phase, task counts, and gate decisions in one visual.
 
 ---
 
@@ -298,7 +298,7 @@ A visual horizontal pipeline showing the 6 SDLC phases as connected nodes.
 - **Throughput Metrics:** Tasks completed per day (velocity), pipeline cycle time (requirement to production), and lead time (task created to task completed)
 - **Predictive Alerts:** Forward-looking warnings such as "At current velocity, Phase 4 (QA) will take 3 more days" or "QA gate coverage at 87% — may not pass threshold"
 
-**Why it matters:** Turns raw pipeline data into actionable insight. Detects problems proactively rather than waiting for Tony to notice a delay.
+**Why it matters:** Turns raw pipeline data into actionable insight. Detects problems proactively rather than waiting for the end-user to notice a delay.
 
 **Data source:** `pipelineAnalytics` service. **Implementation priority:** P2 (v2.0).
 
@@ -314,7 +314,7 @@ A visual horizontal pipeline showing the 6 SDLC phases as connected nodes.
 - Validation panel: checks for unreachable steps, missing on_fail handlers, undefined agent references, and circular dependencies
 - Diff viewer comparing current YAML with previous version
 
-**Why it matters:** The Lobster YAML defines the deterministic orchestration flow. Tony should be able to read it visually without parsing raw YAML.
+**Why it matters:** The Lobster YAML defines the deterministic orchestration flow. the end-user should be able to read it visually without parsing raw YAML.
 
 **Implementation priority:** P3 (v2.5+).
 
@@ -403,7 +403,7 @@ Mirrors the project status tracking from the Blueprint's `project/status.md`.
 - Each entry: date, decision, rationale, who made it, and what was affected
 - Filters by date range, event type, and agent involved
 
-**Why it matters:** Decisions in a multi-agent system are made by multiple agents across multiple phases. The Decision Timeline gives Tony a single place to review why things were built the way they were.
+**Why it matters:** Decisions in a multi-agent system are made by multiple agents across multiple phases. The Decision Timeline gives the end-user a single place to review why things were built the way they were.
 
 **Implementation priority:** P2 (v2.0).
 
@@ -418,7 +418,7 @@ Mirrors the project status tracking from the Blueprint's `project/status.md`.
 - Release detail: included features (task IDs + titles), bugs fixed, breaking changes, auto-generated release notes from commit messages, deployment status per environment (Dev ✓ / UAT ✓ / Prod ○), and quality gate summary for this release
 - Release comparison: select two releases to diff included features, code changes, and test results
 
-**Why it matters:** Closes the loop between the SDLC pipeline and the released product. Tony can see exactly what was in any given release and how it compares to the previous one.
+**Why it matters:** Closes the loop between the SDLC pipeline and the released product. The end-user can see exactly what was in any given release and how it compares to the previous one.
 
 **Implementation priority:** P2 (v2.0).
 
@@ -432,7 +432,7 @@ Surfaces all quality assurance data from GateForge's QA framework.
 
 **What it shows:** Per-module coverage bars for Unit / Integration / E2E with threshold markers (95% / 90% / 85%); gate decision cards (PROMOTE / HOLD / ROLLBACK per module with criteria checklist); defect summary by severity (Critical / Major / Minor / Cosmetic) with defect density trend; test automation metrics (coverage %, execution time, flaky test rate); and security panel (OWASP Top 10 coverage checklist, Snyk dependency scan summary).
 
-**Why it matters:** QA is a critical gate in GateForge. This dashboard lets Tony see coverage gaps and gate decisions without asking the Architect to relay QC reports.
+**Why it matters:** QA is a critical gate in GateForge. This dashboard lets the end-user see coverage gaps and gate decisions without asking the Architect to relay QC reports.
 
 ---
 
@@ -475,7 +475,7 @@ Monitors deployment and runtime health across all three environments.
 - Rollback chain: visual sequence showing current version → rollback target → what would be reverted
 - Smoke test results per deployment with pass/fail detail
 
-**Why it matters:** When something breaks in production, Tony needs to know immediately what changed between the working version and the broken one. The diff view provides this without requiring SSH access to the server.
+**Why it matters:** When something breaks in production, the end-user needs to know immediately what changed between the working version and the broken one. The diff view provides this without requiring SSH access to the server.
 
 **Implementation priority:** P3 (v2.5+).
 
@@ -492,7 +492,7 @@ Monitors deployment and runtime health across all three environments.
 - Historical SLO compliance: monthly SLO achievement rate trend
 - Breach history: past SLO breaches with root cause and resolution time
 
-**Why it matters:** The Operations Dashboard shows current SLO health. Forecasting shows where it is heading — allowing Tony to act before a budget is exhausted, not after.
+**Why it matters:** The Operations Dashboard shows current SLO health. Forecasting shows where it is heading — allowing the end-user to act before a budget is exhausted, not after.
 
 **Implementation priority:** P3 (v2.5+).
 
@@ -514,7 +514,7 @@ A real-time feed of all notifications from all VMs, colour-coded by priority.
 
 **Features:** Filter by VM, priority, and time range. Click any notification to see full context and Git reference. Browser toast for CRITICAL/BLOCKED notifications.
 
-**Why it matters:** Previously Tony only received notifications the Architect chose to relay. The Notification Center shows everything from all VMs in real time.
+**Why it matters:** Previously the end-user only received notifications the Architect chose to relay. The Notification Center shows everything from all VMs in real time.
 
 ---
 
@@ -577,7 +577,7 @@ A real-time feed of all notifications from all VMs, colour-coded by priority.
 - Impact score: number of downstream items affected if this blocker persists
 - Resolution priority: blockers ranked by impact score so the highest-impact blocker is addressed first
 
-**Why it matters:** A single blocker can cascade. The Blocker Chain Visualiser surfaces the full blast radius of each blocker, enabling Tony to prioritise resolution correctly.
+**Why it matters:** A single blocker can cascade. The Blocker Chain Visualiser surfaces the full blast radius of each blocker, enabling the end-user to prioritise resolution correctly.
 
 **Implementation priority:** P1 (v1.5).
 
@@ -604,7 +604,7 @@ A guided 7-step wizard for first-time installation and ongoing configuration.
 | 1. Admin Credentials | Username, password, JWT secret for portal access |
 | 2. VM Registry | Add VM-1 through VM-5 with IP, port, hook token, agent secret. Auto-detect on 192.168.72.x subnet. Test connection button per VM. |
 | 3. AI API Keys | Per-VM API keys for Anthropic, OpenAI, Google, MiniMax. Validated on save. |
-| 4. Telegram Config | Bot token, chat ID for System Architect → Tony notifications |
+| 4. Telegram Config | Bot token, chat ID for System Architect → the end-user notifications |
 | 5. Blueprint Repo | Git URL, SSH key or access token, branch selection |
 | 6. Deployment Target | US VM Tailscale address, SSH credentials, environment paths (Dev/UAT/Prod) |
 | 7. Review & Save | Summary of all settings, connection test for each service, export config |
@@ -664,7 +664,7 @@ A guided 7-step wizard for first-time installation and ongoing configuration.
 
 **Visual treatment:** Score badge in header bar (always visible): green 80–100, yellow 50–79, red 0–49. Score detail card on Project Dashboard with per-dimension breakdown and trend sparkline.
 
-**Why it matters:** Operationalises the 5-second comprehension rule for overall project health. A single persistent number tells Tony whether the project is healthy, at risk, or in trouble before he opens any specific view.
+**Why it matters:** Operationalises the 5-second comprehension rule for overall project health. A single persistent number tells the end-user whether the project is healthy, at risk, or in trouble before he opens any specific view.
 
 **Data source:** `healthScore` service (aggregates data from all other services). **Implementation priority:** P1 (v1.5).
 
@@ -685,7 +685,7 @@ A guided 7-step wizard for first-time installation and ongoing configuration.
 
 **Supported channels:** Slack (incoming webhook URL), Email (SMTP config), PagerDuty (integration key), Custom HTTP POST (any URL with configurable payload template), Telegram (additional bot — separate from the Architect's Telegram).
 
-**Why it matters:** Tony may not have the portal open at all times. Webhooks ensure that critical events reach him through other channels he monitors, without requiring constant dashboard attention.
+**Why it matters:** the end-user may not have the portal open at all times. Webhooks ensure that critical events reach him through other channels he monitors, without requiring constant dashboard attention.
 
 **Data source:** `webhookDispatcher` service. **Implementation priority:** P1 (v1.5).
 
@@ -800,7 +800,7 @@ This is not optional. If the portal could send instructions, it would bypass the
 
 | Alternative | Why the Admin Portal Is Better |
 |-------------|-------------------------------|
-| **Telegram only** | Telegram gives Tony a text-only, linear stream from the Architect. No visual pipeline, no multi-agent overview, no drill-down into individual agents, no QA metrics, no cost visibility. |
+| **Telegram only** | Telegram gives the end-user a text-only, linear stream from the Architect. No visual pipeline, no multi-agent overview, no drill-down into individual agents, no QA metrics, no cost visibility. |
 | **Raw SSH into each VM** | Requires technical skill, no aggregated view, no real-time dashboard, scattered across 5 terminals. |
 | **Generic monitoring (Grafana)** | Grafana monitors infrastructure metrics (CPU, RAM, disk), not agent-level state (which task, what AI output, what gate decision, what token cost). The Admin Portal is purpose-built for GateForge's domain model. |
 | **ClawDeck directly** | ClawDeck manages individual OpenClaw instances but has no concept of the SDLC pipeline, quality gates, Blueprint, or the hub-and-spoke topology. The Admin Portal is built on ClawDeck's tech stack but engineered for GateForge's workflow. |
@@ -937,7 +937,7 @@ These are not in scope for any current release but represent the roadmap for fut
 GateForge currently runs one project at a time. When it supports multiple concurrent projects, the Admin Portal should show a project selector and scope all views to the selected project. **Architecture impact:** All data models need a `projectId` field from the start — this should be included in v1.0 schemas even though the feature is deferred.
 
 ### Role-Based Access Control (v2.0)
-Currently Tony is the only user. RBAC would allow adding team members with different access levels:
+Currently the end-user is the only user. RBAC would allow adding team members with different access levels:
 - `admin` — full access including setup and webhook configuration
 - `viewer` — read-only dashboard access (no setup page)
 - `auditor` — read-only with export capabilities
@@ -947,10 +947,10 @@ Currently Tony is the only user. RBAC would allow adding team members with diffe
 React Native mobile app for on-the-go monitoring. Push notifications for CRITICAL/BLOCKED events. Focused on the Agent Dashboard, Notification Center, Project Health Score, and Blocker Chain — not the full portal.
 
 ### AI-Generated Sprint Planning Suggestions (v3.0)
-Using historical velocity data, current backlog, agent availability, and past iteration patterns, generate suggested task assignments and scope for the next iteration. This would be surfaced as a read-only recommendation panel inside the Iteration Manager — Tony acts on suggestions via Telegram to the Architect.
+Using historical velocity data, current backlog, agent availability, and past iteration patterns, generate suggested task assignments and scope for the next iteration. This would be surfaced as a read-only recommendation panel inside the Iteration Manager — the end-user acts on suggestions via Telegram to the Architect.
 
 ### Interactive Dependency Editor (v3.0)
-An editable version of the Dependency Map allowing Tony to define or adjust task dependencies visually. Like the YAML Editor, this would be the first write-capable feature and would need to route changes through the Architect's approval flow rather than writing directly to the Blueprint.
+An editable version of the Dependency Map allowing the end-user to define or adjust task dependencies visually. Like the YAML Editor, this would be the first write-capable feature and would need to route changes through the Architect's approval flow rather than writing directly to the Blueprint.
 
 ### Historical Cost Benchmarking (v2.5)
 Compare token spend and cost efficiency across projects or against industry benchmarks. Useful once multi-project support is added. Requires a persistent cost data store beyond the current iteration window.
@@ -1066,7 +1066,7 @@ gateforge-admin-portal/
 
 ## Summary
 
-The GateForge Admin Portal is a read-only observability layer for the GateForge multi-agent SDLC pipeline. It exists because Tony needs to see what his AI agents are doing without interfering with their operation.
+The GateForge Admin Portal is a read-only observability layer for the GateForge multi-agent SDLC pipeline. It exists because the end-user needs to see what his AI agents are doing without interfering with their operation.
 
 The portal provides **30 features** across 6 categories:
 
