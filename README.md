@@ -977,11 +977,189 @@ Each VM directory in this configuration package contains:
 
 ---
 
+## Installation
+
+GateForge provides interactive installation scripts that automate the full setup of each VM. The scripts prompt you for all required configuration values, install OpenClaw, configure the gateway, set up security credentials, copy the correct config files, and register a systemd service.
+
+### Prerequisites
+
+Each VM must have:
+- Ubuntu 22.04 or 24.04 LTS
+- Internet access (for OpenClaw installation)
+- `sudo` access
+- `curl`, `git`, `openssl` installed
+
+### Installation Order
+
+**VM-1 (Architect) must be set up first.** The Architect script generates the HMAC signing secrets for all 4 spoke VMs and displays them at the end. You then copy those secrets into the spoke VM setups.
+
+```
+1. VM-1 Architect   ← Run first (generates spoke secrets)
+2. VM-2 Designer    ← Paste VM-2 secret from Architect output
+3. VM-3 Developers  ← Paste VM-3 secret from Architect output
+4. VM-4 QC Agents   ← Paste VM-4 secret from Architect output
+5. VM-5 Operator    ← Paste VM-5 secret from Architect output
+```
+
+### How to Run
+
+```bash
+# On each VM, clone this repo:
+git clone https://github.com/tonylnng/gateforge-openclaw-configs.git
+cd gateforge-openclaw-configs/install
+
+# Run the script for this VM's role:
+sudo bash install-vm1-architect.sh    # On VM-1
+sudo bash install-vm2-designer.sh     # On VM-2
+sudo bash install-vm3-developers.sh   # On VM-3
+sudo bash install-vm4-qc-agents.sh    # On VM-4
+sudo bash install-vm5-operator.sh     # On VM-5
+```
+
+### What Each Script Does
+
+All scripts follow the same pattern: prompt for inputs → install OpenClaw → configure → secure → verify.
+
+#### Common Steps (all VMs)
+
+| Step | Action |
+|------|--------|
+| 1 | Check prerequisites (Ubuntu, Node.js, curl, git, openssl) |
+| 2 | Install OpenClaw via `curl -fsSL https://openclaw.ai/install.sh \| bash` |
+| 3 | Prompt for AI model API key and all required configuration |
+| 4 | Configure the OpenClaw gateway (bind address, port 18789, auth token) |
+| 5 | Configure the AI model provider (Anthropic or MiniMax) |
+| 6 | Write secrets to `/opt/secrets/openclaw-vmN.env` (chmod 600, root-only) |
+| 7 | Copy SOUL.md, AGENTS.md, USER.md, TOOLS.md, and guideline docs to `~/.openclaw/` |
+| 8 | Create and enable `openclaw-vmN.service` systemd unit |
+| 9 | Verify gateway health and display summary |
+
+#### VM-1 Architect (install-vm1-architect.sh)
+
+| Prompt | Description |
+|--------|-------------|
+| Anthropic API key | For Claude Opus 4.6 |
+| VM-1 IP address | Default: 192.168.72.10 |
+| Gateway auth token | Generate or paste (protects this VM's gateway) |
+| Architect hook token | For inbound notifications from spokes |
+| Telegram bot token | For human communication via Telegram |
+| Blueprint Git repo URL | The shared project repository |
+| Spoke VM IPs | Defaults: .11, .12, .13, .14 |
+
+The script **generates 4 HMAC signing secrets** (one per spoke VM) and prints them clearly at the end:
+
+```
+┌──────────────────────────────────────────────────────┐
+│  SAVE THESE SECRETS — needed for spoke VM setup       │
+├──────────────────────────────────────────────────────┤
+│  VM-2 (Designer):   a3f8c9...64chars                  │
+│  VM-3 (Developers): 7b2e1d...64chars                  │
+│  VM-4 (QC Agents):  91d4f0...64chars                  │
+│  VM-5 (Operator):   c5e8a2...64chars                  │
+│  Hook Token:        e7f3b1...64chars                  │
+└──────────────────────────────────────────────────────┘
+```
+
+Copy these values — you will paste them when setting up each spoke VM.
+
+#### VM-2 Designer (install-vm2-designer.sh)
+
+| Prompt | Description |
+|--------|-------------|
+| Anthropic API key | For Claude Sonnet 4.6 |
+| VM-2 IP address | Default: 192.168.72.11 |
+| Gateway auth token | Protects this VM's gateway (Architect uses this to dispatch tasks) |
+| Architect notify URL | Default: http://192.168.72.10:18789/hooks/agent |
+| Architect hook token | Paste from VM-1 output |
+| Agent HMAC secret | Paste the VM-2 secret from VM-1 output |
+| Blueprint Git repo URL | Same repo as VM-1 |
+
+#### VM-3 Developers (install-vm3-developers.sh)
+
+Same prompts as VM-2 (with VM-3 defaults), plus:
+
+| Prompt | Description |
+|--------|-------------|
+| Number of Developer agents | Choose: 3, 5, or 10 |
+
+The script generates per-agent SOUL.md files (dev-01 through dev-N) with individual identities and isolated workspace paths.
+
+#### VM-4 QC Agents (install-vm4-qc-agents.sh)
+
+| Prompt | Description |
+|--------|-------------|
+| MiniMax API key | For MiniMax 2.7 (not Anthropic) |
+| Number of QC agents | Choose: 3, 5, or 10 |
+
+Configures MiniMax provider with `baseUrl: https://api.minimax.chat/v1`. Generates per-agent SOUL.md files (qc-01 through qc-N).
+
+#### VM-5 Operator (install-vm5-operator.sh)
+
+| Prompt | Description |
+|--------|-------------|
+| MiniMax API key | For MiniMax 2.7 |
+| Tailscale auth key | For VPN access to US deployment VM |
+| US VM address | Default: user@tonic.sailfish-bass.ts.net |
+| GitHub token | For CI/CD pipeline triggers |
+
+### Script Options
+
+| Flag | Description |
+|------|-------------|
+| `--help` | Show usage and all prompts without running |
+| `--dry-run` | Show what would be done without executing any changes |
+
+### Where Secrets Are Stored
+
+All secrets are written to `/opt/secrets/openclaw-vmN.env` with strict permissions:
+
+```bash
+# Permissions (set by the install script):
+-rw------- root root /opt/secrets/openclaw-vm1.env
+-rw------- root root /opt/secrets/openclaw-vm2.env
+# etc.
+```
+
+The systemd service loads these via `EnvironmentFile=/opt/secrets/openclaw-vmN.env`. Secrets never appear in OpenClaw config files or Git.
+
+### Post-Installation Verification
+
+After each script completes, verify:
+
+```bash
+# Check gateway is running:
+openclaw gateway status
+
+# Check systemd service:
+sudo systemctl status openclaw-vmN.service
+
+# Test notification (from any spoke VM):
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[INFO] Test notification from vm-2","metadata":{"sourceVm":"vm-2","sourceRole":"designer","priority":"INFO","taskId":"TEST","timestamp":"'${TIMESTAMP}'"}}'
+SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
+curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
+  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
+  -H "X-Agent-Signature: ${SIGNATURE}" \
+  -H "X-Source-VM: vm-2" \
+  -H "Content-Type: application/json" \
+  -d "${PAYLOAD}"
+```
+
+---
+
 ## Directory Structure
 
 ```
 openclaw-configs/
 ├── README.md                          ← This file (you are reading it)
+│
+├── install/                           ← Installation scripts
+│   ├── install-common.sh              Shared functions (618 lines)
+│   ├── install-vm1-architect.sh        VM-1 setup (generates spoke secrets)
+│   ├── install-vm2-designer.sh         VM-2 setup
+│   ├── install-vm3-developers.sh       VM-3 setup (asks agent count)
+│   ├── install-vm4-qc-agents.sh        VM-4 setup (asks agent count)
+│   └── install-vm5-operator.sh         VM-5 setup (Tailscale + GitHub)
 │
 ├── vm-1-architect/                    ← VM-1: System Architect (Claude Opus 4.6)
 │   ├── SOUL.md                        Identity + coordinator rules
