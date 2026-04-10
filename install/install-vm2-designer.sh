@@ -32,7 +32,7 @@ show_help() {
   echo -e "    3. Prompt for configuration values"
   echo -e "    4. Configure gateway"
   echo -e "    5. Configure model provider (Anthropic, Claude Sonnet 4.6)"
-  echo -e "    6. Write secrets to /opt/secrets/openclaw-vm2.env"
+  echo -e "    6. Write secrets to /opt/secrets/openclaw-gateforge.env"
   echo -e "    7. Copy VM-2 config files to ~/.openclaw/"
   echo -e "    8. Set up systemd service"
   echo -e "    9. Verify and display summary"
@@ -186,14 +186,14 @@ BLUEPRINT_REPO=${BLUEPRINT_REPO}
   print_summary_line "Architect Hook:" "$(mask_secret "$ARCHITECT_HOOK_TOKEN")"
   print_summary_line "HMAC Secret:" "$(mask_secret "$AGENT_SECRET")"
   print_summary_line "Blueprint:" "$BLUEPRINT_REPO"
-  print_summary_line "Secrets File:" "/opt/secrets/openclaw-vm2.env"
-  print_summary_line "Systemd Service:" "openclaw-vm2"
+  print_summary_line "Secrets File:" "/opt/secrets/openclaw-gateforge.env"
+  print_summary_line "Systemd Service:" "openclaw-gateforge"
   print_summary_footer
 
   echo -e "  ${BOLD}Next steps:${RESET}"
-  echo -e "    1. Start the service:  ${TEAL}sudo systemctl start openclaw-vm2${RESET}"
-  echo -e "    2. Check status:       ${TEAL}sudo systemctl status openclaw-vm2${RESET}"
-  echo -e "    3. View logs:          ${TEAL}journalctl -u openclaw-vm2 -f${RESET}"
+  echo -e "    1. Start the service:  ${TEAL}sudo systemctl start openclaw-gateforge${RESET}"
+  echo -e "    2. Check status:       ${TEAL}sudo systemctl status openclaw-gateforge${RESET}"
+  echo -e "    3. View logs:          ${TEAL}journalctl -u openclaw-gateforge -f${RESET}"
   echo ""
   print_success "VM-2 (System Designer) installation complete!"
 }

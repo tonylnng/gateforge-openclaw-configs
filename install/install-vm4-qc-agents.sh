@@ -32,7 +32,7 @@ show_help() {
   echo -e "    3.  Prompt for configuration values"
   echo -e "    4.  Configure gateway"
   echo -e "    5.  Configure model provider (MiniMax 2.7)"
-  echo -e "    6.  Write secrets to /opt/secrets/openclaw-vm4.env"
+  echo -e "    6.  Write secrets to /opt/secrets/openclaw-gateforge.env"
   echo -e "    7.  Copy VM-4 config files to ~/.openclaw/"
   echo -e "    8.  Generate per-agent SOUL.md files and workspaces"
   echo -e "    9.  Set up systemd service"
@@ -268,8 +268,8 @@ AGENT_COUNT=${AGENT_COUNT}
   print_summary_line "HMAC Secret:" "$(mask_secret "$AGENT_SECRET")"
   print_summary_line "Blueprint:" "$BLUEPRINT_REPO"
   print_summary_line "Agent Count:" "$AGENT_COUNT"
-  print_summary_line "Secrets File:" "/opt/secrets/openclaw-vm4.env"
-  print_summary_line "Systemd Service:" "openclaw-vm4"
+  print_summary_line "Secrets File:" "/opt/secrets/openclaw-gateforge.env"
+  print_summary_line "Systemd Service:" "openclaw-gateforge"
   print_summary_separator
   echo -e "  ${TEAL}${BOLD}║${RESET}  ${BOLD}QC Agents:${RESET}                                                 ${TEAL}${BOLD}║${RESET}"
   for i in $(seq -w 1 "$AGENT_COUNT"); do
@@ -278,9 +278,9 @@ AGENT_COUNT=${AGENT_COUNT}
   print_summary_footer
 
   echo -e "  ${BOLD}Next steps:${RESET}"
-  echo -e "    1. Start the service:  ${TEAL}sudo systemctl start openclaw-vm4${RESET}"
-  echo -e "    2. Check status:       ${TEAL}sudo systemctl status openclaw-vm4${RESET}"
-  echo -e "    3. View logs:          ${TEAL}journalctl -u openclaw-vm4 -f${RESET}"
+  echo -e "    1. Start the service:  ${TEAL}sudo systemctl start openclaw-gateforge${RESET}"
+  echo -e "    2. Check status:       ${TEAL}sudo systemctl status openclaw-gateforge${RESET}"
+  echo -e "    3. View logs:          ${TEAL}journalctl -u openclaw-gateforge -f${RESET}"
   echo ""
   print_success "VM-4 (QC Agents — ${AGENT_COUNT} agents) installation complete!"
 }

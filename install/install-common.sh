@@ -341,7 +341,7 @@ write_secrets_file() {
 setup_systemd_service() {
   local vm_name="$1"
   local secrets_file="${SECRETS_DIR}/openclaw-${vm_name}.env"
-  local service_name="openclaw-${vm_name}"
+  local service_name="openclaw-gateforge"
   local service_file="/etc/systemd/system/${service_name}.service"
 
   print_info "Setting up systemd service: ${service_name}"

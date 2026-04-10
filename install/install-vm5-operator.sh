@@ -32,7 +32,7 @@ show_help() {
   echo -e "    3.  Prompt for configuration values"
   echo -e "    4.  Configure gateway"
   echo -e "    5.  Configure model provider (MiniMax 2.7)"
-  echo -e "    6.  Write secrets to /opt/secrets/openclaw-vm5.env"
+  echo -e "    6.  Write secrets to /opt/secrets/openclaw-gateforge.env"
   echo -e "    7.  Copy VM-5 config files to ~/.openclaw/"
   echo -e "    8.  Configure Tailscale"
   echo -e "    9.  Set up systemd service"
@@ -247,14 +247,14 @@ GITHUB_TOKEN=${GITHUB_TOKEN}
   print_summary_line "US VM Target:" "$US_VM_ADDRESS"
   print_summary_line "GitHub Token:" "$(mask_secret "$GITHUB_TOKEN")"
   print_summary_separator
-  print_summary_line "Secrets File:" "/opt/secrets/openclaw-vm5.env"
-  print_summary_line "Systemd Service:" "openclaw-vm5"
+  print_summary_line "Secrets File:" "/opt/secrets/openclaw-gateforge.env"
+  print_summary_line "Systemd Service:" "openclaw-gateforge"
   print_summary_footer
 
   echo -e "  ${BOLD}Next steps:${RESET}"
-  echo -e "    1. Start the service:  ${TEAL}sudo systemctl start openclaw-vm5${RESET}"
-  echo -e "    2. Check status:       ${TEAL}sudo systemctl status openclaw-vm5${RESET}"
-  echo -e "    3. View logs:          ${TEAL}journalctl -u openclaw-vm5 -f${RESET}"
+  echo -e "    1. Start the service:  ${TEAL}sudo systemctl start openclaw-gateforge${RESET}"
+  echo -e "    2. Check status:       ${TEAL}sudo systemctl status openclaw-gateforge${RESET}"
+  echo -e "    3. View logs:          ${TEAL}journalctl -u openclaw-gateforge -f${RESET}"
   echo -e "    4. Verify Tailscale:   ${TEAL}tailscale status${RESET}"
   echo -e "    5. Test US VM SSH:     ${TEAL}ssh ${US_VM_ADDRESS} 'hostname'${RESET}"
   echo ""
