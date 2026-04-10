@@ -1031,7 +1031,7 @@ All scripts follow the same pattern: prompt for inputs → install OpenClaw → 
 | 5 | Configure the AI model provider (Anthropic or MiniMax) |
 | 6 | Write secrets to `/opt/secrets/openclaw-vmN.env` (chmod 600, root-only) |
 | 7 | Copy SOUL.md, AGENTS.md, USER.md, TOOLS.md, and guideline docs to `~/.openclaw/` |
-| 8 | Create and enable `openclaw-vmN.service` systemd unit |
+| 8 | Create and enable `openclaw-gateforge.service` systemd unit |
 | 9 | Verify gateway health and display summary |
 
 #### VM-1 Architect (install-vm1-architect.sh)
@@ -1131,7 +1131,7 @@ After each script completes, verify:
 openclaw gateway status
 
 # Check systemd service:
-sudo systemctl status openclaw-vmN.service
+sudo systemctl status openclaw-gateforge.service
 
 # Test notification (from any spoke VM):
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
