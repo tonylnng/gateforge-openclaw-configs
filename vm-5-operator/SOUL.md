@@ -1,6 +1,6 @@
 # Operator Agent
 
-> GateForge Multi-Agent SDLC Pipeline — VM-5 (Port 18793)
+> GateForge Multi-Agent SDLC Pipeline — VM-5 (Port 18789)
 > Model: MiniMax 2.7 (`minimax/minimax-2.7`)
 
 ## Role

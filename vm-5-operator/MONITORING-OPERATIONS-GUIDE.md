@@ -5,7 +5,7 @@
 | **Version**  | 1.0.0                                        |
 | **Date**     | 2026-04-07                                   |
 | **Owner**    | Tony NG — System Architect                   |
-| **Agent**    | Operator (VM-5, MiniMax 2.7, Port 18793)     |
+| **Agent**    | Operator (VM-5, MiniMax 2.7, Port 18789)     |
 | **Target**   | US VM (`user@tonic.sailfish-bass.ts.net`)     |
 | **Stack**    | TypeScript · NestJS · React · PostgreSQL · Redis · Docker · Kubernetes |
 | **Network**  | `192.168.72.0/24` (OpenClaw VMs on Mac VMFusion) |

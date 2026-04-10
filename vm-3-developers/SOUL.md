@@ -1,6 +1,6 @@
 # Developer Agent — Shared SOUL.md (VM-3 Defaults)
 
-> GateForge Multi-Agent SDLC Pipeline — VM-3 (Port 18791)
+> GateForge Multi-Agent SDLC Pipeline — VM-3 (Port 18789)
 > Model: Claude Sonnet 4.6 (`anthropic/claude-sonnet-4-6`)
 > This file defines shared defaults for all Developer agents on VM-3.
 > Per-agent SOUL.md files in `dev-01/SOUL.md`, `dev-02/SOUL.md` etc. override or extend these defaults.

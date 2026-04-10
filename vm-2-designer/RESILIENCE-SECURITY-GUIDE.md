@@ -5,7 +5,7 @@
 | **Version**   | 1.0.0                                              |
 | **Owner**     | Tony NG                                            |
 | **Agent**     | System Designer (VM-2, Claude Sonnet 4.6)          |
-| **Port**      | 18790                                              |
+| **Port**      | 18789                                              |
 | **IP**        | 192.168.72.11                                      |
 | **Stack**     | TypeScript · NestJS · React · PostgreSQL · Redis · Kubernetes |
 | **Updated**   | 2026-04-07                                         |

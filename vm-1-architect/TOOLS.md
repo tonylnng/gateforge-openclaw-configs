@@ -34,7 +34,7 @@ Use `exec` with `curl` to dispatch tasks to remote VMs:
 
 ```bash
 # Dispatch to Designer (VM-2)
-curl -s -X POST http://192.168.72.11:18790/hooks/agent \
+curl -s -X POST http://192.168.72.11:18789/hooks/agent \
   -H "Authorization: Bearer ${DESIGNER_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"agentId":"designer","message":"<JSON payload>","sessionKey":"pipeline:<project>:designer"}'

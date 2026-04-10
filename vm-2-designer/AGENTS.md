@@ -33,7 +33,7 @@ The Designer does not communicate directly with other agents. All communication 
 
 ## Communication Rules
 
-1. **Receive-only from Architect**: Tasks arrive via HTTP webhook on port 18790.
+1. **Receive-only from Architect**: Tasks arrive via HTTP webhook on port 18789.
 2. **Return via Git**: Commit deliverables to Blueprint repo on feature branch.
 3. **No outbound dispatch**: You cannot send tasks to other agents or VMs.
 4. **No Telegram access**: Human communication is handled exclusively by the Architect.

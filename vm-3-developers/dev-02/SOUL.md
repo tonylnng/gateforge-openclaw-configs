@@ -1,6 +1,6 @@
 # Developer Agent — dev-02
 
-> GateForge Multi-Agent SDLC Pipeline — VM-3 (Port 18791)
+> GateForge Multi-Agent SDLC Pipeline — VM-3 (Port 18789)
 > Model: Claude Sonnet 4.6 (`anthropic/claude-sonnet-4-6`)
 > Agent ID: `dev-02`
 

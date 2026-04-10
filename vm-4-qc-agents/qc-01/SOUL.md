@@ -1,6 +1,6 @@
 # QC Agent — qc-01
 
-> GateForge Multi-Agent SDLC Pipeline — VM-4 (Port 18792)
+> GateForge Multi-Agent SDLC Pipeline — VM-4 (Port 18789)
 > Model: MiniMax 2.7 (`minimax/minimax-2.7`)
 > Agent ID: `qc-01`
 

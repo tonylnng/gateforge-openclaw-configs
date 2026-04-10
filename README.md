@@ -120,7 +120,7 @@ The System Architect is the **prime coordinator** — the brain of GateForge. It
 | **VM** | VM-2 |
 | **AI Model** | Claude Sonnet 4.6 |
 | **IP** | 192.168.72.11 |
-| **Gateway Port** | 18790 |
+| **Gateway Port** | 18789 |
 | **Agents on this VM** | 1 (designer) |
 
 The System Designer is the **infrastructure and application architecture specialist**. It does not communicate with any other agent directly — it receives tasks from the Architect via HTTP, and returns structured reports via Git.
@@ -149,7 +149,7 @@ The System Designer is the **infrastructure and application architecture special
 | **VM** | VM-3 |
 | **AI Model** | Claude Sonnet 4.6 |
 | **IP** | 192.168.72.12 |
-| **Gateway Port** | 18791 |
+| **Gateway Port** | 18789 |
 | **Agents on this VM** | Multiple (dev-01, dev-02, ... dev-N) |
 
 Developers are **module implementation specialists**. Multiple Developer agents run on the same VM, each handling a different module or service. They receive tasks from the Architect, read the Blueprint, write code, and push to feature branches.
@@ -178,7 +178,7 @@ Developers are **module implementation specialists**. Multiple Developer agents 
 | **VM** | VM-4 |
 | **AI Model** | MiniMax 2.7 |
 | **IP** | 192.168.72.13 |
-| **Gateway Port** | 18792 |
+| **Gateway Port** | 18789 |
 | **Agents on this VM** | Multiple (qc-01, qc-02, ... qc-N) |
 
 QC Agents are **quality assurance specialists**. They design test cases, execute tests, and produce structured test reports. They can read code repositories (via `git pull`) but cannot push code or fix defects — they only report them.
@@ -211,7 +211,7 @@ QC Agents are **quality assurance specialists**. They design test cases, execute
 | **VM** | VM-5 |
 | **AI Model** | MiniMax 2.7 |
 | **IP** | 192.168.72.14 |
-| **Gateway Port** | 18793 |
+| **Gateway Port** | 18789 |
 | **Agents on this VM** | 1 (operator) |
 
 The Operator is the **deployment, CI/CD, and monitoring specialist**. It manages the full deployment pipeline from Dev to UAT to Production on the US-based VM. It also sets up monitoring, alerting, and handles release management.

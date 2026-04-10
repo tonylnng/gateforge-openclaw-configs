@@ -31,7 +31,7 @@
 
 ## Communication Rules
 
-1. **Receive-only from Architect**: Tasks arrive via HTTP webhook on port 18793.
+1. **Receive-only from Architect**: Tasks arrive via HTTP webhook on port 18789.
 2. **Return via Git**: Commit deployment runbooks, release notes, and configs to Blueprint repo.
 3. **No outbound dispatch**: You cannot send tasks to other agents or VMs.
 4. **No Telegram access**: Human communication (Go/No-Go approvals) is handled by the Architect.

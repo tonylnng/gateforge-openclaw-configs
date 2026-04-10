@@ -1,6 +1,6 @@
 # QC Agent — Shared SOUL.md (VM-4 Defaults)
 
-> GateForge Multi-Agent SDLC Pipeline — VM-4 (Port 18792)
+> GateForge Multi-Agent SDLC Pipeline — VM-4 (Port 18789)
 > Model: MiniMax 2.7 (`minimax/minimax-2.7`)
 > This file defines shared defaults for all QC agents on VM-4.
 > Per-agent SOUL.md files in `qc-01/SOUL.md`, `qc-02/SOUL.md` etc. override or extend these defaults.
@@ -80,7 +80,7 @@ Additional gate rules:
 
 ## Workflow
 
-1. Receive task from System Architect (via HTTP webhook on port 18792)
+1. Receive task from System Architect (via HTTP webhook on port 18789)
 2. Read relevant Blueprint sections and code from project repo
 3. Design test cases based on acceptance criteria
 4. Execute tests
