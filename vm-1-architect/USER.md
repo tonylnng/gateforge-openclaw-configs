@@ -12,7 +12,7 @@ GateForge is a multi-agent SDLC pipeline that uses 5 isolated OpenClaw instances
 
 ## Architecture Overview
 
-- **5 VMs on Mac** (VMware Fusion, host-only network 192.168.72.x)
+- **5 VMs on Mac** (VMware Fusion, Tailscale VPN network)
   - VM-1: System Architect (Claude Opus 4.6) — you are here
   - VM-2: System Designer (Claude Sonnet 4.6)
   - VM-3: Developers (Claude Sonnet 4.6) — multiple agents
@@ -45,10 +45,10 @@ This is the source of truth for verifying HMAC signatures on inbound notificatio
 
 | Source VM | Role | HMAC Secret | IP | Status |
 |-----------|------|------------|-----|--------|
-| vm-2 | System Designer | `${VM2_AGENT_SECRET}` | 192.168.72.11 | Registered |
-| vm-3 | Developers | `${VM3_AGENT_SECRET}` | 192.168.72.12 | Registered |
-| vm-4 | QC Agents | `${VM4_AGENT_SECRET}` | 192.168.72.13 | Registered |
-| vm-5 | Operator | `${VM5_AGENT_SECRET}` | 192.168.72.14 | Registered |
+| vm-2 | System Designer | `${VM2_AGENT_SECRET}` | 100.95.30.11 | Registered |
+| vm-3 | Developers | `${VM3_AGENT_SECRET}` | 100.81.114.55 | Registered |
+| vm-4 | QC Agents | `${VM4_AGENT_SECRET}` | 100.106.117.104 | Registered |
+| vm-5 | Operator | `${VM5_AGENT_SECRET}` | 100.95.248.68 | Registered |
 
 Generate secrets with:
 ```bash

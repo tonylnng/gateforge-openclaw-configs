@@ -27,11 +27,11 @@ GateForge is not a single AI working alone. It is a coordinated engineering team
 
 | VM | Role | AI Model | IP Address | Agents |
 |----|------|----------|------------|--------|
-| VM-1 | System Architect | Claude Opus 4.6 | 192.168.72.10:18789 | 1 (architect) |
-| VM-2 | System Designer | Claude Sonnet 4.6 | 192.168.72.11:18789 | 1 (designer) |
-| VM-3 | Developers | Claude Sonnet 4.6 | 192.168.72.12:18789 | Multiple (dev-01, dev-02..dev-N) |
-| VM-4 | QC Agents | MiniMax 2.7 | 192.168.72.13:18789 | Multiple (qc-01, qc-02..qc-N) |
-| VM-5 | Operator | MiniMax 2.7 | 192.168.72.14:18789 | 1 (operator) |
+| VM-1 | System Architect | Claude Opus 4.6 | 100.73.38.28:18789 | 1 (architect) |
+| VM-2 | System Designer | Claude Sonnet 4.6 | 100.95.30.11:18789 | 1 (designer) |
+| VM-3 | Developers | Claude Sonnet 4.6 | 100.81.114.55:18789 | Multiple (dev-01, dev-02..dev-N) |
+| VM-4 | QC Agents | MiniMax 2.7 | 100.106.117.104:18789 | Multiple (qc-01, qc-02..qc-N) |
+| VM-5 | Operator | MiniMax 2.7 | 100.95.248.68:18789 | 1 (operator) |
 
 ### How GateForge Communicates
 
@@ -602,7 +602,7 @@ A guided 7-step wizard for first-time installation and ongoing configuration.
 | Step | What It Configures |
 |------|-------------------|
 | 1. Admin Credentials | Username, password, JWT secret for portal access |
-| 2. VM Registry | Add VM-1 through VM-5 with IP, port, hook token, agent secret. Auto-detect on 192.168.72.x subnet. Test connection button per VM. |
+| 2. VM Registry | Add VM-1 through VM-5 with IP, port, hook token, agent secret. Auto-detect on Tailscale VPN network subnet. Test connection button per VM. |
 | 3. AI API Keys | Per-VM API keys for Anthropic, OpenAI, Google, MiniMax. Validated on save. |
 | 4. Telegram Config | Bot token, chat ID for System Architect → the end-user notifications |
 | 5. Blueprint Repo | Git URL, SSH key or access token, branch selection |

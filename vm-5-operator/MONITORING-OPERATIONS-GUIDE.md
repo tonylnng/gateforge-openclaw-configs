@@ -8,7 +8,7 @@
 | **Agent**    | Operator (VM-5, MiniMax 2.7, Port 18789)     |
 | **Target**   | US VM (`user@tonic.sailfish-bass.ts.net`)     |
 | **Stack**    | TypeScript · NestJS · React · PostgreSQL · Redis · Docker · Kubernetes |
-| **Network**  | `192.168.72.0/24` (OpenClaw VMs on Mac VMFusion) |
+| **Network**  | `Tailscale VPN (100.x.x.x)` (OpenClaw VMs on Mac VMFusion) |
 
 ---
 

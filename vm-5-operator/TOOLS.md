@@ -71,7 +71,7 @@ exec("gh run list --workflow=ci.yml --limit=5")
 | `MINIMAX_API_KEY` | MiniMax 2.7 API access |
 | `TAILSCALE_AUTH_KEY` | Tailscale network access for US VM deployment |
 | `GITHUB_TOKEN` | GitHub API access for CI/CD triggers |
-| `ARCHITECT_NOTIFY_URL` | Architect notification endpoint (`http://192.168.72.10:18789/hooks/agent`) |
+| `ARCHITECT_NOTIFY_URL` | Architect notification endpoint (`http://100.73.38.28:18789/hooks/agent`) |
 | `ARCHITECT_HOOK_TOKEN` | Bearer token for Architect hook authentication |
 | `AGENT_SECRET` | This VM's unique HMAC signing secret — used to sign notification payloads, never transmitted |
 

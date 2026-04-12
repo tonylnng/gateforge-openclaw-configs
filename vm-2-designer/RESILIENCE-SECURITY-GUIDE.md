@@ -6,7 +6,7 @@
 | **Owner**     | the end-user                                            |
 | **Agent**     | System Designer (VM-2, Claude Sonnet 4.6)          |
 | **Port**      | 18789                                              |
-| **IP**        | 192.168.72.11                                      |
+| **IP**        | 100.95.30.11                                      |
 | **Stack**     | TypeScript · NestJS · React · PostgreSQL · Redis · Kubernetes |
 | **Updated**   | 2026-04-07                                         |
 
@@ -702,8 +702,8 @@ Use when data exceeds a single node's memory or you need write scaling ([Redis C
 ```bash
 # Create a 6-node cluster (3 masters + 3 replicas)
 redis-cli --cluster create \
-  192.168.72.20:7000 192.168.72.21:7001 192.168.72.22:7002 \
-  192.168.72.20:7003 192.168.72.21:7004 192.168.72.22:7005 \
+  10.0.1.20:7000 10.0.1.21:7001 10.0.1.22:7002 \
+  10.0.1.20:7003 10.0.1.21:7004 10.0.1.22:7005 \
   --cluster-replicas 1 -a ${REDIS_PASSWORD}
 ```
 
@@ -1736,10 +1736,10 @@ name: pg-node1
 
 restapi:
   listen: 0.0.0.0:8008
-  connect_address: 192.168.72.30:8008
+  connect_address: 10.0.1.30:8008
 
 etcd3:
-  hosts: 192.168.72.40:2379,192.168.72.41:2379,192.168.72.42:2379
+  hosts: 10.0.1.40:2379,10.0.1.41:2379,10.0.1.42:2379
 
 bootstrap:
   dcs:
@@ -1772,12 +1772,12 @@ bootstrap:
     - data-checksums
 
   pg_hba:
-    - host replication replicator 192.168.72.0/24 scram-sha-256
-    - host all all 192.168.72.0/24 scram-sha-256
+    - host replication replicator Tailscale VPN (100.x.x.x) scram-sha-256
+    - host all all Tailscale VPN (100.x.x.x) scram-sha-256
 
 postgresql:
   listen: 0.0.0.0:5432
-  connect_address: 192.168.72.30:5432
+  connect_address: 10.0.1.30:5432
   data_dir: /var/lib/postgresql/16/main
   authentication:
     replication:

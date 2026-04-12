@@ -32,7 +32,7 @@ GateForge is not a single AI working alone. It is a coordinated team of speciali
 | **RAM** | 24 GB |
 | **Storage** | 512 GB NVMe SSD |
 | **Hypervisor** | VMware Fusion |
-| **VM Network** | Host-only, 192.168.72.0/24 |
+| **VM Network** | Host-only, Tailscale VPN (100.x.x.x) |
 | **VM Count** | 5 isolated VMs |
 
 VMware Fusion supports **VM resource overcommit** — all 5 VMs share the host's physical resources. Not all VMs run at peak simultaneously, so the total allocated resources across VMs may exceed the host's physical capacity without issue.
@@ -53,7 +53,7 @@ GateForge uses a **hub-and-spoke** architecture. The System Architect (VM-1) is 
                                  │
          ╔═══════════════════════╧═══════════════════════╗
          ║   VM-1: SYSTEM ARCHITECT (Hub / Coordinator)  ║
-         ║   Claude Opus 4.6  |  192.168.72.10:18789     ║
+         ║   Claude Opus 4.6  |  100.73.38.28:18789     ║
          ║                                               ║
          ║   • Blueprint Owner (single source of truth)  ║
          ║   • Task Decomposition & Dispatch             ║
@@ -98,16 +98,16 @@ GateForge uses a **hub-and-spoke** architecture. The System Architect (VM-1) is 
 
 ## Network Topology
 
-| VM | Role | Model | IP | Gateway Port |
-|----|------|-------|----|--------------:|
-| VM-1 | System Architect | Claude Opus 4.6 | 192.168.72.10 | 18789 |
-| VM-2 | System Designer | Claude Sonnet 4.6 | 192.168.72.11 | 18789 |
-| VM-3 | Developers (1..N) | Claude Sonnet 4.6 | 192.168.72.12 | 18789 |
-| VM-4 | QC Agents (1..N) | MiniMax 2.7 | 192.168.72.13 | 18789 |
-| VM-5 | Operator | MiniMax 2.7 | 192.168.72.14 | 18789 |
-| US VM | Deployment Target (UAT + Production) | — | Tailscale | — |
+| VM | Role | Model | Tailscale Host | IP | Port |
+|----|------|-------|---------------|-----|------|
+| VM-1 | System Architect | Claude Opus 4.6 | tonic-architect | 100.73.38.28 | 18789 |
+| VM-2 | System Designer | Claude Sonnet 4.6 | tonic-designer | 100.95.30.11 | 18789 |
+| VM-3 | Developers (1..N) | Claude Sonnet 4.6 | tonic-developer | 100.81.114.55 | 18789 |
+| VM-4 | QC Agents (1..N) | MiniMax 2.7 | tonic-qc | 100.106.117.104 | 18789 |
+| VM-5 | Operator | MiniMax 2.7 | tonic-operator | 100.95.248.68 | 18789 |
+| US VM | Deployment Target (UAT + Production) | — | Tailscale | — | — |
 
-All VMs are on subnet `192.168.72.x` within VMware Fusion on Mac. The US VM is accessed via Tailscale SSH — it runs the product only, not OpenClaw.
+All VMs are on subnet `Tailscale VPN network` connected via Tailscale VPN. The US VM is also on the same Tailscale network — it runs the product only, not OpenClaw.
 
 ---
 
@@ -119,7 +119,7 @@ All VMs are on subnet `192.168.72.x` within VMware Fusion on Mac. The US VM is a
 |----------|-------|
 | **VM** | VM-1 |
 | **AI Model** | Claude Opus 4.6 |
-| **IP** | 192.168.72.10 |
+| **IP** | 100.73.38.28 |
 | **Gateway Port** | 18789 |
 | **Human Interface** | Telegram |
 | **Agents on this VM** | 1 (architect) |
@@ -172,7 +172,7 @@ The System Architect is the **prime coordinator** — the brain of GateForge. It
 |----------|-------|
 | **VM** | VM-2 |
 | **AI Model** | Claude Sonnet 4.6 |
-| **IP** | 192.168.72.11 |
+| **IP** | 100.95.30.11 |
 | **Gateway Port** | 18789 |
 | **Agents on this VM** | 1 (designer) |
 
@@ -226,7 +226,7 @@ The System Designer is the **infrastructure and application architecture special
 |----------|-------|
 | **VM** | VM-3 |
 | **AI Model** | Claude Sonnet 4.6 |
-| **IP** | 192.168.72.12 |
+| **IP** | 100.81.114.55 |
 | **Gateway Port** | 18789 |
 | **Agents on this VM** | Multiple (dev-01, dev-02, ... dev-N) |
 
@@ -292,7 +292,7 @@ Developers are **module implementation specialists**. Multiple Developer agents 
 |----------|-------|
 | **VM** | VM-4 |
 | **AI Model** | MiniMax 2.7 |
-| **IP** | 192.168.72.13 |
+| **IP** | 100.106.117.104 |
 | **Gateway Port** | 18789 |
 | **Agents on this VM** | Multiple (qc-01, qc-02, ... qc-N) |
 
@@ -343,7 +343,7 @@ QC Agents are **quality assurance specialists**. They design test cases, execute
 |----------|-------|
 | **VM** | VM-5 |
 | **AI Model** | MiniMax 2.7 |
-| **IP** | 192.168.72.14 |
+| **IP** | 100.95.248.68 |
 | **Gateway Port** | 18789 |
 | **Agents on this VM** | 1 (operator) |
 
@@ -373,9 +373,9 @@ GateForge uses a **three-layer security model** to protect all inter-agent commu
 
 ### Layer 1: Network Isolation
 
-- All VMs run on a private `192.168.72.x` subnet (VMware Fusion host-only network)
+- All VMs run on a private `Tailscale VPN network` subnet (Tailscale VPN)
 - No VM is exposed to the public internet
-- Optional `iptables` hardening: spoke VMs accept inbound connections only from `192.168.72.10` (the Architect)
+- Optional `iptables` hardening: spoke VMs accept inbound connections only from `100.73.38.28` (the Architect)
 - The US VM is accessed exclusively via Tailscale VPN
 
 ### Layer 2: Hook Token (Transport)
@@ -1039,7 +1039,7 @@ All scripts follow the same pattern: prompt for inputs → install OpenClaw → 
 | Prompt | Description |
 |--------|-------------|
 | Anthropic API key | For Claude Opus 4.6 |
-| VM-1 IP address | Default: 192.168.72.10 |
+| VM-1 IP address | Default: 100.73.38.28 |
 | Gateway auth token | Generate or paste (protects this VM's gateway) |
 | Architect hook token | For inbound notifications from spokes |
 | Telegram bot token | For human communication via Telegram |
@@ -1067,9 +1067,9 @@ Copy these values — you will paste them when setting up each spoke VM.
 | Prompt | Description |
 |--------|-------------|
 | Anthropic API key | For Claude Sonnet 4.6 |
-| VM-2 IP address | Default: 192.168.72.11 |
+| VM-2 IP address | Default: 100.95.30.11 |
 | Gateway auth token | Protects this VM's gateway (Architect uses this to dispatch tasks) |
-| Architect notify URL | Default: http://192.168.72.10:18789/hooks/agent |
+| Architect notify URL | Default: http://100.73.38.28:18789/hooks/agent |
 | Architect hook token | Paste from VM-1 output |
 | Agent HMAC secret | Paste the VM-2 secret from VM-1 output |
 | Blueprint Git repo URL | Same repo as VM-1 |

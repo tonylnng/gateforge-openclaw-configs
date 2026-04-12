@@ -515,7 +515,7 @@ services:
       dockerfile: Dockerfile
     container_name: gateforge-portal-backend
     restart: unless-stopped
-    # On Linux host with route to 192.168.72.0/24:
+    # On Linux host with route to Tailscale VPN (100.x.x.x):
     network_mode: host
     # On macOS: remove network_mode: host, uncomment below:
     # networks:
@@ -624,7 +624,7 @@ NODE_ENV=production
 # ─── GateForge VMs ────────────────────────────────────────────────────────────
 # JSON array — see schema below. Store as a single-line JSON string.
 # Schema: [{ id, role, ip, port, model, hookToken, agentSecret, agents[], isHub? }]
-GATEFORGE_VMS=[{"id":"vm-1","role":"System Architect","ip":"192.168.72.10","port":18789,"model":"claude-opus-4.6","hookToken":"","agentSecret":"","agents":["architect"],"isHub":true},{"id":"vm-2","role":"System Designer","ip":"192.168.72.11","port":18789,"model":"claude-sonnet-4.6","hookToken":"","agentSecret":"","agents":["designer"]},{"id":"vm-3","role":"Developers","ip":"192.168.72.12","port":18789,"model":"claude-sonnet-4.6","hookToken":"","agentSecret":"","agents":["dev-01","dev-02"]},{"id":"vm-4","role":"QC Agents","ip":"192.168.72.13","port":18789,"model":"minimax-2.7","hookToken":"","agentSecret":"","agents":["qc-01","qc-02"]},{"id":"vm-5","role":"Operator","ip":"192.168.72.14","port":18789,"model":"minimax-2.7","hookToken":"","agentSecret":"","agents":["operator"]}]
+GATEFORGE_VMS=[{"id":"vm-1","role":"System Architect","ip":"100.73.38.28","port":18789,"model":"claude-opus-4.6","hookToken":"","agentSecret":"","agents":["architect"],"isHub":true},{"id":"vm-2","role":"System Designer","ip":"100.95.30.11","port":18789,"model":"claude-sonnet-4.6","hookToken":"","agentSecret":"","agents":["designer"]},{"id":"vm-3","role":"Developers","ip":"100.81.114.55","port":18789,"model":"claude-sonnet-4.6","hookToken":"","agentSecret":"","agents":["dev-01","dev-02"]},{"id":"vm-4","role":"QC Agents","ip":"100.106.117.104","port":18789,"model":"minimax-2.7","hookToken":"","agentSecret":"","agents":["qc-01","qc-02"]},{"id":"vm-5","role":"Operator","ip":"100.95.248.68","port":18789,"model":"minimax-2.7","hookToken":"","agentSecret":"","agents":["operator"]}]
 
 # ─── Blueprint Git Repository ─────────────────────────────────────────────────
 # SSH URL example: git@github.com:tonylnng/blueprint.git
@@ -725,7 +725,7 @@ prompt PUBLIC_URL "Public backend URL (browser-accessible)" "http://localhost:${
 section "VM configuration (enter credentials for each VM)"
 declare -a VM_CONFIGS=()
 VM_ROLES=("System Architect" "System Designer" "Developers" "QC Agents" "Operator")
-VM_IPS=("192.168.72.10" "192.168.72.11" "192.168.72.12" "192.168.72.13" "192.168.72.14")
+VM_IPS=("100.73.38.28" "100.95.30.11" "100.81.114.55" "100.106.117.104" "100.95.248.68")
 VM_MODELS=("claude-opus-4.6" "claude-sonnet-4.6" "claude-sonnet-4.6" "minimax-2.7" "minimax-2.7")
 VM_AGENTS=('["architect"]' '["designer"]' '["dev-01","dev-02"]' '["qc-01","qc-02"]' '["operator"]')
 
@@ -1004,7 +1004,7 @@ export type AgentStatus = 'active' | 'idle' | 'blocked' | 'error' | 'offline';
 export interface VMConfig {
   id: string;             // 'vm-1' through 'vm-5'
   role: string;           // 'System Architect', 'System Designer', etc.
-  ip: string;             // '192.168.72.10'
+  ip: string;             // '100.73.38.28'
   port: number;           // 18789
   model: string;          // 'claude-opus-4.6'
   hookToken: string;      // X-Hook-Token header value
@@ -3067,7 +3067,7 @@ All remaining routes follow the same structure: `router.use(requireAuth)`, then 
 - `POST /api/setup/blueprint/test` — Body: `{ repoUrl, branch, patToken? }` → `git ls-remote`
 - `POST /api/setup/telegram/test` — Body: `{ botToken }` → Telegram Bot API getMe
 - `POST /api/setup/usvmTest` — Body: `{ tailscaleAddr, sshUser, sshKeyPath }` → SSH test
-- `GET /api/setup/scan` — Scans `192.168.72.10`–`192.168.72.19` on port 18789
+- `GET /api/setup/scan` — Scans known Tailscale hosts (`tonic-architect`, `tonic-designer`, `tonic-developer`, `tonic-qc`, `tonic-operator`) on port 18789
 - `POST /api/config/save` — Writes validated config to disk (requires auth)
 - `GET /api/config/export` — Returns config JSON without secrets
 - `POST /api/config/import` — Imports non-secret config fields
@@ -5304,7 +5304,7 @@ AUDIT_LOG_PATH=/data/config/audit.log
 | TASK-PORTAL-009 | Backend: SSE event bus + `/api/events` endpoint | VM-3 dev-01 | TASK-PORTAL-008 | `GET /api/events` returns `text/event-stream`; client receives `snapshot` event on connect; heartbeat ping emitted every 30s; client removed from registry on disconnect | 5 |
 | TASK-PORTAL-010 | Frontend: `useSSE` hook with reconnection logic | VM-3 dev-02 | TASK-PORTAL-009 | Hook connects to `/api/events`; reconnects on disconnect with exponential backoff (max 30s); dispatches events to `onEvent` callback | 3 |
 | TASK-PORTAL-011 | Frontend: Setup Wizard (Steps 1–7, stepper UI) | VM-3 dev-02 | TASK-PORTAL-006 | All 7 steps render; stepper shows current/completed/pending states; step-level validation prevents advancing with invalid data | 8 |
-| TASK-PORTAL-012 | Backend: Setup test endpoints (`/api/setup/vm/test`, `/api/setup/scan`) | VM-3 dev-01 | TASK-PORTAL-007 | `POST /api/setup/vm/test` probes the given IP:port with provided tokens and returns latency or error within 5s; scan returns discovered VMs on 192.168.72.10–19 | 5 |
+| TASK-PORTAL-012 | Backend: Setup test endpoints (`/api/setup/vm/test`, `/api/setup/scan`) | VM-3 dev-01 | TASK-PORTAL-007 | `POST /api/setup/vm/test` probes the given IP:port with provided tokens and returns latency or error within 5s; scan returns discovered VMs on 100.73.38.28–19 | 5 |
 | TASK-PORTAL-013 | Frontend: Setup wizard VM Registration cards with test connection | VM-3 dev-02 | TASK-PORTAL-011 | Each VM card shows pre-filled IP/port; Test Connection button calls backend and shows ✓/✗ result with latency badge color (green/yellow/red) | 5 |
 | TASK-PORTAL-014 | `install.sh` interactive installer | VM-3 dev-01 | TASK-PORTAL-001 | Script runs on macOS and Linux; generates `.env` with hashed password; prompts for all 5 VMs; optionally builds and launches Docker Compose | 3 |
 

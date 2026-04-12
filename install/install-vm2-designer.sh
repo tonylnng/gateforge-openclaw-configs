@@ -71,7 +71,7 @@ main() {
   validate_api_key "$ANTHROPIC_API_KEY" "anthropic"
 
   echo ""
-  prompt_optional VM2_IP "VM-2 IP address" "192.168.72.11"
+  prompt_optional VM2_IP "VM-2 IP address" "100.95.30.11"
   if ! validate_ip "$VM2_IP"; then
     print_error "Invalid IP address: ${VM2_IP}"
     exit 1
@@ -92,7 +92,7 @@ main() {
 
   echo ""
   echo -e "  ${BOLD}Architect Connection${RESET}"
-  prompt_optional ARCHITECT_NOTIFY_URL "Architect notify URL" "http://192.168.72.10:18789/hooks/agent"
+  prompt_optional ARCHITECT_NOTIFY_URL "Architect notify URL" "http://100.73.38.28:18789/hooks/agent"
 
   echo ""
   echo -e "  ${DIM}The Architect Hook Token authenticates callbacks to the Architect.${RESET}"

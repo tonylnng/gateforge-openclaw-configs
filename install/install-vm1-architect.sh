@@ -69,7 +69,7 @@ main() {
   prompt_secret ANTHROPIC_API_KEY "Anthropic API key (for Claude Opus 4.6)"
   validate_api_key "$ANTHROPIC_API_KEY" "anthropic"
 
-  prompt_optional VM1_IP "VM-1 IP address" "192.168.72.10"
+  prompt_optional VM1_IP "VM-1 IP address" "100.73.38.28"
   if ! validate_ip "$VM1_IP"; then
     print_error "Invalid IP address: ${VM1_IP}"
     exit 1
@@ -109,10 +109,10 @@ main() {
 
   echo ""
   echo -e "  ${BOLD}Spoke VM IP Addresses${RESET}"
-  prompt_optional VM2_IP "VM-2 (Designer) IP" "192.168.72.11"
-  prompt_optional VM3_IP "VM-3 (Developers) IP" "192.168.72.12"
-  prompt_optional VM4_IP "VM-4 (QC Agents) IP" "192.168.72.13"
-  prompt_optional VM5_IP "VM-5 (Operator) IP" "192.168.72.14"
+  prompt_optional VM2_IP "VM-2 (Designer) IP" "100.95.30.11"
+  prompt_optional VM3_IP "VM-3 (Developers) IP" "100.81.114.55"
+  prompt_optional VM4_IP "VM-4 (QC Agents) IP" "100.106.117.104"
+  prompt_optional VM5_IP "VM-5 (Operator) IP" "100.95.248.68"
 
   echo ""
   echo -e "  ${BOLD}Spoke Gateway Tokens${RESET}"

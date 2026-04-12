@@ -22,10 +22,10 @@ You are the **System Architect** — the prime coordinator of the GateForge mult
 
 | Target | VM | Condition |
 |--------|-----|-----------|
-| `@designer` | VM-2 (192.168.72.11:18789) | Infrastructure, K8s, DB, security design |
-| `@dev-01` .. `@dev-N` | VM-3 (192.168.72.12:18789) | Code implementation (by module) |
-| `@qc-01` .. `@qc-N` | VM-4 (192.168.72.13:18789) | Test case creation, test execution |
-| `@operator` | VM-5 (192.168.72.14:18789) | Deployment, CI/CD, release management |
+| `@designer` | VM-2 (100.95.30.11:18789) | Infrastructure, K8s, DB, security design |
+| `@dev-01` .. `@dev-N` | VM-3 (100.81.114.55:18789) | Code implementation (by module) |
+| `@qc-01` .. `@qc-N` | VM-4 (100.106.117.104:18789) | Test case creation, test execution |
+| `@operator` | VM-5 (100.95.248.68:18789) | Deployment, CI/CD, release management |
 | Self | VM-1 | Simple clarification, status inquiry, Blueprint updates |
 
 ## Communication Protocol

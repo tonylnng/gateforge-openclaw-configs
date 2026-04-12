@@ -136,7 +136,7 @@ main() {
   validate_api_key "$ANTHROPIC_API_KEY" "anthropic"
 
   echo ""
-  prompt_optional VM3_IP "VM-3 IP address" "192.168.72.12"
+  prompt_optional VM3_IP "VM-3 IP address" "100.81.114.55"
   if ! validate_ip "$VM3_IP"; then
     print_error "Invalid IP address: ${VM3_IP}"
     exit 1
@@ -156,7 +156,7 @@ main() {
 
   echo ""
   echo -e "  ${BOLD}Architect Connection${RESET}"
-  prompt_optional ARCHITECT_NOTIFY_URL "Architect notify URL" "http://192.168.72.10:18789/hooks/agent"
+  prompt_optional ARCHITECT_NOTIFY_URL "Architect notify URL" "http://100.73.38.28:18789/hooks/agent"
 
   echo ""
   prompt_secret ARCHITECT_HOOK_TOKEN "Architect hook token (from VM-1 setup output)"

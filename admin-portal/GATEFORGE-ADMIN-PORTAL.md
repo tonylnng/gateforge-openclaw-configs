@@ -168,26 +168,26 @@ graph TB
         SSE["SSE Event Bus\n(real-time push)"]
     end
 
-    subgraph GateForgeNetwork["GateForge Network (192.168.72.x)"]
-        subgraph VM1["VM-1 — System Architect\n192.168.72.10:18789\nClaude Opus 4.6"]
+    subgraph GateForgeNetwork["GateForge Network (Tailscale VPN network)"]
+        subgraph VM1["VM-1 — System Architect\n100.73.38.28:18789\nClaude Opus 4.6"]
             GW1["OpenClaw Gateway"]
             A1["Architect Agent"]
         end
-        subgraph VM2["VM-2 — System Designer\n192.168.72.11:18789\nClaude Sonnet 4.6"]
+        subgraph VM2["VM-2 — System Designer\n100.95.30.11:18789\nClaude Sonnet 4.6"]
             GW2["OpenClaw Gateway"]
             A2["Designer Agent"]
         end
-        subgraph VM3["VM-3 — Developers\n192.168.72.12:18789\nClaude Sonnet 4.6"]
+        subgraph VM3["VM-3 — Developers\n100.81.114.55:18789\nClaude Sonnet 4.6"]
             GW3["OpenClaw Gateway"]
             A3a["dev-01"]
             A3b["dev-02..dev-N"]
         end
-        subgraph VM4["VM-4 — QC Agents\n192.168.72.13:18789\nMiniMax 2.7"]
+        subgraph VM4["VM-4 — QC Agents\n100.106.117.104:18789\nMiniMax 2.7"]
             GW4["OpenClaw Gateway"]
             A4a["qc-01"]
             A4b["qc-02..qc-N"]
         end
-        subgraph VM5["VM-5 — Operator\n192.168.72.14:18789\nMiniMax 2.7"]
+        subgraph VM5["VM-5 — Operator\n100.95.248.68:18789\nMiniMax 2.7"]
             GW5["OpenClaw Gateway"]
             A5["Operator Agent"]
         end
@@ -2476,13 +2476,13 @@ For each VM (VM-1 through VM-5), a registration card:
 |-------|-------------|-------------|
 | VM ID | VM-1 … VM-5 | Fixed label |
 | Role | Architect / Designer / Developers / QC Agents / Operator | Fixed label |
-| IP Address | 192.168.72.10 … 192.168.72.14 | Pre-filled, editable |
+| IP Address | 100.73.38.28 … 100.95.248.68 | Pre-filled, editable |
 | Port | 18789 | Pre-filled, editable |
 | Hook Token | (empty) | Transport auth token |
 | Agent Secret | (empty) | Per-VM identity secret |
 | Agent IDs (VM-3, VM-4) | dev-01, dev-02 … | Comma-separated; auto-discovered |
 
-**Auto-Detect Button**: Scans `192.168.72.10` through `192.168.72.19` on port `18789`. Discovered OpenClaw instances are highlighted in green. Discovery is done server-side (portal backend → subnet scan); results include detected agent IDs per gateway.
+**Auto-Detect Button**: Probes known Tailscale hosts (`tonic-architect:18789`, `tonic-designer:18789`, `tonic-developer:18789`, `tonic-qc:18789`, `tonic-operator:18789`). Discovered OpenClaw instances are highlighted in green. Discovery is done server-side (portal backend → host probe); results include detected agent IDs per gateway.
 
 **Test Connection Button** (per VM):
 - Sends a lightweight health probe: `GET /health` with the configured tokens
@@ -2865,7 +2865,7 @@ All endpoints require JWT authentication (Bearer token in `Authorization` header
 | `POST` | `/api/setup/blueprint/test` | Test Git repo connectivity |
 | `POST` | `/api/setup/telegram/test` | Test Telegram bot token |
 | `POST` | `/api/setup/usvmTest` | Test US VM SSH connectivity |
-| `GET` | `/api/setup/scan` | Auto-scan 192.168.72.x subnet for OpenClaw gateways |
+| `GET` | `/api/setup/scan` | Auto-scan Tailscale VPN network subnet for OpenClaw gateways |
 | `POST` | `/api/config/save` | Save full configuration (requires auth) |
 | `GET` | `/api/config/export` | Export configuration (no secrets) |
 | `POST` | `/api/config/import` | Import configuration (no secrets) |
@@ -3056,7 +3056,7 @@ networks:
     driver: bridge
   gateforge-vms:
     driver: bridge
-    # Must have L3 routing to 192.168.72.x subnet
+    # Must have L3 routing to Tailscale VPN network subnet
     # On Linux host: use host network or macvlan
     # Or: configure Docker host routing
 
@@ -3069,25 +3069,25 @@ volumes:
 
 ### 13.2 Network Requirements
 
-The portal backend **must** have network-layer access to the `192.168.72.0/24` subnet where all GateForge VMs reside.
+The portal backend **must** have network-layer access to the `Tailscale VPN (100.x.x.x)` subnet where all GateForge VMs reside.
 
 | Requirement | Detail |
 |-------------|--------|
-| VM-1 reachability | TCP 192.168.72.10:18789 |
-| VM-2 reachability | TCP 192.168.72.11:18789 |
-| VM-3 reachability | TCP 192.168.72.12:18789 |
-| VM-4 reachability | TCP 192.168.72.13:18789 |
-| VM-5 reachability | TCP 192.168.72.14:18789 |
+| VM-1 reachability | TCP 100.73.38.28:18789 |
+| VM-2 reachability | TCP 100.95.30.11:18789 |
+| VM-3 reachability | TCP 100.81.114.55:18789 |
+| VM-4 reachability | TCP 100.106.117.104:18789 |
+| VM-5 reachability | TCP 100.95.248.68:18789 |
 | Blueprint Git | HTTPS (443) or SSH (22) to Git hosting |
 | US VM | Tailscale: UDP 41641 + Tailscale daemon on host |
 | Internet | For Telegram Bot API: HTTPS to api.telegram.org |
 | Internet | For webhook delivery: HTTPS to configured webhook URLs |
 
-**Recommended deployment host**: The portal should run on a machine with a route to `192.168.72.0/24`. If running in Docker on a VM within this subnet, use `network_mode: host` for the backend service on Linux:
+**Recommended deployment host**: The portal should run on a machine with a route to `Tailscale VPN (100.x.x.x)`. If running in Docker on a VM within this subnet, use `network_mode: host` for the backend service on Linux:
 
 ```yaml
 backend:
-  network_mode: host  # Linux only; gives direct access to 192.168.72.x
+  network_mode: host  # Linux only; gives direct access to Tailscale VPN network
 ```
 
 On macOS/Windows Docker Desktop, add host routing rules or use a VPN/tunnel.
@@ -3109,7 +3109,7 @@ echo "=== GateForge Admin Portal Installer ==="
 check_command docker
 check_command docker-compose
 check_command git
-check_network_access 192.168.72.10 18789  # Basic probe
+check_network_access 100.73.38.28 18789  # Basic probe
 
 # 2. Clone or update the portal repo
 if [ -d "./gateforge-admin" ]; then
@@ -3129,7 +3129,7 @@ prompt_required BACKEND_PORT "Backend port" "3001"
 
 # 4. VM registration (one per VM)
 for i in 1 2 3 4 5; do
-  prompt_required "VM${i}_IP" "VM-$i IP address" "192.168.72.1$((i-1))"
+  prompt_required "VM${i}_IP" "VM-$i IP address (Tailscale)"
   prompt_required "VM${i}_HOOK_TOKEN" "VM-$i hook token"
   prompt_required "VM${i}_AGENT_SECRET" "VM-$i agent secret"
 done
@@ -3192,7 +3192,7 @@ echo "Default login: ${ADMIN_USERNAME} / [your chosen password]"
   {
     "id": "vm-1",
     "role": "System Architect",
-    "ip": "192.168.72.10",
+    "ip": "100.73.38.28",
     "port": 18789,
     "model": "claude-opus-4.6",
     "hookToken": "...",
@@ -3203,7 +3203,7 @@ echo "Default login: ${ADMIN_USERNAME} / [your chosen password]"
   {
     "id": "vm-2",
     "role": "System Designer",
-    "ip": "192.168.72.11",
+    "ip": "100.95.30.11",
     "port": 18789,
     "model": "claude-sonnet-4.6",
     "hookToken": "...",
@@ -3213,7 +3213,7 @@ echo "Default login: ${ADMIN_USERNAME} / [your chosen password]"
   {
     "id": "vm-3",
     "role": "Developers",
-    "ip": "192.168.72.12",
+    "ip": "100.81.114.55",
     "port": 18789,
     "model": "claude-sonnet-4.6",
     "hookToken": "...",
@@ -3223,7 +3223,7 @@ echo "Default login: ${ADMIN_USERNAME} / [your chosen password]"
   {
     "id": "vm-4",
     "role": "QC Agents",
-    "ip": "192.168.72.13",
+    "ip": "100.106.117.104",
     "port": 18789,
     "model": "minimax-2.7",
     "hookToken": "...",
@@ -3233,7 +3233,7 @@ echo "Default login: ${ADMIN_USERNAME} / [your chosen password]"
   {
     "id": "vm-5",
     "role": "Operator",
-    "ip": "192.168.72.14",
+    "ip": "100.95.248.68",
     "port": 18789,
     "model": "minimax-2.7",
     "hookToken": "...",
