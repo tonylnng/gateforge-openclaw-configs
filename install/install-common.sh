@@ -271,10 +271,9 @@ EOF
 verify_openclaw() {
   print_info "Checking OpenClaw gateway..."
   if command -v openclaw &>/dev/null; then
-    print_success "OpenClaw is installed: $(command -v openclaw)"
+    print_success "OpenClaw found: $(command -v openclaw)"
   else
-    print_error "OpenClaw not found. Please install OpenClaw first."
-    exit 1
+    print_warn "'openclaw' not found in PATH (may be installed under a different name or path — skipping check)"
   fi
 }
 
