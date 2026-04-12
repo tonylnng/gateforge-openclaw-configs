@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # =============================================================================
-# GateForge OpenClaw — Shared Installation Functions
+# GateForge — Shared Setup Functions
 # =============================================================================
-# Sourced by all VM-specific installation scripts.
+# Sourced by all VM-specific setup scripts.
 # Do NOT run this file directly.
 # =============================================================================
 
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# Version
+# Version & Constants
 # ---------------------------------------------------------------------------
-GATEFORGE_VERSION="1.0.0"
+GATEFORGE_VERSION="2.0.0"
 OPENCLAW_PORT=18789
+CONFIG_FILE="/opt/secrets/gateforge.env"
 OPENCLAW_CONFIG_DIR="$HOME/.openclaw"
-SECRETS_DIR="/opt/secrets"
 
 # ---------------------------------------------------------------------------
 # Colors
@@ -29,10 +29,10 @@ DIM='\033[2m'
 RESET='\033[0m'
 
 # ---------------------------------------------------------------------------
-# Globals (set by each VM script)
+# Globals
 # ---------------------------------------------------------------------------
 DRY_RUN="${DRY_RUN:-false}"
-TOTAL_STEPS="${TOTAL_STEPS:-10}"
+TOTAL_STEPS="${TOTAL_STEPS:-6}"
 CURRENT_STEP=0
 
 # ---------------------------------------------------------------------------
@@ -50,7 +50,8 @@ print_banner() {
    ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
 BANNER
   echo -e "${RESET}"
-  echo -e "  ${DIM}Multi-Agent SDLC Pipeline — OpenClaw Installer v${GATEFORGE_VERSION}${RESET}"
+  echo -e "  ${DIM}Multi-Agent SDLC Pipeline — Communication Setup v${GATEFORGE_VERSION}${RESET}"
+  echo -e "  ${DIM}Assumes OpenClaw is already installed with API keys configured.${RESET}"
   echo ""
 }
 
@@ -58,76 +59,66 @@ BANNER
 # Output helpers
 # ---------------------------------------------------------------------------
 print_step() {
-  local n="$1"; shift
-  CURRENT_STEP="$n"
+  CURRENT_STEP=$((CURRENT_STEP + 1))
   echo ""
-  echo -e "  ${BLUE}${BOLD}[${n}/${TOTAL_STEPS}]${RESET} ${BOLD}$*${RESET}"
-  echo -e "  ${DIM}$(printf '%.0s─' {1..60})${RESET}"
+  echo -e "${TEAL}${BOLD}[${CURRENT_STEP}/${TOTAL_STEPS}] $1${RESET}"
+  echo -e "${TEAL}$(printf '%.0s─' {1..60})${RESET}"
 }
 
-print_success() {
-  echo -e "  ${GREEN}✔${RESET} $*"
-}
-
-print_error() {
-  echo -e "  ${RED}✖${RESET} $*" >&2
-}
-
-print_warn() {
-  echo -e "  ${YELLOW}!${RESET} $*"
-}
-
-print_info() {
-  echo -e "  ${TEAL}→${RESET} $*"
-}
+print_success() { echo -e "  ${GREEN}✓${RESET} $1"; }
+print_error()   { echo -e "  ${RED}✗${RESET} $1"; }
+print_warn()    { echo -e "  ${YELLOW}!${RESET} $1"; }
+print_info()    { echo -e "  ${BLUE}→${RESET} $1"; }
 
 # ---------------------------------------------------------------------------
-# Interactive prompts
+# Input helpers
 # ---------------------------------------------------------------------------
 prompt_required() {
   local var_name="$1"
   local prompt_text="$2"
+  local default="${3:-}"
   local value=""
+
   while [[ -z "$value" ]]; do
-    echo -ne "  ${TEAL}?${RESET} ${prompt_text}: "
-    read -r value
+    if [[ -n "$default" ]]; then
+      echo -en "  ${BOLD}${prompt_text}${RESET} [${DIM}${default}${RESET}]: "
+      read -r value
+      value="${value:-$default}"
+    else
+      echo -en "  ${BOLD}${prompt_text}${RESET}: "
+      read -r value
+    fi
     if [[ -z "$value" ]]; then
-      print_warn "This field is required. Please enter a value."
+      print_error "This field is required."
     fi
   done
-  eval "$var_name=\"\$value\""
-}
 
-prompt_optional() {
-  local var_name="$1"
-  local prompt_text="$2"
-  local default="${3:-}"
-  local display_default=""
-  if [[ -n "$default" ]]; then
-    display_default=" ${DIM}[${default}]${RESET}"
-  fi
-  echo -ne "  ${TEAL}?${RESET} ${prompt_text}${display_default}: "
-  local value=""
-  read -r value
-  if [[ -z "$value" ]]; then
-    value="$default"
-  fi
-  eval "$var_name=\"\$value\""
+  eval "$var_name='$value'"
 }
 
 prompt_secret() {
   local var_name="$1"
   local prompt_text="$2"
+  local default="${3:-}"
   local value=""
+
   while [[ -z "$value" ]]; do
-    echo -ne "  ${TEAL}🔑${RESET} ${prompt_text}: "
+    if [[ -n "$default" ]]; then
+      echo -en "  ${BOLD}${prompt_text}${RESET} [${DIM}press Enter to auto-generate${RESET}]: "
+    else
+      echo -en "  ${BOLD}${prompt_text}${RESET}: "
+    fi
     read -rs value
     echo ""
-    if [[ -z "$value" ]]; then
-      print_warn "This field is required. Please enter a value."
+    if [[ -z "$value" && -n "$default" ]]; then
+      value="$default"
+      print_info "Auto-generated: ${value:0:8}...${value: -4}"
+    elif [[ -z "$value" ]]; then
+      print_error "This field is required."
     fi
   done
-  eval "$var_name=\"\$value\""
+
+  eval "$var_name='$value'"
 }
 
 prompt_choice() {
@@ -135,483 +126,214 @@ prompt_choice() {
   local prompt_text="$2"
   shift 2
   local options=("$@")
+  local value=""
 
-  echo -e "  ${TEAL}?${RESET} ${prompt_text}"
-  local i=1
-  for opt in "${options[@]}"; do
-    echo -e "    ${BOLD}${i})${RESET} ${opt}"
-    ((i++))
+  echo -e "  ${BOLD}${prompt_text}${RESET}"
+  for i in "${!options[@]}"; do
+    echo -e "    ${TEAL}$((i+1)))${RESET} ${options[$i]}"
   done
 
-  local choice=""
-  while true; do
-    echo -ne "  ${TEAL}→${RESET} Enter choice [1-${#options[@]}]: "
+  while [[ -z "$value" ]]; do
+    echo -en "  ${BOLD}Choose [1-${#options[@]}]${RESET}: "
     read -r choice
     if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#options[@]} )); then
-      eval "$var_name=\"\${options[$((choice-1))]}\""
-      return 0
+      value="${options[$((choice-1))]}"
+    else
+      print_error "Invalid choice."
     fi
-    print_warn "Invalid choice. Please enter a number between 1 and ${#options[@]}."
   done
+
+  eval "$var_name='$value'"
 }
 
 confirm_continue() {
-  local text="${1:-Continue?}"
-  echo -ne "  ${YELLOW}?${RESET} ${text} ${DIM}[y/N]${RESET}: "
-  local answer=""
+  echo ""
+  echo -en "  ${BOLD}$1${RESET} [Y/n]: "
   read -r answer
-  case "$answer" in
-    [yY]|[yY][eE][sS]) return 0 ;;
-    *) print_error "Aborted by user."; exit 1 ;;
-  esac
+  if [[ "${answer,,}" == "n" ]]; then
+    echo -e "  ${YELLOW}Aborted.${RESET}"
+    exit 0
+  fi
 }
 
 # ---------------------------------------------------------------------------
-# Utilities
+# Secret generation
 # ---------------------------------------------------------------------------
 generate_secret() {
   openssl rand -hex 32
 }
 
-mask_secret() {
-  local secret="$1"
-  if [[ ${#secret} -le 8 ]]; then
-    echo "****"
-  else
-    echo "${secret:0:4}****${secret: -4}"
+# ---------------------------------------------------------------------------
+# Config file management
+# ---------------------------------------------------------------------------
+write_config() {
+  local config_content="$1"
+
+  if [[ "$DRY_RUN" == "true" ]]; then
+    print_warn "[DRY RUN] Would write to ${CONFIG_FILE}:"
+    echo "$config_content" | sed 's/^/    /'
+    return
   fi
+
+  sudo mkdir -p "$(dirname "$CONFIG_FILE")"
+  echo "$config_content" | sudo tee "$CONFIG_FILE" > /dev/null
+  sudo chown root:root "$CONFIG_FILE"
+  sudo chmod 600 "$CONFIG_FILE"
+  print_success "Config written to ${CONFIG_FILE} (root:root, 600)"
 }
 
-validate_ip() {
-  local ip="$1"
-  if [[ "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+load_existing_config() {
+  if [[ -f "$CONFIG_FILE" ]]; then
+    print_info "Found existing config at ${CONFIG_FILE}"
+    # Source it to pre-fill values (sudo needed)
+    eval "$(sudo cat "$CONFIG_FILE" 2>/dev/null | grep -v '^#' | grep '=')" 2>/dev/null || true
     return 0
   fi
   return 1
 }
 
-validate_api_key() {
-  local key="$1"
-  local provider="${2:-generic}"
-  if [[ -z "$key" ]]; then
-    return 1
-  fi
-  case "$provider" in
-    anthropic)
-      if [[ "$key" =~ ^sk-ant- ]]; then return 0; fi
-      print_warn "Anthropic API keys typically start with 'sk-ant-'. Proceeding anyway."
-      return 0
-      ;;
-    minimax)
-      if [[ ${#key} -ge 10 ]]; then return 0; fi
-      return 1
-      ;;
-    *)
-      if [[ ${#key} -ge 10 ]]; then return 0; fi
-      return 1
-      ;;
-  esac
-}
-
 # ---------------------------------------------------------------------------
-# Prerequisites
-# ---------------------------------------------------------------------------
-check_prerequisites() {
-  print_step 1 "Checking prerequisites"
-
-  # Check OS
-  if [[ -f /etc/os-release ]]; then
-    source /etc/os-release
-    if [[ "${ID:-}" == "ubuntu" ]]; then
-      print_success "Ubuntu detected: ${PRETTY_NAME:-Ubuntu}"
-    else
-      print_warn "Expected Ubuntu, found: ${PRETTY_NAME:-unknown}. Continuing anyway."
-    fi
-  else
-    print_warn "Cannot detect OS. Proceeding anyway."
-  fi
-
-  # Check required tools
-  local missing=()
-  for cmd in curl git openssl node; do
-    if command -v "$cmd" &>/dev/null; then
-      print_success "$cmd is installed ($(command -v "$cmd"))"
-    else
-      missing+=("$cmd")
-      print_error "$cmd is NOT installed"
-    fi
-  done
-
-  if [[ ${#missing[@]} -gt 0 ]]; then
-    print_error "Missing required tools: ${missing[*]}"
-    echo ""
-    echo -e "  Install missing tools with:"
-    echo -e "    ${DIM}sudo apt update && sudo apt install -y ${missing[*]}${RESET}"
-    echo ""
-    if [[ "$DRY_RUN" == "true" ]]; then
-      print_warn "[DRY RUN] Would abort here due to missing prerequisites."
-    else
-      exit 1
-    fi
-  fi
-
-  print_success "All prerequisites met"
-}
-
-# ---------------------------------------------------------------------------
-# OpenClaw Installation
-# ---------------------------------------------------------------------------
-install_openclaw() {
-  print_step 2 "Installing OpenClaw"
-
-  if command -v openclaw &>/dev/null; then
-    local version
-    version=$(openclaw --version 2>/dev/null || echo "unknown")
-    print_success "OpenClaw is already installed (${version})"
-    return 0
-  fi
-
-  print_info "Installing OpenClaw..."
-  if [[ "$DRY_RUN" == "true" ]]; then
-    print_warn "[DRY RUN] Would run: curl -fsSL https://openclaw.ai/install.sh | bash"
-    print_warn "[DRY RUN] Would run: openclaw onboard --install-daemon"
-  else
-    curl -fsSL https://openclaw.ai/install.sh | bash
-    print_success "OpenClaw binary installed"
-
-    print_info "Running onboarding..."
-    openclaw onboard --install-daemon
-    print_success "OpenClaw onboarding complete (daemon installed)"
-  fi
-}
-
-# ---------------------------------------------------------------------------
-# Secrets File
-# ---------------------------------------------------------------------------
-setup_secrets_file() {
-  local vm_name="$1"
-  local secrets_file="${SECRETS_DIR}/openclaw-${vm_name}.env"
-
-  print_info "Setting up secrets file: ${secrets_file}"
-
-  if [[ "$DRY_RUN" == "true" ]]; then
-    print_warn "[DRY RUN] Would create ${secrets_file} with chmod 600, chown root:root"
-    return 0
-  fi
-
-  sudo mkdir -p "$SECRETS_DIR"
-  sudo touch "$secrets_file"
-  sudo chmod 600 "$secrets_file"
-  sudo chown root:root "$secrets_file"
-
-  print_success "Secrets file created: ${secrets_file}"
-}
-
-write_secrets_file() {
-  local vm_name="$1"
-  local content="$2"
-  local secrets_file="${SECRETS_DIR}/openclaw-${vm_name}.env"
-
-  if [[ "$DRY_RUN" == "true" ]]; then
-    print_warn "[DRY RUN] Would write secrets to ${secrets_file}"
-    echo ""
-    echo -e "  ${DIM}--- Secrets file content (preview) ---${RESET}"
-    # Show keys but mask values
-    while IFS= read -r line; do
-      if [[ "$line" =~ ^[A-Z_]+=.+ ]]; then
-        local key="${line%%=*}"
-        echo -e "  ${DIM}${key}=****${RESET}"
-      else
-        echo -e "  ${DIM}${line}${RESET}"
-      fi
-    done <<< "$content"
-    echo -e "  ${DIM}--- End of preview ---${RESET}"
-    return 0
-  fi
-
-  echo "$content" | sudo tee "$secrets_file" > /dev/null
-  sudo chmod 600 "$secrets_file"
-  sudo chown root:root "$secrets_file"
-  print_success "Secrets written to ${secrets_file}"
-}
-
-# ---------------------------------------------------------------------------
-# Systemd Service
-# ---------------------------------------------------------------------------
-setup_systemd_service() {
-  local vm_name="$1"
-  local secrets_file="${SECRETS_DIR}/openclaw-${vm_name}.env"
-  local service_name="openclaw-gateforge"
-  local service_file="/etc/systemd/system/${service_name}.service"
-
-  print_info "Setting up systemd service: ${service_name}"
-
-  local unit_content
-  unit_content="[Unit]
-Description=OpenClaw Gateway — GateForge ${vm_name}
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=$(whoami)
-EnvironmentFile=${secrets_file}
-ExecStart=$(command -v openclaw 2>/dev/null || echo '/usr/local/bin/openclaw') serve
-WorkingDirectory=${OPENCLAW_CONFIG_DIR}
-Restart=on-failure
-RestartSec=5
-LimitNOFILE=65536
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target"
-
-  if [[ "$DRY_RUN" == "true" ]]; then
-    print_warn "[DRY RUN] Would create systemd unit: ${service_file}"
-    echo ""
-    echo -e "  ${DIM}${unit_content}${RESET}"
-    echo ""
-    return 0
-  fi
-
-  echo "$unit_content" | sudo tee "$service_file" > /dev/null
-  sudo systemctl daemon-reload
-  sudo systemctl enable "$service_name"
-  print_success "Systemd service created and enabled: ${service_name}"
-  print_info "Start with: sudo systemctl start ${service_name}"
-}
-
-# ---------------------------------------------------------------------------
-# Gateway Configuration
-# ---------------------------------------------------------------------------
-configure_gateway() {
-  local bind_addr="$1"
-  local auth_token="$2"
-  local hook_token="${3:-}"
-  local enable_hooks="${4:-false}"
-
-  local config_file="${OPENCLAW_CONFIG_DIR}/openclaw.json"
-
-  print_info "Configuring gateway..."
-
-  local hooks_block=""
-  if [[ "$enable_hooks" == "true" && -n "$hook_token" ]]; then
-    hooks_block=',
-  "hooks": {
-    "enabled": true,
-    "token": "'"${hook_token}"'",
-    "path": "/hooks",
-    "allowedAgentIds": ["architect"]
-  }'
-  fi
-
-  local config_content='{
-  "gateway": {
-    "bind": "'"${bind_addr}"'",
-    "port": '"${OPENCLAW_PORT}"',
-    "authToken": "'"${auth_token}"'"
-  }'"${hooks_block}"'
-}'
-
-  if [[ "$DRY_RUN" == "true" ]]; then
-    print_warn "[DRY RUN] Would write gateway config to ${config_file}"
-    echo ""
-    echo -e "  ${DIM}${config_content}${RESET}"
-    echo ""
-    return 0
-  fi
-
-  mkdir -p "$OPENCLAW_CONFIG_DIR"
-  echo "$config_content" > "$config_file"
-  print_success "Gateway config written to ${config_file}"
-}
-
-# ---------------------------------------------------------------------------
-# Model Provider Configuration
-# ---------------------------------------------------------------------------
-configure_model_provider() {
-  local provider="$1"    # e.g., "anthropic" or "minimax"
-  local model="$2"       # e.g., "claude-opus-4-6" or "minimax-2.7"
-  local base_url="${3:-}" # optional base URL
-
-  local provider_file="${OPENCLAW_CONFIG_DIR}/provider.json"
-
-  print_info "Configuring model provider: ${provider}/${model}"
-
-  local config_content
-  if [[ -n "$base_url" ]]; then
-    config_content='{
-  "provider": "'"${provider}/${model}"'",
-  "baseUrl": "'"${base_url}"'"
-}'
-  else
-    config_content='{
-  "provider": "'"${provider}/${model}"'"
-}'
-  fi
-
-  if [[ "$DRY_RUN" == "true" ]]; then
-    print_warn "[DRY RUN] Would write provider config to ${provider_file}"
-    echo ""
-    echo -e "  ${DIM}${config_content}${RESET}"
-    echo ""
-    return 0
-  fi
-
-  mkdir -p "$OPENCLAW_CONFIG_DIR"
-  echo "$config_content" > "$provider_file"
-  print_success "Provider config written to ${provider_file}"
-}
-
-# ---------------------------------------------------------------------------
-# Copy Config Files
+# Copy config MD files
 # ---------------------------------------------------------------------------
 copy_config_files() {
   local vm_dir="$1"
-  local target_dir="${OPENCLAW_CONFIG_DIR}"
-
-  print_info "Copying configuration files from ${vm_dir}..."
-
-  if [[ ! -d "$vm_dir" ]]; then
-    print_error "Source directory does not exist: ${vm_dir}"
-    return 1
-  fi
 
   if [[ "$DRY_RUN" == "true" ]]; then
-    for f in "$vm_dir"/*.md; do
-      if [[ -f "$f" ]]; then
-        print_warn "[DRY RUN] Would copy $(basename "$f") → ${target_dir}/"
-      fi
-    done
-    return 0
+    print_warn "[DRY RUN] Would copy files from ${vm_dir} to ${OPENCLAW_CONFIG_DIR}"
+    return
   fi
 
-  mkdir -p "$target_dir"
-  local count=0
-  for f in "$vm_dir"/*.md; do
-    if [[ -f "$f" ]]; then
-      cp "$f" "$target_dir/"
-      print_success "Copied $(basename "$f")"
-      ((count++))
+  mkdir -p "$OPENCLAW_CONFIG_DIR"
+
+  for f in SOUL.md AGENTS.md USER.md TOOLS.md; do
+    if [[ -f "${vm_dir}/${f}" ]]; then
+      cp "${vm_dir}/${f}" "${OPENCLAW_CONFIG_DIR}/${f}"
+      print_success "Copied ${f}"
     fi
   done
 
-  if [[ $count -eq 0 ]]; then
-    print_warn "No .md files found in ${vm_dir}"
-  else
-    print_success "${count} config files copied"
-  fi
+  # Copy guideline docs
+  for f in BLUEPRINT-GUIDE.md RESILIENCE-SECURITY-GUIDE.md DEVELOPMENT-GUIDE.md QA-FRAMEWORK.md MONITORING-OPERATIONS-GUIDE.md; do
+    if [[ -f "${vm_dir}/${f}" ]]; then
+      cp "${vm_dir}/${f}" "${OPENCLAW_CONFIG_DIR}/${f}"
+      print_success "Copied ${f}"
+    fi
+  done
 }
 
 # ---------------------------------------------------------------------------
-# Verify Installation
+# Per-agent SOUL.md generation (for VM-3 and VM-4)
 # ---------------------------------------------------------------------------
-verify_installation() {
-  print_info "Verifying installation..."
+generate_agent_souls() {
+  local vm_dir="$1"
+  local prefix="$2"      # "dev" or "qc"
+  local count="$3"
+  local role_desc="$4"   # "Developer" or "QC Tester"
 
   if [[ "$DRY_RUN" == "true" ]]; then
-    print_warn "[DRY RUN] Would verify gateway status and run health check"
-    return 0
+    print_warn "[DRY RUN] Would generate ${count} per-agent SOUL.md files"
+    return
   fi
 
-  # Check if openclaw is installed
+  for i in $(seq -f "%02g" 1 "$count"); do
+    local agent_id="${prefix}-${i}"
+    local agent_dir="${OPENCLAW_CONFIG_DIR}/${agent_id}"
+    mkdir -p "$agent_dir"
+
+    # Copy from template if exists, otherwise generate
+    if [[ -f "${vm_dir}/${prefix}-01/SOUL.md" ]]; then
+      sed "s/${prefix}-01/${agent_id}/g" "${vm_dir}/${prefix}-01/SOUL.md" > "${agent_dir}/SOUL.md"
+    else
+      cat > "${agent_dir}/SOUL.md" << EOF
+# ${role_desc} Agent — ${agent_id}
+
+> GateForge Multi-Agent SDLC Pipeline — ${agent_id} (Port ${OPENCLAW_PORT})
+
+## Identity
+
+- **Agent ID**: ${agent_id}
+- **Role**: ${role_desc}
+- **Workspace**: ~/.openclaw/workspace-${agent_id}
+
+## Behaviour
+
+Follow the shared SOUL.md for this VM. This file defines your individual identity only.
+All guidelines, tools, and communication protocols are inherited from the parent SOUL.md.
+EOF
+    fi
+    print_success "Generated ${agent_id}/SOUL.md"
+  done
+}
+
+# ---------------------------------------------------------------------------
+# Verification
+# ---------------------------------------------------------------------------
+verify_openclaw() {
+  print_info "Checking OpenClaw gateway..."
   if command -v openclaw &>/dev/null; then
-    print_success "OpenClaw binary found"
+    print_success "OpenClaw is installed: $(command -v openclaw)"
   else
-    print_error "OpenClaw binary not found in PATH"
-    return 1
+    print_error "OpenClaw not found. Please install OpenClaw first."
+    exit 1
   fi
+}
 
-  # Check config directory
-  if [[ -d "$OPENCLAW_CONFIG_DIR" ]]; then
-    print_success "Config directory exists: ${OPENCLAW_CONFIG_DIR}"
-  else
-    print_error "Config directory missing: ${OPENCLAW_CONFIG_DIR}"
-    return 1
-  fi
+verify_connectivity() {
+  local target_ip="$1"
+  local target_port="$2"
+  local label="$3"
 
-  # Check gateway config
-  if [[ -f "${OPENCLAW_CONFIG_DIR}/openclaw.json" ]]; then
-    print_success "Gateway config exists"
+  if curl -sf --max-time 3 "http://${target_ip}:${target_port}/health" &>/dev/null 2>&1; then
+    print_success "${label}: reachable"
   else
-    print_error "Gateway config missing"
-    return 1
-  fi
-
-  # Check provider config
-  if [[ -f "${OPENCLAW_CONFIG_DIR}/provider.json" ]]; then
-    print_success "Provider config exists"
-  else
-    print_warn "Provider config not found (may be configured elsewhere)"
-  fi
-
-  # Try a basic health check (non-blocking)
-  print_info "Attempting health check on port ${OPENCLAW_PORT}..."
-  if curl -sf "http://localhost:${OPENCLAW_PORT}/health" --connect-timeout 3 &>/dev/null; then
-    print_success "Gateway is responding on port ${OPENCLAW_PORT}"
-  else
-    print_warn "Gateway is not running yet. Start with: sudo systemctl start openclaw-<vm>"
+    print_warn "${label}: not reachable (may not be running yet)"
   fi
 }
 
 # ---------------------------------------------------------------------------
-# Summary Box
+# Summary display
 # ---------------------------------------------------------------------------
-print_summary_header() {
+print_summary_box() {
+  local title="$1"
+  shift
+  local width=64
+
   echo ""
-  echo -e "  ${TEAL}${BOLD}╔══════════════════════════════════════════════════════════════╗${RESET}"
-  echo -e "  ${TEAL}${BOLD}║                    INSTALLATION SUMMARY                     ║${RESET}"
-  echo -e "  ${TEAL}${BOLD}╠══════════════════════════════════════════════════════════════╣${RESET}"
+  echo -e "  ${TEAL}┌$(printf '─%.0s' $(seq 1 $width))┐${RESET}"
+  echo -e "  ${TEAL}│${RESET} ${BOLD}${title}$(printf ' %.0s' $(seq 1 $((width - ${#title} - 1))))${TEAL}│${RESET}"
+  echo -e "  ${TEAL}├$(printf '─%.0s' $(seq 1 $width))┤${RESET}"
+
+  while [[ $# -gt 0 ]]; do
+    local label="$1"
+    local value="$2"
+    shift 2
+    local line="${label} ${value}"
+    local padding=$((width - ${#line} - 1))
+    if (( padding < 0 )); then padding=0; fi
+    echo -e "  ${TEAL}│${RESET} ${DIM}${label}${RESET} ${value}$(printf ' %.0s' $(seq 1 $padding))${TEAL}│${RESET}"
+  done
+
+  echo -e "  ${TEAL}└$(printf '─%.0s' $(seq 1 $width))┘${RESET}"
+  echo ""
 }
 
-print_summary_line() {
-  local label="$1"
-  local value="$2"
-  printf "  ${TEAL}${BOLD}║${RESET}  %-22s %-37s ${TEAL}${BOLD}║${RESET}\n" "$label" "$value"
-}
-
-print_summary_separator() {
-  echo -e "  ${TEAL}${BOLD}╠══════════════════════════════════════════════════════════════╣${RESET}"
-}
-
-print_summary_footer() {
-  echo -e "  ${TEAL}${BOLD}╚══════════════════════════════════════════════════════════════╝${RESET}"
-  echo ""
-}
-
-# ---------------------------------------------------------------------------
-# Help text helper
-# ---------------------------------------------------------------------------
-print_common_help() {
-  local vm_name="$1"
-  local vm_role="$2"
-  echo ""
-  echo -e "  ${BOLD}GateForge OpenClaw Installer — ${vm_role}${RESET}"
-  echo ""
-  echo -e "  ${BOLD}Usage:${RESET}"
-  echo -e "    ./install-${vm_name}.sh [OPTIONS]"
-  echo ""
-  echo -e "  ${BOLD}Options:${RESET}"
-  echo -e "    --help       Show this help message"
-  echo -e "    --dry-run    Show what would be done without making changes"
-  echo ""
+mask_secret() {
+  local s="$1"
+  if [[ ${#s} -gt 12 ]]; then
+    echo "${s:0:6}...${s: -4}"
+  else
+    echo "****"
+  fi
 }
 
 # ---------------------------------------------------------------------------
-# Parse common flags
+# Flag parsing
 # ---------------------------------------------------------------------------
 parse_common_flags() {
   for arg in "$@"; do
     case "$arg" in
-      --help|-h)
-        return 1  # Signal caller to show help and exit
-        ;;
-      --dry-run)
-        DRY_RUN="true"
-        print_warn "DRY RUN mode — no changes will be made"
-        echo ""
-        ;;
+      --help|-h) return 1 ;;
+      --dry-run) DRY_RUN="true"; print_warn "DRY RUN MODE — no changes will be made" ;;
     esac
   done
   return 0
