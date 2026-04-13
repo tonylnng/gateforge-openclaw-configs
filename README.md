@@ -1026,6 +1026,248 @@ Each VM directory in this configuration package contains:
 
 ---
 
+## GitHub Token Configuration
+
+Each OpenClaw VM needs GitHub Fine-Grained Personal Access Tokens (PATs) to interact with repositories. Fine-grained tokens allow per-repository and per-permission scoping — far more secure than classic tokens.
+
+> **Why Fine-Grained PATs?** Classic tokens grant broad scopes across all repositories. Fine-grained PATs let you restrict each VM to only the repositories and permissions it actually needs. If a token is compromised, the blast radius is limited.
+
+### GateForge Repository Registry
+
+GateForge uses three categories of GitHub repositories. Understanding their purpose determines the correct token permissions.
+
+| Repository | Type | Purpose | Access Model |
+|-----------|------|---------|-------------|
+| `tonylnng/gateforge-openclaw-configs` | Infrastructure (this repo) | Agent configuration — SOUL.md, TOOLS.md, install scripts, communication setup. Used during VM setup and agent initialisation. | **Read-only for all VMs** — agents read their config; no agent writes back to this repo |
+| `tonylnng/gateforge-blueprint-template` | Template (read-only) | Standardised Blueprint document structure (requirements, architecture, design, QA, operations). Cloned once per project to create a project-specific Blueprint repo. Updated over time with improved standards — agents pull latest changes. | **Read-only for all VMs** — template updates flow downstream; no agent writes to the template |
+| `tonylnng/<project-blueprint>` | Per-project Blueprint | The project's working Blueprint — cloned from the template. Contains the live requirements, architecture, designs, test plans, status, backlog, and decision log for a specific project. The Architect owns and writes to this repo; other agents read it. | **Read/write for VM-1 (Architect)** — read-only for all other VMs |
+| `tonylnng/<project-code>` | Per-project Code | The project's source code repository. Developers push feature branches; Operator manages releases and CI/CD. | **Read/write for VM-3 (Developers) and VM-5 (Operator)** — read-only for VM-1, VM-2, VM-4 |
+
+#### How the Template Flows into Projects
+
+```
+gateforge-blueprint-template          (upstream template — read-only)
+        │
+        │  git clone → new repo
+        ▼
+<project>-blueprint                   (project-specific Blueprint — Architect writes)
+        │
+        │  git remote add template → git pull template main
+        ▼
+  (template updates propagate to all project Blueprints)
+```
+
+When `gateforge-blueprint-template` is updated with improved standards or fine-tuned content, the Architect can pull the latest changes into each project Blueprint:
+
+```bash
+cd ~/workspace/<project>-blueprint
+git remote add template https://github.com/tonylnng/gateforge-blueprint-template.git  # one-time
+git pull template main --allow-unrelated-histories
+# Resolve any merge conflicts, then commit
+```
+
+### Creating Tokens
+
+1. Go to **GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens**
+   - Direct URL: https://github.com/settings/personal-access-tokens/new
+2. Set **Resource owner** to `tonylnng` (or your organisation)
+3. Set **Expiration** — recommended: 90 days (set a calendar reminder to rotate)
+4. Configure **Repository access** and **Permissions** per the tables below
+
+### Token Setup Per VM
+
+#### Token A: Read-Only — All Private Repos (All VMs)
+
+Used by all VMs. Grants read access to the config repo, Blueprint template, project Blueprints, and project code repos.
+
+| Setting | Value |
+|---------|-------|
+| **Token name** | `gateforge-<role>-readonly` (e.g. `gateforge-architect-readonly`) |
+| **Expiration** | 90 days |
+| **Repository access** | **All repositories** |
+
+**Repository permissions:**
+
+| Permission | Access Level | Reason |
+|------------|-------------|--------|
+| **Contents** | **Read-only** | Clone repos, pull Blueprint template updates, read project code |
+| **Metadata** | **Read-only** | Auto-granted — required for all tokens |
+| **Pull requests** | **Read-only** | Read PR status and review comments |
+| **Issues** | **Read-only** | Read issue tracker and task references |
+| **Commit statuses** | **Read-only** | Check CI/CD pipeline results |
+
+All other permissions → **No access**.
+
+All account permissions → **No access**.
+
+> **Create one token per VM** — never share the same token across multiple VMs. If one VM is compromised, you revoke only that token.
+
+**What this token covers:**
+
+| Repository | Access via Token A |
+|-----------|-------------------|
+| `gateforge-openclaw-configs` | Read config files during setup and agent initialisation |
+| `gateforge-blueprint-template` | Pull latest template standards and fine-tuned content |
+| `<project>-blueprint` | Read project requirements, architecture, status, backlog |
+| `<project>-code` | Read project source code for review, testing, deployment |
+
+#### Token B: Read/Write — Project Blueprint Repo (VM-1 Architect)
+
+The Architect is the only agent that writes to the project Blueprint. This token is scoped to the specific project Blueprint repository.
+
+| Setting | Value |
+|---------|-------|
+| **Token name** | `gateforge-architect-rw-<project>-blueprint` |
+| **Expiration** | 90 days |
+| **Repository access** | **Only select repositories** → select the project Blueprint repo only |
+
+**Repository permissions:**
+
+| Permission | Access Level | Reason |
+|------------|-------------|--------|
+| **Contents** | **Read and write** | Write Blueprint documents, decision log, status, backlog |
+| **Metadata** | **Read-only** | Auto-granted |
+| **Pull requests** | **Read and write** | Manage PRs from template updates |
+| **Issues** | **Read and write** | Track tasks and requirements in the Blueprint repo |
+| **Commit statuses** | **Read and write** | Report Blueprint validation status |
+
+All other permissions → **No access**.
+
+All account permissions → **No access**.
+
+> **VM-1 also needs a read-only token (Token A)** to read the config repo, Blueprint template, and project code. Fine-grained tokens cannot mix per-repo permission levels in a single token.
+
+#### Token C: Read/Write — Project Code Repo (VM-3 Developers)
+
+Developers push code to feature branches. This token is scoped to only the project code repository — not the Blueprint, template, or config repos.
+
+| Setting | Value |
+|---------|-------|
+| **Token name** | `gateforge-dev-rw-<project>-code` |
+| **Expiration** | 90 days |
+| **Repository access** | **Only select repositories** → select the project code repo only |
+
+**Repository permissions:**
+
+| Permission | Access Level | Reason |
+|------------|-------------|--------|
+| **Contents** | **Read and write** | Push code to feature branches |
+| **Metadata** | **Read-only** | Auto-granted |
+| **Pull requests** | **Read and write** | Create PRs for code review |
+| **Issues** | **Read and write** | Update issue status from commits |
+| **Commit statuses** | **Read and write** | Report build/test status |
+| **Workflows** | **Read and write** | Only if developers trigger GitHub Actions |
+
+All other permissions → **No access**.
+
+All account permissions → **No access**.
+
+> **VM-3 also needs a read-only token (Token A)** to pull the Blueprint and template repos.
+
+#### Token D: Read/Write — CI/CD and Deployment (VM-5 Operator)
+
+The Operator triggers GitHub Actions workflows and manages releases. It needs write access to deployment-related resources in the project code repo.
+
+| Setting | Value |
+|---------|-------|
+| **Token name** | `gateforge-operator-cicd-<project>` |
+| **Expiration** | 90 days |
+| **Repository access** | **Only select repositories** → select the project code repo only |
+
+**Repository permissions:**
+
+| Permission | Access Level | Reason |
+|------------|-------------|--------|
+| **Contents** | **Read and write** | Push deployment configs, release notes |
+| **Metadata** | **Read-only** | Auto-granted |
+| **Pull requests** | **Read and write** | Merge approved PRs during release |
+| **Commit statuses** | **Read and write** | Update deployment status |
+| **Actions** | **Read and write** | Trigger and monitor GitHub Actions workflows |
+| **Workflows** | **Read and write** | Manage CI/CD workflow files |
+| **Deployments** | **Read and write** | Create and track deployment events |
+
+All other permissions → **No access**.
+
+All account permissions → **No access**.
+
+> **VM-5 also needs a read-only token (Token A)** to pull the Blueprint, template, and config repos.
+
+### Summary — Tokens Per VM
+
+| VM | Role | Tokens Needed | Repos Accessed |
+|----|------|--------------|----------------|
+| VM-1 | System Architect | Token A (read-only, all repos) **+** Token B (read/write, project Blueprint) | Read: configs, template, code. Write: project Blueprint |
+| VM-2 | System Designer | Token A (read-only, all repos) | Read: configs, template, project Blueprint, code |
+| VM-3 | Developers | Token A (read-only, all repos) **+** Token C (read/write, project code) | Read: configs, template, Blueprint. Write: project code |
+| VM-4 | QC Agents | Token A (read-only, all repos) | Read: configs, template, project Blueprint, code |
+| VM-5 | Operator | Token A (read-only, all repos) **+** Token D (read/write, project code) | Read: configs, template, Blueprint. Write: project code (CI/CD) |
+
+### Repository Access Matrix
+
+| Repository | VM-1 Architect | VM-2 Designer | VM-3 Developers | VM-4 QC | VM-5 Operator |
+|-----------|:-:|:-:|:-:|:-:|:-:|
+| `gateforge-openclaw-configs` | Read | Read | Read | Read | Read |
+| `gateforge-blueprint-template` | Read | Read | Read | Read | Read |
+| `<project>-blueprint` | **Read/Write** | Read | Read | Read | Read |
+| `<project>-code` | Read | Read | **Read/Write** | Read | **Read/Write** |
+
+### Configuring Tokens on Each VM
+
+Store tokens in the secure config file alongside other secrets:
+
+```bash
+# Add to /opt/secrets/gateforge.env (root:root, chmod 600)
+GITHUB_TOKEN_READONLY="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+GITHUB_TOKEN_RW="ghp_yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"  # VM-1, VM-3, and VM-5 only
+```
+
+Configure Git to use the token for HTTPS authentication:
+
+```bash
+# For read-only access (all VMs) — default credential for all repos
+git config --global credential.helper store
+echo "https://gateforge-bot:${GITHUB_TOKEN_READONLY}@github.com" > ~/.git-credentials
+chmod 600 ~/.git-credentials
+
+# VM-1 Architect — read/write override for the project Blueprint repo
+git config --global url."https://gateforge-bot:${GITHUB_TOKEN_RW}@github.com/tonylnng/<project>-blueprint".insteadOf \
+  "https://github.com/tonylnng/<project>-blueprint"
+
+# VM-3 Developers / VM-5 Operator — read/write override for the project code repo
+git config --global url."https://gateforge-bot:${GITHUB_TOKEN_RW}@github.com/tonylnng/<project>-code".insteadOf \
+  "https://github.com/tonylnng/<project>-code"
+```
+
+This ensures the read-only token is used by default for all repos (configs, template, etc.), and the read/write token is used only for the specific repo that the VM needs to write to.
+
+### Token Rotation
+
+Fine-grained PATs have mandatory expiration. Plan for rotation:
+
+1. **Set a calendar reminder** 7 days before each token expires
+2. **Generate the new token** with the same permissions (GitHub UI)
+3. **Update `/opt/secrets/gateforge.env`** on the affected VM
+4. **Update `~/.git-credentials`** with the new token
+5. **Verify** with `git ls-remote origin` — should succeed without prompting
+
+> **Never commit tokens to any repository.** All tokens live in `/opt/secrets/gateforge.env` (root-only, chmod 600) and are loaded via `source` at runtime.
+
+### Security Best Practices
+
+| Practice | Detail |
+|----------|--------|
+| **One token per VM** | Never share tokens across VMs — isolate blast radius |
+| **Least privilege** | Read-only unless the VM explicitly needs to write |
+| **Repo-scoped writes** | Write tokens target only the specific repo that the VM writes to — never all repos |
+| **Template is always read-only** | No agent writes to `gateforge-blueprint-template` — updates are made manually and pulled downstream |
+| **Config repo is always read-only** | No agent writes to `gateforge-openclaw-configs` — config changes are made manually |
+| **90-day expiration** | Fine-grained tokens enforce expiration — rotate before they expire |
+| **Secure storage** | `/opt/secrets/gateforge.env` — root:root, chmod 600 |
+| **Audit regularly** | Review active tokens at https://github.com/settings/personal-access-tokens |
+| **Revoke immediately** | If any VM is compromised, revoke its token — other VMs unaffected |
+
+---
+
 ## Installation
 
 GateForge provides interactive setup scripts for inter-agent communication. These scripts assume **OpenClaw is already installed** with API keys and Telegram configured. They only handle communication tokens, HMAC secrets, and VM addresses.
@@ -1036,6 +1278,7 @@ All configuration is stored in a single secure file: `/opt/secrets/gateforge.env
 
 - OpenClaw already installed and running on each VM
 - API keys already configured (Anthropic for VM-1/2/3, MiniMax for VM-4/5)
+- GitHub Fine-Grained PATs configured per the [GitHub Token Configuration](#github-token-configuration) section above
 - Telegram already configured on VM-1
 - `sudo` access, `openssl` installed
 

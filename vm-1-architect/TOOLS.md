@@ -78,6 +78,8 @@ lobster run workflows/code-review.lobster \
 |----------|---------|
 | `ANTHROPIC_API_KEY` | Claude Opus 4.6 API access |
 | `TELEGRAM_BOT_TOKEN` | Telegram channel communication |
+| `GITHUB_TOKEN_READONLY` | GitHub Fine-Grained PAT — read-only access to all repos (Token A) |
+| `GITHUB_TOKEN_RW` | GitHub Fine-Grained PAT — read/write access to project Blueprint repo (Token B) |
 | `DESIGNER_TOKEN` | Auth for VM-2 gateway |
 | `DEV_TOKEN` | Auth for VM-3 gateway |
 | `QC_TOKEN` | Auth for VM-4 gateway |

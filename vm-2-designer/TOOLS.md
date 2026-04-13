@@ -55,6 +55,7 @@ Use `exec` for:
 | Variable | Purpose |
 |----------|---------|
 | `ANTHROPIC_API_KEY` | Claude Sonnet 4.6 API access |
+| `GITHUB_TOKEN_READONLY` | GitHub Fine-Grained PAT — read-only access to all repos (Token A) |
 | `ARCHITECT_NOTIFY_URL` | Architect notification endpoint (`http://100.73.38.28:18789/hooks/agent`) |
 | `ARCHITECT_HOOK_TOKEN` | Bearer token for Architect hook authentication |
 | `AGENT_SECRET` | This VM's unique HMAC signing secret — used to sign notification payloads, never transmitted |

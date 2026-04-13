@@ -68,75 +68,58 @@ Once all 5 VMs return `{"ok":true,"status":"live"}` from each other, proceed wit
 
 ---
 
-## Accessing a Private GitHub Repository
+## GitHub Repository Access
 
-If the `gateforge-openclaw-configs` repo is set to **private**, each VM needs authentication to clone it. There are three options:
+GateForge uses multiple private GitHub repositories. Each VM needs authentication to access them.
 
-### Option A: SSH Key (recommended)
+### GateForge Repositories
 
-Generate an SSH key on each VM and add the public key to your GitHub account:
+| Repository | Purpose | Access |
+|-----------|---------|--------|
+| `tonylnng/gateforge-openclaw-configs` | Agent configuration (this repo) — SOUL.md, TOOLS.md, install scripts | **Read-only** for all VMs |
+| `tonylnng/gateforge-blueprint-template` | Standardised Blueprint document structure — cloned per project, updated over time with improved standards | **Read-only** for all VMs |
+| `tonylnng/<project>-blueprint` | Per-project working Blueprint — requirements, architecture, designs, status, backlog | **Read/write** for VM-1 (Architect); read-only for others |
+| `tonylnng/<project>-code` | Per-project source code | **Read/write** for VM-3 (Developers) and VM-5 (Operator); read-only for others |
+
+### Authentication: Fine-Grained Personal Access Tokens (PATs)
+
+GateForge uses **GitHub Fine-Grained PATs** (not classic tokens) for per-repository and per-permission scoping. See the [GitHub Token Configuration](../README.md#github-token-configuration) section in the main README for the complete setup guide, including:
+
+- **Token A** — Read-only access to all repos (all VMs)
+- **Token B** — Read/write access to the project Blueprint repo (VM-1 Architect only)
+- **Token C** — Read/write access to the project code repo (VM-3 Developers)
+- **Token D** — Read/write CI/CD access to the project code repo (VM-5 Operator)
+
+#### Quick Setup — Clone This Config Repo
+
+On each VM, use the read-only token (Token A) to clone this repo:
 
 ```bash
-# On each VM (run as the OpenClaw user, not root):
-ssh-keygen -t ed25519 -C "gateforge-vm"
-cat ~/.ssh/id_ed25519.pub
+git clone https://<GITHUB_TOKEN_READONLY>@github.com/tonylnng/gateforge-openclaw-configs.git
 ```
 
-Copy the public key output, then add it to GitHub:
-1. Go to [github.com/settings/keys](https://github.com/settings/keys)
-2. Click "New SSH key"
-3. Paste the key and save
-
-You can add all 5 VM keys to the same GitHub account. Then clone using SSH:
+To avoid entering the token on every `git pull`, configure credential storage:
 
 ```bash
-git clone git@github.com:tonylnng/gateforge-openclaw-configs.git
-```
-
-### Option B: GitHub Personal Access Token (PAT)
-
-Create a PAT with `repo` scope at [github.com/settings/tokens](https://github.com/settings/tokens), then clone using HTTPS with the token:
-
-```bash
-git clone https://<YOUR_PAT>@github.com/tonylnng/gateforge-openclaw-configs.git
-```
-
-To avoid typing the token every time you `git pull`:
-
-```bash
+# Store credentials securely
 git config --global credential.helper store
+echo "https://gateforge-bot:${GITHUB_TOKEN_READONLY}@github.com" > ~/.git-credentials
+chmod 600 ~/.git-credentials
 ```
 
-This saves the token locally after the first use. The credential is stored in `~/.git-credentials` (plain text, user-readable only).
-
-### Option C: Deploy Key (per-repo, read-only)
-
-Generate a key on one VM and add it as a deploy key on the repo:
-
-1. Generate: `ssh-keygen -t ed25519 -f ~/.ssh/gateforge-deploy -C "gateforge-deploy"`
-2. Go to your repo → Settings → Deploy keys → Add deploy key
-3. Paste the public key (`~/.ssh/gateforge-deploy.pub`)
-4. Check "Allow read access" (do NOT check write access)
-
-Configure SSH to use this key for GitHub:
+For VMs with read/write access (VM-1, VM-3, VM-5), add a URL override for the specific repo:
 
 ```bash
-cat >> ~/.ssh/config << 'EOF'
-Host github.com
-  IdentityFile ~/.ssh/gateforge-deploy
-  IdentitiesOnly yes
-EOF
+# VM-1: read/write override for the project Blueprint repo
+git config --global url."https://gateforge-bot:${GITHUB_TOKEN_RW}@github.com/tonylnng/<project>-blueprint".insteadOf \
+  "https://github.com/tonylnng/<project>-blueprint"
+
+# VM-3 / VM-5: read/write override for the project code repo
+git config --global url."https://gateforge-bot:${GITHUB_TOKEN_RW}@github.com/tonylnng/<project>-code".insteadOf \
+  "https://github.com/tonylnng/<project>-code"
 ```
 
-Note: GitHub only allows one deploy key per repo across all repos. If you need deploy keys on multiple VMs, use Option A or B instead.
-
-### Which Option for Each VM?
-
-| Option | Pros | Cons | Best for |
-|--------|------|------|----------|
-| SSH Key | Secure, no token expiry | Must add each VM's key to GitHub | All VMs (recommended) |
-| PAT | Simple, works on all VMs with one token | Token expires, stored in plain text | Quick setup |
-| Deploy Key | Read-only, per-repo | One key per repo limit | Single VM |
+All tokens are stored in `/opt/secrets/gateforge.env` (root:root, chmod 600). See the main README for the full configuration, rotation, and security guide.
 
 ---
 

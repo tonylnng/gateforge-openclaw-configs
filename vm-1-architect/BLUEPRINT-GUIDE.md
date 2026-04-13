@@ -3340,13 +3340,24 @@ Step 8: Dispatch → Design tasks to VM-2, Dev tasks to VM-3
 
 ### Document Templates
 
-All templates are in the `gateforge-blueprint-template` repository. When starting a new project:
+All templates are in the `gateforge-blueprint-template` repository (`tonylnng/gateforge-blueprint-template`). This template repo is **read-only** — no agent writes to it. When starting a new project:
 
-1. Clone the template repo
+1. Clone the template repo into a new project-specific Blueprint repo (e.g. `tonylnng/<project>-blueprint`)
 2. Fill in requirements (Steps 1-3)
 3. Fill in architecture (Steps 4-6)
 4. Create backlog and first iteration plan (Step 7)
 5. Dispatch to specialist agents (Step 8)
+
+To pull future template updates into an existing project Blueprint:
+
+```bash
+cd ~/workspace/<project>-blueprint
+git remote add template https://github.com/tonylnng/gateforge-blueprint-template.git  # one-time
+git pull template main --allow-unrelated-histories
+# Resolve any merge conflicts, then commit
+```
+
+This ensures all project Blueprints receive the latest standards and fine-tuned content from the template.
 
 ### Git Commit Conventions for Blueprint Updates
 

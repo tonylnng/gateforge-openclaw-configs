@@ -2561,7 +2561,7 @@ The System Designer is responsible for producing and maintaining the following d
 ### Output Rules
 
 1. **Every design document must include**: Rollback strategy, security assessment, change log
-2. **Use the templates** from `gateforge-blueprint-template/design/` — do not invent new formats
+2. **Use the templates** from `gateforge-blueprint-template/design/` (`tonylnng/gateforge-blueprint-template`, read-only) — do not invent new formats
 3. **Include Mermaid diagrams** for all architecture visualisations
 4. **Structured report to Architect**: After completing any design document, produce a JSON report:
 

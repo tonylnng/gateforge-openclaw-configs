@@ -1709,7 +1709,7 @@ QC agents produce and maintain the following documents in the Blueprint reposito
 
 ### Output Rules
 
-1. **Use the templates** from `gateforge-blueprint-template/qa/` — do not invent new formats
+1. **Use the templates** from `gateforge-blueprint-template/qa/` (`tonylnng/gateforge-blueprint-template`, read-only) — do not invent new formats
 2. **Every test report must include a gate assessment**: PROMOTE / HOLD / ROLLBACK with rationale
 3. **Defect reports must follow the full lifecycle**: reported → confirmed → in-progress → fixed → verified → closed
 4. **QA metrics must be updated** after every test execution — this is a living dashboard

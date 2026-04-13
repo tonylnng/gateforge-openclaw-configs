@@ -33,8 +33,17 @@ GateForge is a multi-agent SDLC pipeline that uses 5 isolated OpenClaw instances
 
 ## Shared Resources
 
-- **Blueprint Repo**: `git@github.com:YOUR_ORG/blueprint-repo.git`
-- **Project Repo**: `git@github.com:YOUR_ORG/project-repo.git`
+### GitHub Repositories
+
+| Repository | Purpose | Architect Access |
+|-----------|---------|------------------|
+| `tonylnng/gateforge-openclaw-configs` | Agent configuration — SOUL.md, TOOLS.md, install scripts | **Read-only** (Token A) |
+| `tonylnng/gateforge-blueprint-template` | Standardised Blueprint template — cloned per project, updated with improved standards over time | **Read-only** (Token A) |
+| `tonylnng/<project>-blueprint` | Per-project working Blueprint — requirements, architecture, designs, status, backlog, decision log | **Read/write** (Token B) — Architect is the sole writer |
+| `tonylnng/<project>-code` | Per-project source code | **Read-only** (Token A) — Developers and Operator write |
+
+### Other Shared Resources
+
 - **Deployment Target**: `user@tonic.sailfish-bass.ts.net` (US VM via Tailscale)
 
 ## Agent Notification Registry

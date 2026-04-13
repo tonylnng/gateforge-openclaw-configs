@@ -2796,7 +2796,7 @@ The Operator agent produces and maintains the following documents in the Bluepri
 
 ### Output Rules
 
-1. **Use the templates** from `gateforge-blueprint-template/operations/` — do not invent new formats
+1. **Use the templates** from `gateforge-blueprint-template/operations/` (`tonylnng/gateforge-blueprint-template`, read-only) — do not invent new formats
 2. **Deployment log is append-only** — never modify past entries, only add new ones
 3. **Operation log is append-only** — every operational event must be recorded
 4. **Incident reports must include**: Timeline, root cause analysis (5 Whys), prevention actions, lessons learned
