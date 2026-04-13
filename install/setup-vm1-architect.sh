@@ -65,7 +65,12 @@ main() {
     confirm_continue "Overwrite existing config?"
   fi
 
-  # --- Step 2: Collect IPs ---
+  # --- Step 2: Network ---
+  print_step "Verify Network & Firewall"
+  setup_firewall
+
+  # --- Step 3: Collect IPs ---
+  TOTAL_STEPS=7
   print_step "Configure VM Addresses"
   echo -e "  ${DIM}Enter Tailscale hostnames or IP addresses for each VM.${RESET}"
   echo ""

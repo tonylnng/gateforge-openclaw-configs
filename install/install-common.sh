@@ -275,6 +275,49 @@ verify_openclaw() {
   else
     print_warn "'openclaw' not found in PATH (may be installed under a different name or path — skipping check)"
   fi
+
+  # Check gateway bind is not loopback
+  local bind_check
+  bind_check=$(ss -tlnp 2>/dev/null | grep ":18789" | head -1 || true)
+  if echo "$bind_check" | grep -q "127\.0\.0\.1"; then
+    print_error "Gateway is bound to 127.0.0.1 (loopback) — other VMs cannot reach it"
+    print_info "Fix: openclaw config set gateway.bind tailnet"
+    print_info "Then: sudo systemctl restart openclaw-gateforge.service"
+    confirm_continue "Continue anyway?"
+  elif [[ -n "$bind_check" ]]; then
+    print_success "Gateway listening on port 18789 (not loopback)"
+  else
+    print_warn "Port 18789 not listening — gateway may not be running"
+  fi
+}
+
+setup_firewall() {
+  print_info "Configuring UFW firewall..."
+
+  if ! command -v ufw &>/dev/null; then
+    print_warn "UFW not installed — skipping firewall setup"
+    return
+  fi
+
+  if [[ "$DRY_RUN" == "true" ]]; then
+    print_warn "[DRY RUN] Would configure UFW rules for GateForge VM IPs"
+    return
+  fi
+
+  # GateForge VM IPs
+  local VM_IPS=("100.73.38.28" "100.95.30.11" "100.81.114.55" "100.106.117.104" "100.95.248.68")
+
+  sudo ufw default deny incoming 2>/dev/null || true
+  sudo ufw default allow outgoing 2>/dev/null || true
+  sudo ufw allow ssh 2>/dev/null || true
+
+  for ip in "${VM_IPS[@]}"; do
+    sudo ufw allow from "$ip" to any port 18789 2>/dev/null || true
+  done
+
+  # Enable UFW (non-interactive)
+  echo "y" | sudo ufw enable 2>/dev/null || true
+  print_success "UFW configured — only GateForge VM IPs allowed on port 18789"
 }
 
 verify_connectivity() {

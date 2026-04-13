@@ -11,6 +11,61 @@ You need 5 Ubuntu VMs with OpenClaw already installed and working. Each VM shoul
 - Telegram configured on VM-1 (Architect)
 - Internet access and `sudo` permission
 
+### Required on ALL 5 VMs Before Running Setup Scripts
+
+#### Step A — Change OpenClaw gateway bind from loopback to tailnet
+
+By default OpenClaw only listens on localhost. Other VMs cannot reach it. Fix this on every VM:
+
+```bash
+openclaw config set gateway.bind tailnet
+sudo systemctl restart openclaw-gateforge.service
+```
+
+Verify:
+
+```bash
+ss -tlnp | grep 18789
+# Must NOT show 127.0.0.1 — should show 0.0.0.0 or the Tailscale IP
+```
+
+#### Step B — Configure firewall to allow only GateForge VMs
+
+Run this on every VM:
+
+```bash
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow ssh
+sudo ufw allow from 100.73.38.28 to any port 18789
+sudo ufw allow from 100.95.30.11 to any port 18789
+sudo ufw allow from 100.81.114.55 to any port 18789
+sudo ufw allow from 100.106.117.104 to any port 18789
+sudo ufw allow from 100.95.248.68 to any port 18789
+sudo ufw enable
+```
+
+Verify:
+
+```bash
+sudo ufw status
+```
+
+Only the 5 GateForge VM IPs can access port 18789. This is more secure than allowing the entire Tailscale subnet.
+
+#### Step C — Test connectivity between VMs
+
+From any VM, test that you can reach another VM's gateway:
+
+```bash
+curl -s http://100.73.38.28:18789/health
+# Should return: {"ok":true,"status":"live"}
+```
+
+If this fails, check the bind setting (Step A) and firewall (Step B) on the target VM.
+
+Once all 5 VMs return `{"ok":true,"status":"live"}` from each other, proceed with the setup scripts below.
+
 ---
 
 ## VM-1: System Architect (run this FIRST)

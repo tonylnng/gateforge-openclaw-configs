@@ -42,7 +42,12 @@ main() {
     confirm_continue "Overwrite existing config?"
   fi
 
-  # --- Step 2: Collect config ---
+  # --- Step 2: Network ---
+  print_step "Verify Network & Firewall"
+  setup_firewall
+
+  # --- Step 3: Collect config ---
+  TOTAL_STEPS=7
   print_step "Configure Communication"
 
   prompt_required VM4_IP              "This VM's IP/host"          "${GATEFORGE_VM_HOST:-100.106.117.104}"

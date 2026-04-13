@@ -107,7 +107,57 @@ GateForge uses a **hub-and-spoke** architecture. The System Architect (VM-1) is 
 | VM-5 | Operator | MiniMax 2.7 | tonic-operator | 100.95.248.68 | 18789 |
 | US VM | Deployment Target (UAT + Production) | — | Tailscale | — | — |
 
-All VMs are on subnet `Tailscale VPN network` connected via Tailscale VPN. The US VM is also on the same Tailscale network — it runs the product only, not OpenClaw.
+All VMs are on the Tailscale VPN network. The US VM is also on the same Tailscale network — it runs the product only, not OpenClaw.
+
+### Required Network Configuration (All VMs)
+
+Two settings must be configured on every VM before inter-agent communication will work:
+
+#### 1. OpenClaw Gateway Bind — Set to Tailnet
+
+By default, OpenClaw binds to `127.0.0.1` (loopback), which means other VMs cannot reach the gateway. Change to `tailnet` so the gateway listens on the Tailscale interface:
+
+```bash
+openclaw config set gateway.bind tailnet
+```
+
+Then restart the gateway:
+
+```bash
+sudo systemctl restart openclaw-gateforge.service
+# or: openclaw gateway restart
+```
+
+Verify it's listening on the Tailscale IP (not 127.0.0.1):
+
+```bash
+ss -tlnp | grep 18789
+# Should show 0.0.0.0:18789 or the Tailscale IP, NOT 127.0.0.1
+```
+
+#### 2. Firewall (UFW) — Allow Only GateForge VM IPs
+
+For secure inter-VM communication, allow only the 5 GateForge VM IPs on port 18789 — not the entire Tailscale subnet:
+
+```bash
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow ssh
+sudo ufw allow from 100.73.38.28 to any port 18789    # VM-1 Architect
+sudo ufw allow from 100.95.30.11 to any port 18789    # VM-2 Designer
+sudo ufw allow from 100.81.114.55 to any port 18789   # VM-3 Developers
+sudo ufw allow from 100.106.117.104 to any port 18789 # VM-4 QC Agents
+sudo ufw allow from 100.95.248.68 to any port 18789   # VM-5 Operator
+sudo ufw enable
+```
+
+Verify:
+
+```bash
+sudo ufw status
+```
+
+This ensures only the 5 GateForge VMs can communicate on port 18789. Other devices on the same Tailscale account (your Mac, phone, etc.) cannot access the gateway.
 
 ---
 
