@@ -19,7 +19,7 @@ By default OpenClaw only listens on localhost. Other VMs cannot reach it. Fix th
 
 ```bash
 openclaw config set gateway.bind tailnet
-sudo systemctl restart openclaw-gateforge.service
+openclaw gateway restart
 ```
 
 Verify:
@@ -296,9 +296,7 @@ If the Architect is running, you should get a response. If not, you'll see a con
 | View your GateForge config | `sudo cat /opt/secrets/gateforge.env` |
 | Re-run setup (update config) | `cd ~/gateforge-openclaw-configs/install && sudo bash setup-vmN-role.sh` |
 | Update configs from GitHub | `cd ~/gateforge-openclaw-configs && git pull` |
-| Check systemd service | `sudo systemctl status openclaw-gateforge.service` |
-| View OpenClaw logs | `journalctl -u openclaw-gateforge -f` |
-| Restart OpenClaw | `sudo systemctl restart openclaw-gateforge.service` |
+| Restart OpenClaw gateway | `openclaw gateway restart` |
 
 ---
 

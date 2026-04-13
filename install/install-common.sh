@@ -282,7 +282,7 @@ verify_openclaw() {
   if echo "$bind_check" | grep -q "127\.0\.0\.1"; then
     print_error "Gateway is bound to 127.0.0.1 (loopback) — other VMs cannot reach it"
     print_info "Fix: openclaw config set gateway.bind tailnet"
-    print_info "Then: sudo systemctl restart openclaw-gateforge.service"
+    print_info "Then: openclaw gateway restart (as your OpenClaw user)"
     confirm_continue "Continue anyway?"
   elif [[ -n "$bind_check" ]]; then
     print_success "Gateway listening on port 18789 (not loopback)"

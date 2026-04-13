@@ -121,11 +121,10 @@ By default, OpenClaw binds to `127.0.0.1` (loopback), which means other VMs cann
 openclaw config set gateway.bind tailnet
 ```
 
-Then restart the gateway:
+Then restart the gateway (run as your OpenClaw user, not root):
 
 ```bash
-sudo systemctl restart openclaw-gateforge.service
-# or: openclaw gateway restart
+openclaw gateway restart
 ```
 
 Verify it's listening on the Tailscale IP (not 127.0.0.1):
