@@ -68,6 +68,78 @@ Once all 5 VMs return `{"ok":true,"status":"live"}` from each other, proceed wit
 
 ---
 
+## Accessing a Private GitHub Repository
+
+If the `gateforge-openclaw-configs` repo is set to **private**, each VM needs authentication to clone it. There are three options:
+
+### Option A: SSH Key (recommended)
+
+Generate an SSH key on each VM and add the public key to your GitHub account:
+
+```bash
+# On each VM (run as the OpenClaw user, not root):
+ssh-keygen -t ed25519 -C "gateforge-vm"
+cat ~/.ssh/id_ed25519.pub
+```
+
+Copy the public key output, then add it to GitHub:
+1. Go to [github.com/settings/keys](https://github.com/settings/keys)
+2. Click "New SSH key"
+3. Paste the key and save
+
+You can add all 5 VM keys to the same GitHub account. Then clone using SSH:
+
+```bash
+git clone git@github.com:tonylnng/gateforge-openclaw-configs.git
+```
+
+### Option B: GitHub Personal Access Token (PAT)
+
+Create a PAT with `repo` scope at [github.com/settings/tokens](https://github.com/settings/tokens), then clone using HTTPS with the token:
+
+```bash
+git clone https://<YOUR_PAT>@github.com/tonylnng/gateforge-openclaw-configs.git
+```
+
+To avoid typing the token every time you `git pull`:
+
+```bash
+git config --global credential.helper store
+```
+
+This saves the token locally after the first use. The credential is stored in `~/.git-credentials` (plain text, user-readable only).
+
+### Option C: Deploy Key (per-repo, read-only)
+
+Generate a key on one VM and add it as a deploy key on the repo:
+
+1. Generate: `ssh-keygen -t ed25519 -f ~/.ssh/gateforge-deploy -C "gateforge-deploy"`
+2. Go to your repo → Settings → Deploy keys → Add deploy key
+3. Paste the public key (`~/.ssh/gateforge-deploy.pub`)
+4. Check "Allow read access" (do NOT check write access)
+
+Configure SSH to use this key for GitHub:
+
+```bash
+cat >> ~/.ssh/config << 'EOF'
+Host github.com
+  IdentityFile ~/.ssh/gateforge-deploy
+  IdentitiesOnly yes
+EOF
+```
+
+Note: GitHub only allows one deploy key per repo across all repos. If you need deploy keys on multiple VMs, use Option A or B instead.
+
+### Which Option for Each VM?
+
+| Option | Pros | Cons | Best for |
+|--------|------|------|----------|
+| SSH Key | Secure, no token expiry | Must add each VM's key to GitHub | All VMs (recommended) |
+| PAT | Simple, works on all VMs with one token | Token expires, stored in plain text | Quick setup |
+| Deploy Key | Read-only, per-repo | One key per repo limit | Single VM |
+
+---
+
 ## VM-1: System Architect (run this FIRST)
 
 ### Step 1 — Open a terminal on VM-1
@@ -285,6 +357,41 @@ curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
 ```
 
 If the Architect is running, you should get a response. If not, you'll see a connection error — that just means the Architect's OpenClaw gateway isn't started yet.
+
+---
+
+## Run Connectivity Tests
+
+After all VMs are set up, run the test scripts to verify everything works.
+
+### Test from VM-1 (Architect) — tests ALL VMs
+
+```bash
+cd ~/gateforge-openclaw-configs
+sudo bash install/test-connectivity.sh
+```
+
+This runs 6 tests from the Architect: ping all spokes, gateway health check on all 5 VMs, task dispatch to each spoke, HMAC notification from each spoke, fake-secret rejection, and config file presence. Only works on VM-1 because the Architect has all spoke tokens.
+
+### Test from any spoke VM (VM-2 through VM-5)
+
+```bash
+cd ~/gateforge-openclaw-configs
+sudo bash install/test-spoke.sh
+```
+
+This runs 5 tests from the spoke: ping Architect, Architect gateway health, local gateway health, HMAC notification to Architect, and wrong-token rejection. Works on any spoke VM — it reads the role and credentials from `/opt/secrets/gateforge.env`.
+
+### Expected Results
+
+All tests should show green `PASS`. Common issues:
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Ping fails | Tailscale not connected | `tailscale status` on both VMs |
+| Gateway HTTP fails | Bound to loopback | `openclaw config set gateway.bind tailnet` + restart |
+| Connection refused | Firewall blocking | `sudo ufw allow from <vm-ip> to any port 18789` |
+| HTTP 404 on dispatch | Hook endpoint not configured | See next section for OpenClaw webhook setup |
 
 ---
 
