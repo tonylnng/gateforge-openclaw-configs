@@ -93,47 +93,117 @@ echo -e "  ${DIM}VM-4:       ${VM4_IP}${RESET}"
 echo -e "  ${DIM}VM-5:       ${VM5_IP}${RESET}"
 
 # ---------------------------------------------------------------------------
+# SSH Credentials — collect per-VM username and password
+# ---------------------------------------------------------------------------
+print_header "SSH Credentials for Spoke VMs"
+
+echo -e "  ${DIM}Enter SSH credentials for each spoke VM.${RESET}"
+echo -e "  ${DIM}These are used for pre-flight checks and Test 6 (config verification).${RESET}"
+echo -e "  ${DIM}Leave password blank to use SSH key auth instead.${RESET}"
+echo ""
+
+# Check sshpass availability (needed for password auth)
+HAS_SSHPASS=false
+if command -v sshpass &>/dev/null; then
+  HAS_SSHPASS=true
+fi
+
+# Associative arrays for per-VM credentials
+declare -A VM_SSH_USER
+declare -A VM_SSH_PASS
+
+for vm in 2 3 4 5; do
+  eval vm_ip=\$VM${vm}_IP
+  role=""
+  case $vm in
+    2) role="Designer" ;;
+    3) role="Developers" ;;
+    4) role="QC Agents" ;;
+    5) role="Operator" ;;
+  esac
+
+  # Read username
+  default_user="${SUDO_USER:-$(whoami)}"
+  read -rp "  VM-${vm} ${role} (${vm_ip}) — SSH user [${default_user}]: " input_user
+  VM_SSH_USER[$vm]="${input_user:-$default_user}"
+
+  # Read password (hidden input)
+  read -rsp "  VM-${vm} ${role} (${vm_ip}) — SSH password (blank=key auth): " input_pass
+  echo ""  # newline after hidden input
+  VM_SSH_PASS[$vm]="${input_pass}"
+
+  if [[ -n "${VM_SSH_PASS[$vm]}" && "$HAS_SSHPASS" != "true" ]]; then
+    echo -e "  ${YELLOW}! sshpass not installed — password auth will not work.${RESET}"
+    echo -e "  ${DIM}  Install: sudo apt install sshpass${RESET}"
+    VM_SSH_PASS[$vm]=""  # fall back to key auth
+  fi
+done
+
+echo ""
+echo -e "  ${DIM}Credentials collected:${RESET}"
+for vm in 2 3 4 5; do
+  eval vm_ip=\$VM${vm}_IP
+  auth_mode="key"
+  [[ -n "${VM_SSH_PASS[$vm]}" ]] && auth_mode="password"
+  echo -e "  ${DIM}  VM-${vm} (${vm_ip}): user=${VM_SSH_USER[$vm]}, auth=${auth_mode}${RESET}"
+done
+
+# ---------------------------------------------------------------------------
+# Helper: SSH to a spoke VM using the collected credentials
+# ---------------------------------------------------------------------------
+ssh_to_vm() {
+  local vm_num="$1"
+  shift
+  local user="${VM_SSH_USER[$vm_num]}"
+  local pass="${VM_SSH_PASS[$vm_num]}"
+  eval local ip=\$VM${vm_num}_IP
+
+  if [[ -n "$pass" ]]; then
+    sshpass -p "$pass" ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "${user}@${ip}" "$@" 2>/dev/null
+  else
+    ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "${user}@${ip}" "$@" 2>/dev/null
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Pre-flight: Verify webhooks are enabled in openclaw.json
 # ---------------------------------------------------------------------------
 print_header "Pre-flight: Webhook Configuration"
 
 # Resolve the OpenClaw user — the user running OpenClaw (not root)
-OC_USER="${GATEFORGE_SSH_USER:-${SUDO_USER:-$(whoami)}}"
+OC_USER="${SUDO_USER:-$(whoami)}"
 OC_HOME=$(eval echo "~${OC_USER}")
 OC_CONFIG="${OC_HOME}/.openclaw/openclaw.json"
 
 HOOKS_OK_LOCAL=false
 
-# Check local VM-1
-if [[ -f "$OC_CONFIG" ]]; then
-  # Parse hooks.enabled — look for '"enabled": true' inside the hooks block
-  # Use python3/node if available, fall back to grep heuristic
+# --- Helper function to parse openclaw.json ---
+check_hooks_config() {
+  local config_file="$1"
   if command -v python3 &>/dev/null; then
-    HOOKS_ENABLED=$(python3 -c "
+    python3 -c "
 import json, sys
 try:
-    with open('${OC_CONFIG}') as f:
+    with open('${config_file}') as f:
         cfg = json.load(f)
     enabled = cfg.get('hooks', {}).get('enabled', False)
     token = cfg.get('hooks', {}).get('token', '')
     print(f'{enabled}|{len(token) > 0}')
 except: print('error|error')
-" 2>/dev/null || echo "error|error")
-    H_ENABLED="${HOOKS_ENABLED%%|*}"
-    H_HAS_TOKEN="${HOOKS_ENABLED##*|}"
+" 2>/dev/null || echo "error|error"
   else
-    # Fallback: grep-based check (less reliable but works without python)
-    if grep -q '"enabled".*true' "$OC_CONFIG" 2>/dev/null; then
-      H_ENABLED="True"
-    else
-      H_ENABLED="False"
-    fi
-    if grep -q '"token"' "$OC_CONFIG" 2>/dev/null; then
-      H_HAS_TOKEN="True"
-    else
-      H_HAS_TOKEN="False"
-    fi
+    local e="False" t="False"
+    grep -q '"enabled".*true' "$config_file" 2>/dev/null && e="True"
+    grep -q '"token"' "$config_file" 2>/dev/null && t="True"
+    echo "${e}|${t}"
   fi
+}
+
+# Check local VM-1
+if [[ -f "$OC_CONFIG" ]]; then
+  HOOKS_ENABLED=$(check_hooks_config "$OC_CONFIG")
+  H_ENABLED="${HOOKS_ENABLED%%|*}"
+  H_HAS_TOKEN="${HOOKS_ENABLED##*|}"
 
   if [[ "$H_ENABLED" == "True" && "$H_HAS_TOKEN" == "True" ]]; then
     result_pass "VM-1 (local) — webhooks enabled with token in ${OC_CONFIG}"
@@ -151,18 +221,17 @@ except: print('error|error')
 else
   result_fail "VM-1 (local) — ${OC_CONFIG} not found"
   echo -e "  ${DIM}Expected OpenClaw config at: ${OC_CONFIG}${RESET}"
-  echo -e "  ${DIM}Detected user: ${OC_USER} (override with GATEFORGE_SSH_USER env var)${RESET}"
+  echo -e "  ${DIM}Detected user: ${OC_USER}${RESET}"
 fi
 
 # Check spoke VMs remotely via SSH
-SSH_USER="${GATEFORGE_SSH_USER:-${SUDO_USER:-$(whoami)}}"
 HOOKS_OK_REMOTE=true
 
-for entry in "VM-2:${VM2_IP}" "VM-3:${VM3_IP}" "VM-4:${VM4_IP}" "VM-5:${VM5_IP}"; do
-  label="${entry%%:*}"
-  ip="${entry##*:}"
+for vm in 2 3 4 5; do
+  eval ip=\$VM${vm}_IP
+  label="VM-${vm}"
 
-  REMOTE_CHECK=$(ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no "${SSH_USER}@${ip}" "
+  REMOTE_CHECK=$(ssh_to_vm "$vm" "
     OC_CFG=\"\$(eval echo ~\$(whoami))/.openclaw/openclaw.json\"
     if [ ! -f \"\$OC_CFG\" ]; then echo 'nofile'; exit; fi
     if command -v python3 >/dev/null 2>&1; then
@@ -174,10 +243,10 @@ for entry in "VM-2:${VM2_IP}" "VM-3:${VM3_IP}" "VM-4:${VM4_IP}" "VM-5:${VM5_IP}"
       [ \"\$T\" -gt 0 ] && t='True' || t='False'
       echo \"\$e|\$t\"
     fi
-  " 2>/dev/null || echo "ssh_fail")
+  " || echo "ssh_fail")
 
   if [[ "$REMOTE_CHECK" == "ssh_fail" ]]; then
-    result_warn "${label} (${ip}) — SSH not available (webhook check skipped)"
+    result_warn "${label} (${ip}) — SSH failed (check user/password for ${VM_SSH_USER[$vm]}@${ip})"
   elif [[ "$REMOTE_CHECK" == "nofile" ]]; then
     result_fail "${label} (${ip}) — openclaw.json not found"
     HOOKS_OK_REMOTE=false
@@ -352,20 +421,17 @@ fi
 # ---------------------------------------------------------------------------
 print_header "Test 6: Config Files on Spoke VMs (via SSH)"
 
-# SSH_USER already resolved in pre-flight check
-echo -e "  ${DIM}SSH user: ${SSH_USER} (override with GATEFORGE_SSH_USER env var)${RESET}"
-
-for entry in "VM-2:${VM2_IP}" "VM-3:${VM3_IP}" "VM-4:${VM4_IP}" "VM-5:${VM5_IP}"; do
-  label="${entry%%:*}"
-  ip="${entry##*:}"
+for vm in 2 3 4 5; do
+  eval ip=\$VM${vm}_IP
+  label="VM-${vm}"
 
   # Use sudo on remote to check the root-owned config file
-  if ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no "${SSH_USER}@${ip}" "sudo test -f /opt/secrets/gateforge.env" 2>/dev/null; then
-    result_pass "${label} — /opt/secrets/gateforge.env exists"
-  elif ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no "${SSH_USER}@${ip}" "echo ok" 2>/dev/null; then
-    result_warn "${label} — SSH works but /opt/secrets/gateforge.env not found (or sudo not available)"
+  if ssh_to_vm "$vm" "sudo test -f /opt/secrets/gateforge.env"; then
+    result_pass "${label} (${ip}) — /opt/secrets/gateforge.env exists"
+  elif ssh_to_vm "$vm" "echo ok" &>/dev/null; then
+    result_warn "${label} (${ip}) — SSH works but /opt/secrets/gateforge.env not found (or sudo not available)"
   else
-    result_warn "${label} — SSH not available (skipped — test manually)"
+    result_warn "${label} (${ip}) — SSH not available for ${VM_SSH_USER[$vm]}@${ip} (skipped — test manually)"
   fi
 done
 
