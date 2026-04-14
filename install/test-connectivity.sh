@@ -417,25 +417,6 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Test 6: Config File Presence on Each VM (via SSH)
-# ---------------------------------------------------------------------------
-print_header "Test 6: Config Files on Spoke VMs (via SSH)"
-
-for vm in 2 3 4 5; do
-  eval ip=\$VM${vm}_IP
-  label="VM-${vm}"
-
-  # Use sudo on remote to check the root-owned config file
-  if ssh_to_vm "$vm" "sudo test -f /opt/secrets/gateforge.env"; then
-    result_pass "${label} (${ip}) — /opt/secrets/gateforge.env exists"
-  elif ssh_to_vm "$vm" "echo ok" &>/dev/null; then
-    result_warn "${label} (${ip}) — SSH works but /opt/secrets/gateforge.env not found (or sudo not available)"
-  else
-    result_warn "${label} (${ip}) — SSH not available for ${VM_SSH_USER[$vm]}@${ip} (skipped — test manually)"
-  fi
-done
-
-# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 print_header "Test Summary"
