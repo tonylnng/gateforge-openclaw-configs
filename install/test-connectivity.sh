@@ -93,6 +93,114 @@ echo -e "  ${DIM}VM-4:       ${VM4_IP}${RESET}"
 echo -e "  ${DIM}VM-5:       ${VM5_IP}${RESET}"
 
 # ---------------------------------------------------------------------------
+# Pre-flight: Verify webhooks are enabled in openclaw.json
+# ---------------------------------------------------------------------------
+print_header "Pre-flight: Webhook Configuration"
+
+# Resolve the OpenClaw user — the user running OpenClaw (not root)
+OC_USER="${GATEFORGE_SSH_USER:-${SUDO_USER:-$(whoami)}}"
+OC_HOME=$(eval echo "~${OC_USER}")
+OC_CONFIG="${OC_HOME}/.openclaw/openclaw.json"
+
+HOOKS_OK_LOCAL=false
+
+# Check local VM-1
+if [[ -f "$OC_CONFIG" ]]; then
+  # Parse hooks.enabled — look for '"enabled": true' inside the hooks block
+  # Use python3/node if available, fall back to grep heuristic
+  if command -v python3 &>/dev/null; then
+    HOOKS_ENABLED=$(python3 -c "
+import json, sys
+try:
+    with open('${OC_CONFIG}') as f:
+        cfg = json.load(f)
+    enabled = cfg.get('hooks', {}).get('enabled', False)
+    token = cfg.get('hooks', {}).get('token', '')
+    print(f'{enabled}|{len(token) > 0}')
+except: print('error|error')
+" 2>/dev/null || echo "error|error")
+    H_ENABLED="${HOOKS_ENABLED%%|*}"
+    H_HAS_TOKEN="${HOOKS_ENABLED##*|}"
+  else
+    # Fallback: grep-based check (less reliable but works without python)
+    if grep -q '"enabled".*true' "$OC_CONFIG" 2>/dev/null; then
+      H_ENABLED="True"
+    else
+      H_ENABLED="False"
+    fi
+    if grep -q '"token"' "$OC_CONFIG" 2>/dev/null; then
+      H_HAS_TOKEN="True"
+    else
+      H_HAS_TOKEN="False"
+    fi
+  fi
+
+  if [[ "$H_ENABLED" == "True" && "$H_HAS_TOKEN" == "True" ]]; then
+    result_pass "VM-1 (local) — webhooks enabled with token in ${OC_CONFIG}"
+    HOOKS_OK_LOCAL=true
+  elif [[ "$H_ENABLED" == "True" && "$H_HAS_TOKEN" != "True" ]]; then
+    result_fail "VM-1 (local) — hooks.enabled=true but hooks.token is missing"
+  elif [[ "$H_ENABLED" == "error" ]]; then
+    result_warn "VM-1 (local) — could not parse ${OC_CONFIG} (check JSON syntax)"
+  else
+    result_fail "VM-1 (local) — webhooks NOT enabled in ${OC_CONFIG}"
+    echo -e "  ${DIM}Fix: Add to ${OC_CONFIG}:${RESET}"
+    echo -e "  ${DIM}  { \"hooks\": { \"enabled\": true, \"token\": \"<GATEWAY_AUTH_TOKEN>\", \"path\": \"/hooks\" } }${RESET}"
+    echo -e "  ${DIM}Then: openclaw daemon restart${RESET}"
+  fi
+else
+  result_fail "VM-1 (local) — ${OC_CONFIG} not found"
+  echo -e "  ${DIM}Expected OpenClaw config at: ${OC_CONFIG}${RESET}"
+  echo -e "  ${DIM}Detected user: ${OC_USER} (override with GATEFORGE_SSH_USER env var)${RESET}"
+fi
+
+# Check spoke VMs remotely via SSH
+SSH_USER="${GATEFORGE_SSH_USER:-${SUDO_USER:-$(whoami)}}"
+HOOKS_OK_REMOTE=true
+
+for entry in "VM-2:${VM2_IP}" "VM-3:${VM3_IP}" "VM-4:${VM4_IP}" "VM-5:${VM5_IP}"; do
+  label="${entry%%:*}"
+  ip="${entry##*:}"
+
+  REMOTE_CHECK=$(ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no "${SSH_USER}@${ip}" "
+    OC_CFG=\"\$(eval echo ~\$(whoami))/.openclaw/openclaw.json\"
+    if [ ! -f \"\$OC_CFG\" ]; then echo 'nofile'; exit; fi
+    if command -v python3 >/dev/null 2>&1; then
+      python3 -c \"import json; cfg=json.load(open('\$OC_CFG')); h=cfg.get('hooks',{}); print(str(h.get('enabled',False))+'|'+str(len(h.get('token',''))>0))\" 2>/dev/null || echo 'error'
+    else
+      E=\$(grep -c '\"enabled\".*true' \"\$OC_CFG\" 2>/dev/null || echo 0)
+      T=\$(grep -c '\"token\"' \"\$OC_CFG\" 2>/dev/null || echo 0)
+      [ \"\$E\" -gt 0 ] && e='True' || e='False'
+      [ \"\$T\" -gt 0 ] && t='True' || t='False'
+      echo \"\$e|\$t\"
+    fi
+  " 2>/dev/null || echo "ssh_fail")
+
+  if [[ "$REMOTE_CHECK" == "ssh_fail" ]]; then
+    result_warn "${label} (${ip}) — SSH not available (webhook check skipped)"
+  elif [[ "$REMOTE_CHECK" == "nofile" ]]; then
+    result_fail "${label} (${ip}) — openclaw.json not found"
+    HOOKS_OK_REMOTE=false
+  elif [[ "$REMOTE_CHECK" == "True|True" ]]; then
+    result_pass "${label} (${ip}) — webhooks enabled with token"
+  elif [[ "$REMOTE_CHECK" == "True|False" ]]; then
+    result_fail "${label} (${ip}) — hooks.enabled=true but hooks.token is missing"
+    HOOKS_OK_REMOTE=false
+  elif [[ "$REMOTE_CHECK" == "error" ]]; then
+    result_warn "${label} (${ip}) — could not parse openclaw.json"
+  else
+    result_fail "${label} (${ip}) — webhooks NOT enabled (hooks.enabled is not true)"
+    HOOKS_OK_REMOTE=false
+  fi
+done
+
+if [[ "$HOOKS_OK_LOCAL" != "true" || "$HOOKS_OK_REMOTE" != "true" ]]; then
+  echo ""
+  echo -e "  ${YELLOW}${BOLD}Webhook tests (3-5) will fail until hooks are enabled on all VMs.${RESET}"
+  echo -e "  ${YELLOW}Continuing with remaining tests...${RESET}"
+fi
+
+# ---------------------------------------------------------------------------
 # Test 1: Network Reachability (ping via Tailscale)
 # ---------------------------------------------------------------------------
 print_header "Test 1: Network Reachability"
@@ -244,10 +352,7 @@ fi
 # ---------------------------------------------------------------------------
 print_header "Test 6: Config Files on Spoke VMs (via SSH)"
 
-# Detect the SSH user — use GATEFORGE_SSH_USER env var, then SUDO_USER (the real
-# user who ran sudo), then fall back to whoami. Root direct login is typically
-# blocked on hardened systems, so we must resolve the non-root user.
-SSH_USER="${GATEFORGE_SSH_USER:-${SUDO_USER:-$(whoami)}}"
+# SSH_USER already resolved in pre-flight check
 echo -e "  ${DIM}SSH user: ${SSH_USER} (override with GATEFORGE_SSH_USER env var)${RESET}"
 
 for entry in "VM-2:${VM2_IP}" "VM-3:${VM3_IP}" "VM-4:${VM4_IP}" "VM-5:${VM5_IP}"; do

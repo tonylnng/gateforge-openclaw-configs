@@ -68,6 +68,81 @@ for var in ARCH_IP HOOK_TOKEN NOTIFY_URL SECRET GW_TOKEN; do
 done
 
 # ---------------------------------------------------------------------------
+# Pre-flight: Verify webhooks are enabled in openclaw.json
+# ---------------------------------------------------------------------------
+print_header "Pre-flight: Webhook Configuration"
+
+# Resolve the OpenClaw user — the user running OpenClaw (not root)
+OC_USER="${GATEFORGE_SSH_USER:-${SUDO_USER:-$(whoami)}}"
+OC_HOME=$(eval echo "~${OC_USER}")
+OC_CONFIG="${OC_HOME}/.openclaw/openclaw.json"
+
+HOOKS_OK_LOCAL=false
+HOOKS_OK_ARCHITECT=false
+
+# --- Check local spoke VM ---
+if [[ -f "$OC_CONFIG" ]]; then
+  if command -v python3 &>/dev/null; then
+    HOOKS_ENABLED=$(python3 -c "
+import json, sys
+try:
+    with open('${OC_CONFIG}') as f:
+        cfg = json.load(f)
+    enabled = cfg.get('hooks', {}).get('enabled', False)
+    token = cfg.get('hooks', {}).get('token', '')
+    print(f'{enabled}|{len(token) > 0}')
+except: print('error|error')
+" 2>/dev/null || echo "error|error")
+    H_ENABLED="${HOOKS_ENABLED%%|*}"
+    H_HAS_TOKEN="${HOOKS_ENABLED##*|}"
+  else
+    if grep -q '"enabled".*true' "$OC_CONFIG" 2>/dev/null; then H_ENABLED="True"; else H_ENABLED="False"; fi
+    if grep -q '"token"' "$OC_CONFIG" 2>/dev/null; then H_HAS_TOKEN="True"; else H_HAS_TOKEN="False"; fi
+  fi
+
+  if [[ "$H_ENABLED" == "True" && "$H_HAS_TOKEN" == "True" ]]; then
+    result_pass "Local (${ROLE}) — webhooks enabled with token in ${OC_CONFIG}"
+    HOOKS_OK_LOCAL=true
+  elif [[ "$H_ENABLED" == "True" && "$H_HAS_TOKEN" != "True" ]]; then
+    result_fail "Local (${ROLE}) — hooks.enabled=true but hooks.token is missing"
+  elif [[ "$H_ENABLED" == "error" ]]; then
+    result_warn "Local (${ROLE}) — could not parse ${OC_CONFIG} (check JSON syntax)"
+  else
+    result_fail "Local (${ROLE}) — webhooks NOT enabled in ${OC_CONFIG}"
+    echo -e "  ${DIM}Fix: Add to ${OC_CONFIG}:${RESET}"
+    echo -e "  ${DIM}  { \"hooks\": { \"enabled\": true, \"token\": \"<GATEWAY_AUTH_TOKEN>\", \"path\": \"/hooks\" } }${RESET}"
+    echo -e "  ${DIM}Then: openclaw daemon restart${RESET}"
+  fi
+else
+  result_fail "Local (${ROLE}) — ${OC_CONFIG} not found"
+  echo -e "  ${DIM}Expected OpenClaw config at: ${OC_CONFIG}${RESET}"
+  echo -e "  ${DIM}Detected user: ${OC_USER} (override with GATEFORGE_SSH_USER env var)${RESET}"
+fi
+
+# --- Probe Architect hook endpoint ---
+# A GET to /hooks/agent typically returns 405 (Method Not Allowed) if hooks are
+# enabled, or 404 if hooks are disabled. This is a lightweight probe — no side effects.
+ARCH_PROBE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 "http://${ARCH_IP}:${PORT}/hooks/agent" 2>/dev/null || echo "000")
+if [[ "$ARCH_PROBE" == "405" || "$ARCH_PROBE" == "200" || "$ARCH_PROBE" == "401" ]]; then
+  result_pass "Architect (${ARCH_IP}) — /hooks/agent endpoint exists (HTTP ${ARCH_PROBE})"
+  HOOKS_OK_ARCHITECT=true
+elif [[ "$ARCH_PROBE" == "404" ]]; then
+  result_fail "Architect (${ARCH_IP}) — /hooks/agent returns 404 (webhooks not enabled on Architect VM)"
+  echo -e "  ${DIM}Fix: On VM-1, ensure ~/.openclaw/openclaw.json has hooks.enabled=true${RESET}"
+  echo -e "  ${DIM}Then: openclaw daemon restart${RESET}"
+elif [[ "$ARCH_PROBE" == "000" ]]; then
+  result_warn "Architect (${ARCH_IP}) — could not connect (will be tested in Test 1/2)"
+else
+  result_warn "Architect (${ARCH_IP}) — /hooks/agent probe returned HTTP ${ARCH_PROBE}"
+fi
+
+if [[ "$HOOKS_OK_LOCAL" != "true" || "$HOOKS_OK_ARCHITECT" != "true" ]]; then
+  echo ""
+  echo -e "  ${YELLOW}${BOLD}Webhook tests (4-5) will fail until hooks are enabled.${RESET}"
+  echo -e "  ${YELLOW}Continuing with remaining tests...${RESET}"
+fi
+
+# ---------------------------------------------------------------------------
 # Test 1: Ping Architect
 # ---------------------------------------------------------------------------
 print_header "Test 1: Network — Ping Architect"
