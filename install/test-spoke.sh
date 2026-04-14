@@ -117,12 +117,23 @@ fi
 # ---------------------------------------------------------------------------
 print_header "Test 4: HMAC Notification → Architect"
 
+# Build the hook URL — NOTIFY_URL from config may have /hooks/agent which returns 404.
+# OpenClaw default hook path is /hooks (set in openclaw.json "hooks.path").
+# Override: set GATEFORGE_HOOK_PATH in gateforge.env if your path differs.
+HOOK_PATH="${GATEFORGE_HOOK_PATH:-/hooks}"
+ARCHITECT_HOOK_URL="http://${ARCH_IP}:${PORT}${HOOK_PATH}"
+echo -e "  ${DIM}Using: ${ARCHITECT_HOOK_URL}${RESET}"
+if [[ "${NOTIFY_URL}" != "${ARCHITECT_HOOK_URL}" ]]; then
+  echo -e "  ${YELLOW}Note: ARCHITECT_NOTIFY_URL in config is ${NOTIFY_URL}${RESET}"
+  echo -e "  ${YELLOW}      Using ${ARCHITECT_HOOK_URL} instead (based on HOOK_PATH=${HOOK_PATH})${RESET}"
+fi
+
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[INFO] Connectivity test from '${ROLE}'","metadata":{"sourceVm":"'${ROLE}'","sourceRole":"'${ROLE}'","priority":"INFO","taskId":"SPOKE-TEST","timestamp":"'${TIMESTAMP}'"}}'
 SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${SECRET}" | awk '{print $2}')
 
 RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 5 \
-  -X POST "${NOTIFY_URL}" \
+  -X POST "${ARCHITECT_HOOK_URL}" \
   -H "Authorization: Bearer ${HOOK_TOKEN}" \
   -H "X-Agent-Signature: ${SIGNATURE}" \
   -H "X-Source-VM: ${ROLE}" \
@@ -138,6 +149,8 @@ elif [[ "$HTTP_CODE" == "401" ]]; then
   result_fail "HMAC notification rejected — HTTP 401 (hook token wrong)"
 elif [[ "$HTTP_CODE" == "403" ]]; then
   result_fail "HMAC notification rejected — HTTP 403 (forbidden)"
+elif [[ "$HTTP_CODE" == "404" ]]; then
+  result_fail "HMAC notification — HTTP 404 (hook endpoint not found — check openclaw.json hooks.path on Architect VM)"
 elif [[ "$HTTP_CODE" == "000" ]]; then
   result_fail "HMAC notification — connection failed"
 else
@@ -153,7 +166,7 @@ fi
 print_header "Test 5: Security — Wrong Hook Token (should fail)"
 
 code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 \
-  -X POST "${NOTIFY_URL}" \
+  -X POST "${ARCHITECT_HOOK_URL}" \
   -H "Authorization: Bearer wrong_token_12345" \
   -H "X-Agent-Signature: ${SIGNATURE}" \
   -H "X-Source-VM: ${ROLE}" \
@@ -164,6 +177,8 @@ if [[ "$code" == "401" || "$code" == "403" ]]; then
   result_pass "Wrong hook token correctly rejected — HTTP ${code}"
 elif [[ "$code" == "200" || "$code" == "202" ]]; then
   result_warn "Wrong hook token was ACCEPTED — HTTP ${code} (Architect may not validate hook tokens)"
+elif [[ "$code" == "404" ]]; then
+  result_fail "HTTP 404 — hook endpoint not found (fix Test 4 first — same root cause)"
 else
   result_warn "Unexpected response — HTTP ${code}"
 fi
