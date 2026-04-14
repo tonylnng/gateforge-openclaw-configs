@@ -298,7 +298,8 @@ try:
     cfg['hooks'] = {
         'enabled': True,
         'token': '${token}',
-        'path': '/hooks'
+        'path': '/hooks',
+        'allowRequestSessionKey': True
     }
     with open('${oc_config}', 'w') as f:
         json.dump(cfg, f, indent=2)
@@ -318,13 +319,13 @@ except Exception as e:
   elif command -v jq &>/dev/null; then
     local tmp_config
     tmp_config=$(mktemp)
-    jq --arg token "$token" '.hooks = {enabled: true, token: $token, path: "/hooks"}' "$oc_config" > "$tmp_config" && mv "$tmp_config" "$oc_config"
+    jq --arg token "$token" '.hooks = {enabled: true, token: $token, path: "/hooks", allowRequestSessionKey: true}' "$oc_config" > "$tmp_config" && mv "$tmp_config" "$oc_config"
     sudo chown "${oc_user}:${oc_user}" "$oc_config" 2>/dev/null || true
     print_success "Webhooks enabled in ${oc_config}"
   else
     print_error "Neither python3 nor jq found — cannot update ${oc_config} automatically"
     echo -e "  ${DIM}Manually add to ${oc_config}:${RESET}"
-    echo -e "  ${DIM}  \"hooks\": { \"enabled\": true, \"token\": \"<GATEWAY_AUTH_TOKEN>\", \"path\": \"/hooks\" }${RESET}"
+    echo -e "  ${DIM}  \"hooks\": { \"enabled\": true, \"token\": \"<GATEWAY_AUTH_TOKEN>\", \"path\": \"/hooks\", \"allowRequestSessionKey\": true }${RESET}"
     return 1
   fi
 
