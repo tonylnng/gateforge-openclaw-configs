@@ -12,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/install-common.sh"
 
-TOTAL_STEPS=6
+TOTAL_STEPS=7
 VM_NAME="vm1"
 VM_ROLE="VM-1: System Architect"
 VM_DIR="${SCRIPT_DIR}/../vm-1-architect"
@@ -164,7 +164,11 @@ EOF
   print_step "Copy GateForge Config Files"
   copy_config_files "$VM_DIR"
 
-  # --- Step 6: Summary ---
+  # --- Step 6: Enable webhooks ---
+  print_step "Enable Webhooks in OpenClaw"
+  enable_hooks "$GATEWAY_AUTH_TOKEN"
+
+  # --- Step 7: Summary ---
   print_step "Setup Complete"
 
   print_summary_box "VM-1 System Architect — Configuration" \

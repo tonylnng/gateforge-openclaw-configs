@@ -266,6 +266,80 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# Enable webhooks in openclaw.json
+# ---------------------------------------------------------------------------
+enable_hooks() {
+  local token="$1"
+  local oc_user="${SUDO_USER:-$(whoami)}"
+  local oc_home
+  oc_home=$(eval echo "~${oc_user}")
+  local oc_config="${oc_home}/.openclaw/openclaw.json"
+
+  print_info "Enabling webhooks in ${oc_config}..."
+
+  if [[ "$DRY_RUN" == "true" ]]; then
+    print_warn "[DRY RUN] Would enable hooks in ${oc_config}"
+    return
+  fi
+
+  if [[ ! -f "$oc_config" ]]; then
+    print_error "OpenClaw config not found at ${oc_config}"
+    print_info "Make sure OpenClaw is installed and has been started at least once."
+    return 1
+  fi
+
+  # Use python3 if available (safe JSON manipulation), fall back to jq, then sed
+  if command -v python3 &>/dev/null; then
+    python3 -c "
+import json, sys
+try:
+    with open('${oc_config}') as f:
+        cfg = json.load(f)
+    cfg['hooks'] = {
+        'enabled': True,
+        'token': '${token}',
+        'path': '/hooks'
+    }
+    with open('${oc_config}', 'w') as f:
+        json.dump(cfg, f, indent=2)
+    print('ok')
+except Exception as e:
+    print(f'error: {e}', file=sys.stderr)
+    sys.exit(1)
+" 2>/dev/null
+    if [[ $? -eq 0 ]]; then
+      # Fix ownership back to the OpenClaw user
+      sudo chown "${oc_user}:${oc_user}" "$oc_config" 2>/dev/null || true
+      print_success "Webhooks enabled in ${oc_config}"
+    else
+      print_error "Failed to update ${oc_config} — check JSON syntax"
+      return 1
+    fi
+  elif command -v jq &>/dev/null; then
+    local tmp_config
+    tmp_config=$(mktemp)
+    jq --arg token "$token" '.hooks = {enabled: true, token: $token, path: "/hooks"}' "$oc_config" > "$tmp_config" && mv "$tmp_config" "$oc_config"
+    sudo chown "${oc_user}:${oc_user}" "$oc_config" 2>/dev/null || true
+    print_success "Webhooks enabled in ${oc_config}"
+  else
+    print_error "Neither python3 nor jq found — cannot update ${oc_config} automatically"
+    echo -e "  ${DIM}Manually add to ${oc_config}:${RESET}"
+    echo -e "  ${DIM}  \"hooks\": { \"enabled\": true, \"token\": \"<GATEWAY_AUTH_TOKEN>\", \"path\": \"/hooks\" }${RESET}"
+    return 1
+  fi
+
+  # Restart gateway to pick up new config
+  print_info "Restarting OpenClaw gateway to apply hooks config..."
+  if sudo -u "$oc_user" openclaw gateway restart &>/dev/null 2>&1; then
+    print_success "Gateway restarted"
+  elif openclaw gateway restart &>/dev/null 2>&1; then
+    print_success "Gateway restarted"
+  else
+    print_warn "Could not restart gateway automatically. Run: openclaw gateway restart"
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Verification
 # ---------------------------------------------------------------------------
 verify_openclaw() {
