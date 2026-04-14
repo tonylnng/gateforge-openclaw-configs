@@ -117,23 +117,14 @@ fi
 # ---------------------------------------------------------------------------
 print_header "Test 4: HMAC Notification → Architect"
 
-# Build the hook URL — NOTIFY_URL from config may have /hooks/agent which returns 404.
-# OpenClaw default hook path is /hooks (set in openclaw.json "hooks.path").
-# Override: set GATEFORGE_HOOK_PATH in gateforge.env if your path differs.
-HOOK_PATH="${GATEFORGE_HOOK_PATH:-/hooks}"
-ARCHITECT_HOOK_URL="http://${ARCH_IP}:${PORT}${HOOK_PATH}"
-echo -e "  ${DIM}Using: ${ARCHITECT_HOOK_URL}${RESET}"
-if [[ "${NOTIFY_URL}" != "${ARCHITECT_HOOK_URL}" ]]; then
-  echo -e "  ${YELLOW}Note: ARCHITECT_NOTIFY_URL in config is ${NOTIFY_URL}${RESET}"
-  echo -e "  ${YELLOW}      Using ${ARCHITECT_HOOK_URL} instead (based on HOOK_PATH=${HOOK_PATH})${RESET}"
-fi
+echo -e "  ${DIM}Target: ${NOTIFY_URL}${RESET}"
 
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[INFO] Connectivity test from '${ROLE}'","metadata":{"sourceVm":"'${ROLE}'","sourceRole":"'${ROLE}'","priority":"INFO","taskId":"SPOKE-TEST","timestamp":"'${TIMESTAMP}'"}}'
 SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${SECRET}" | awk '{print $2}')
 
 RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 5 \
-  -X POST "${ARCHITECT_HOOK_URL}" \
+  -X POST "${NOTIFY_URL}" \
   -H "Authorization: Bearer ${HOOK_TOKEN}" \
   -H "X-Agent-Signature: ${SIGNATURE}" \
   -H "X-Source-VM: ${ROLE}" \
@@ -150,7 +141,10 @@ elif [[ "$HTTP_CODE" == "401" ]]; then
 elif [[ "$HTTP_CODE" == "403" ]]; then
   result_fail "HMAC notification rejected — HTTP 403 (forbidden)"
 elif [[ "$HTTP_CODE" == "404" ]]; then
-  result_fail "HMAC notification — HTTP 404 (hook endpoint not found — check openclaw.json hooks.path on Architect VM)"
+  result_fail "HMAC notification — HTTP 404 (webhooks not enabled on Architect VM)"
+  echo -e "  ${DIM}Fix: On VM-1, add to ~/.openclaw/openclaw.json:${RESET}"
+  echo -e "  ${DIM}  { \"hooks\": { \"enabled\": true, \"token\": \"<HOOK_TOKEN>\", \"path\": \"/hooks\" } }${RESET}"
+  echo -e "  ${DIM}Then restart: openclaw daemon restart${RESET}"
 elif [[ "$HTTP_CODE" == "000" ]]; then
   result_fail "HMAC notification — connection failed"
 else
@@ -166,7 +160,7 @@ fi
 print_header "Test 5: Security — Wrong Hook Token (should fail)"
 
 code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 \
-  -X POST "${ARCHITECT_HOOK_URL}" \
+  -X POST "${NOTIFY_URL}" \
   -H "Authorization: Bearer wrong_token_12345" \
   -H "X-Agent-Signature: ${SIGNATURE}" \
   -H "X-Source-VM: ${ROLE}" \

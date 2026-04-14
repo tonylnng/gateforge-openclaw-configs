@@ -130,11 +130,6 @@ done
 # ---------------------------------------------------------------------------
 print_header "Test 3: Task Dispatch (Architect → Spoke)"
 
-# OpenClaw hook endpoint — try /hooks first, fall back to /hooks/agent
-# The path depends on your openclaw.json "hooks.path" setting.
-# Default OpenClaw uses /hooks; GateForge docs reference /hooks/agent.
-HOOK_PATH="/hooks"
-
 for vm in 2 3 4 5; do
   eval ip=\$VM${vm}_IP
   eval token=\$VM${vm}_GATEWAY_TOKEN
@@ -147,22 +142,28 @@ for vm in 2 3 4 5; do
     5) role="operator" ;;
   esac
 
-  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 \
-    -X POST "http://${ip}:${GATEFORGE_PORT}${HOOK_PATH}" \
+  RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 5 \
+    -X POST "http://${ip}:${GATEFORGE_PORT}/hooks/agent" \
     -H "Authorization: Bearer ${token}" \
     -H "Content-Type: application/json" \
-    -d '{"name":"agent-task","agentId":"'${role}'","message":"[TEST] GateForge connectivity test from Architect. No action required.","sessionKey":"test:connectivity:vm'${vm}'"}' 2>/dev/null || echo "000")
+    -d '{"name":"agent-task","agentId":"'${role}'","message":"[TEST] GateForge connectivity test from Architect. No action required.","sessionKey":"test:connectivity:vm'${vm}'"}' 2>/dev/null || echo -e "\n000")
+
+  BODY=$(echo "$RESPONSE" | head -n -1)
+  code=$(echo "$RESPONSE" | tail -1)
 
   if [[ "$code" == "200" || "$code" == "202" ]]; then
     result_pass "Architect → VM-${vm} ${role} (${ip}) — HTTP ${code}"
   elif [[ "$code" == "401" ]]; then
     result_fail "Architect → VM-${vm} ${role} (${ip}) — HTTP 401 (wrong gateway token)"
   elif [[ "$code" == "404" ]]; then
-    result_fail "Architect → VM-${vm} ${role} (${ip}) — HTTP 404 (hook endpoint not found — check openclaw.json hooks.path)"
+    result_fail "Architect → VM-${vm} ${role} (${ip}) — HTTP 404 (webhooks not enabled — check hooks.enabled in ~/.openclaw/openclaw.json)"
   elif [[ "$code" == "000" ]]; then
     result_fail "Architect → VM-${vm} ${role} (${ip}) — connection refused"
   else
     result_warn "Architect → VM-${vm} ${role} (${ip}) — HTTP ${code}"
+    if [[ -n "$BODY" ]]; then
+      echo -e "  ${DIM}Response: ${BODY}${RESET}"
+    fi
   fi
 done
 
@@ -171,10 +172,8 @@ done
 # ---------------------------------------------------------------------------
 print_header "Test 4: HMAC Notification (Simulated Spoke → Architect)"
 
-# Build the Architect hook URL using the same HOOK_PATH as Test 3
-# (ARCHITECT_NOTIFY_URL from config may have /hooks/agent which returns 404)
-ARCHITECT_HOOK_URL="http://${GATEFORGE_VM_HOST}:${GATEFORGE_PORT}${HOOK_PATH}"
-echo -e "  ${DIM}Using: ${ARCHITECT_HOOK_URL}${RESET}"
+ARCHITECT_HOOK_URL="${ARCHITECT_NOTIFY_URL:-http://${GATEFORGE_VM_HOST}:${GATEFORGE_PORT}/hooks/agent}"
+echo -e "  ${DIM}Target: ${ARCHITECT_HOOK_URL}${RESET}"
 
 for vm in 2 3 4 5; do
   eval secret=\$VM${vm}_AGENT_SECRET
@@ -204,7 +203,7 @@ for vm in 2 3 4 5; do
   elif [[ "$code" == "401" ]]; then
     result_fail "VM-${vm} ${role} → Architect — HTTP 401 (hook token wrong)"
   elif [[ "$code" == "404" ]]; then
-    result_fail "VM-${vm} ${role} → Architect — HTTP 404 (hook endpoint not found — check openclaw.json hooks.path)"
+    result_fail "VM-${vm} ${role} → Architect — HTTP 404 (webhooks not enabled — see fix below)"
   elif [[ "$code" == "000" ]]; then
     result_fail "VM-${vm} ${role} → Architect — connection refused"
   else
@@ -234,6 +233,8 @@ if [[ "$code" == "401" || "$code" == "403" ]]; then
   result_pass "Fake HMAC correctly rejected — HTTP ${code}"
 elif [[ "$code" == "200" || "$code" == "202" ]]; then
   result_warn "Fake HMAC was ACCEPTED — HTTP ${code} (Architect may not be validating HMAC yet)"
+elif [[ "$code" == "404" ]]; then
+  result_fail "HTTP 404 — webhooks not enabled (fix Tests 3/4 first — same root cause)"
 else
   result_warn "Unexpected response to fake HMAC — HTTP ${code}"
 fi
@@ -243,9 +244,10 @@ fi
 # ---------------------------------------------------------------------------
 print_header "Test 6: Config Files on Spoke VMs (via SSH)"
 
-# Detect the SSH user — use GATEFORGE_SSH_USER env var, or fall back to current user.
-# Root direct login is typically blocked on hardened systems.
-SSH_USER="${GATEFORGE_SSH_USER:-$(whoami)}"
+# Detect the SSH user — use GATEFORGE_SSH_USER env var, then SUDO_USER (the real
+# user who ran sudo), then fall back to whoami. Root direct login is typically
+# blocked on hardened systems, so we must resolve the non-root user.
+SSH_USER="${GATEFORGE_SSH_USER:-${SUDO_USER:-$(whoami)}}"
 echo -e "  ${DIM}SSH user: ${SSH_USER} (override with GATEFORGE_SSH_USER env var)${RESET}"
 
 for entry in "VM-2:${VM2_IP}" "VM-3:${VM3_IP}" "VM-4:${VM4_IP}" "VM-5:${VM5_IP}"; do
@@ -294,6 +296,17 @@ echo -e "  ${DIM}  Network:   tailscale ping <hostname>${RESET}"
 echo -e "  ${DIM}  Port:      ssh <vm-ip> 'ss -tlnp | grep 18789'${RESET}"
 echo -e "  ${DIM}  Logs:      ssh <vm-ip> 'journalctl -u openclaw-gateforge -n 20'${RESET}"
 echo -e "  ${DIM}  Config:    ssh <vm-ip> 'sudo cat /opt/secrets/gateforge.env'${RESET}"
+echo ""
+echo -e "  ${DIM}If Tests 3-5 return HTTP 404 — webhooks are not enabled in OpenClaw.${RESET}"
+echo -e "  ${DIM}Fix: On EACH VM, ensure ~/.openclaw/openclaw.json contains:${RESET}"
+echo -e "  ${DIM}  {${RESET}"
+echo -e "  ${DIM}    \"hooks\": {${RESET}"
+echo -e "  ${DIM}      \"enabled\": true,${RESET}"
+echo -e "  ${DIM}      \"token\": \"<GATEWAY_AUTH_TOKEN from gateforge.env>\",${RESET}"
+echo -e "  ${DIM}      \"path\": \"/hooks\"${RESET}"
+echo -e "  ${DIM}    }${RESET}"
+echo -e "  ${DIM}  }${RESET}"
+echo -e "  ${DIM}Then restart: openclaw daemon restart${RESET}"
 echo ""
 
 exit $FAIL
