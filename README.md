@@ -1430,6 +1430,205 @@ curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
 
 ---
 
+## Token Rotation Runbook
+
+GateForge uses 12 tokens and secrets across 5 VMs. This section documents when and how to rotate them.
+
+### Token Inventory
+
+| Token | Stored On | Used By | Purpose |
+|-------|-----------|---------|----------|
+| VM-1 Gateway Token | VM-1 | Architect (incoming requests) | Protects VM-1's OpenClaw gateway |
+| Architect Hook Token | VM-1 + all spokes | Spokes → Architect | Authenticates spoke notifications to the Architect's `/hooks/agent` |
+| VM-2 Gateway Token | VM-1 + VM-2 | Architect → VM-2 | Authenticates Architect task dispatches to Designer |
+| VM-3 Gateway Token | VM-1 + VM-3 | Architect → VM-3 | Authenticates Architect task dispatches to Developers |
+| VM-4 Gateway Token | VM-1 + VM-4 | Architect → VM-4 | Authenticates Architect task dispatches to QC Agents |
+| VM-5 Gateway Token | VM-1 + VM-5 | Architect → VM-5 | Authenticates Architect task dispatches to Operator |
+| VM-2 HMAC Secret | VM-1 + VM-2 | VM-2 signs, VM-1 verifies | Proves notification authenticity (never transmitted) |
+| VM-3 HMAC Secret | VM-1 + VM-3 | VM-3 signs, VM-1 verifies | Proves notification authenticity |
+| VM-4 HMAC Secret | VM-1 + VM-4 | VM-4 signs, VM-1 verifies | Proves notification authenticity |
+| VM-5 HMAC Secret | VM-1 + VM-5 | VM-5 signs, VM-1 verifies | Proves notification authenticity |
+| GitHub PATs (Token A–D) | Per-VM | Git operations | Repository access (managed separately) |
+| Telegram Bot Token | VM-1 | Telegram channel | Human operator interface |
+
+### When to Rotate
+
+| Trigger | Action | Urgency |
+|---------|--------|---------|
+| Scheduled rotation (every 90 days recommended) | Rotate all tokens | Planned |
+| A spoke VM is compromised | Rotate that spoke's gateway token + HMAC secret | Immediate |
+| VM-1 (Architect) is compromised | Rotate ALL tokens (Architect has everything) | Immediate |
+| Team member with token access leaves | Rotate all tokens they had access to | Within 24 hours |
+| Token accidentally committed to Git | Rotate the exposed token immediately | Immediate |
+| Spoke VM is decommissioned | Rotate that spoke's tokens (optional, prevents reuse) | Low |
+| IP addresses change (no token leak) | Re-run setup with "Keep existing tokens" — no rotation needed | Low |
+
+### Rotation Procedures
+
+#### Scenario A — Rotate a Single Spoke's Tokens
+
+Use this when one spoke VM is compromised or its tokens need rotation. Other spokes are not affected.
+
+**Affected VMs: VM-1 + the target spoke only.**
+
+```bash
+# 1. On VM-1: re-run the Architect setup
+cd ~/gateforge-openclaw-configs/install
+sudo bash setup-vm1-architect.sh
+
+# When prompted, choose option 3: "Choose per token"
+#   → Keep all tokens EXCEPT the compromised spoke's gateway token + HMAC secret
+#   → Type 'n' to regenerate only those two tokens
+
+# 2. Copy the new spoke token + HMAC from the output
+
+# 3. On the affected spoke VM: re-run its setup script
+#    Paste the new gateway token and HMAC secret when prompted
+sudo bash setup-vm2-designer.sh    # (or vm3/vm4/vm5 as appropriate)
+
+# 4. Restart OpenClaw on both VMs
+openclaw gateway restart            # On the spoke VM
+openclaw gateway restart            # On VM-1
+
+# 5. Verify connectivity
+sudo bash install/test-spoke.sh     # On the spoke VM
+```
+
+#### Scenario B — Rotate the Architect Hook Token
+
+Use this when the shared hook token (used by all spokes to notify the Architect) is compromised.
+
+**Affected VMs: ALL 5 VMs.**
+
+```bash
+# 1. On VM-1: re-run the Architect setup
+cd ~/gateforge-openclaw-configs/install
+sudo bash setup-vm1-architect.sh
+
+# When prompted, choose option 3: "Choose per token"
+#   → Type 'n' for "Architect hook token" to regenerate it
+#   → Keep all other tokens
+
+# 2. Copy the new Architect Hook Token from the output
+
+# 3. On EACH spoke VM (VM-2 through VM-5): re-run the setup script
+#    Paste the NEW Architect hook token when prompted
+#    Paste the SAME (unchanged) gateway token and HMAC secret
+sudo bash setup-vm2-designer.sh
+sudo bash setup-vm3-developers.sh
+sudo bash setup-vm4-qc-agents.sh
+sudo bash setup-vm5-operator.sh
+
+# 4. Restart OpenClaw on all VMs
+#    VM-1 first, then spokes
+openclaw gateway restart
+
+# 5. Run full connectivity test from VM-1
+sudo bash install/test-connectivity.sh
+```
+
+#### Scenario C — Full Rotation (All Tokens)
+
+Use this for scheduled rotation or if VM-1 is compromised.
+
+**Affected VMs: ALL 5 VMs.**
+
+```bash
+# 1. On VM-1: re-run the Architect setup
+cd ~/gateforge-openclaw-configs/install
+sudo bash setup-vm1-architect.sh
+
+# When prompted, choose option 2: "Regenerate ALL tokens"
+
+# 2. Save ALL new tokens from the output
+
+# 3. On EACH spoke VM: re-run the setup script with new values
+sudo bash setup-vm2-designer.sh     # Paste VM-2 values from VM-1 output
+sudo bash setup-vm3-developers.sh   # Paste VM-3 values
+sudo bash setup-vm4-qc-agents.sh    # Paste VM-4 values
+sudo bash setup-vm5-operator.sh     # Paste VM-5 values
+
+# 4. Restart OpenClaw on all VMs (VM-1 first)
+openclaw gateway restart
+
+# 5. Full verification
+sudo bash install/test-connectivity.sh   # From VM-1
+sudo bash install/test-spoke.sh          # From each spoke
+```
+
+### Propagation Checklist
+
+Use this checklist when rotating tokens to ensure nothing is missed:
+
+```
+□ VM-1: Re-run setup-vm1-architect.sh (choose keep/regenerate)
+□ VM-1: Verify /opt/secrets/gateforge.env has the new tokens
+□ VM-1: openclaw gateway restart
+
+□ VM-2: Re-run setup-vm2-designer.sh (paste new values)
+□ VM-2: Verify /opt/secrets/gateforge.env updated
+□ VM-2: openclaw gateway restart
+□ VM-2: sudo bash install/test-spoke.sh → all PASS
+
+□ VM-3: Re-run setup-vm3-developers.sh (paste new values)
+□ VM-3: Verify /opt/secrets/gateforge.env updated
+□ VM-3: openclaw gateway restart
+□ VM-3: sudo bash install/test-spoke.sh → all PASS
+
+□ VM-4: Re-run setup-vm4-qc-agents.sh (paste new values)
+□ VM-4: Verify /opt/secrets/gateforge.env updated
+□ VM-4: openclaw gateway restart
+□ VM-4: sudo bash install/test-spoke.sh → all PASS
+
+□ VM-5: Re-run setup-vm5-operator.sh (paste new values)
+□ VM-5: Verify /opt/secrets/gateforge.env updated
+□ VM-5: openclaw gateway restart
+□ VM-5: sudo bash install/test-spoke.sh → all PASS
+
+□ VM-1: sudo bash install/test-connectivity.sh → all 6 tests PASS
+```
+
+### Impact Matrix — Which VMs Need Re-Setup
+
+| Token Rotated | VM-1 | VM-2 | VM-3 | VM-4 | VM-5 |
+|---------------|------|------|------|------|------|
+| VM-1 Gateway Token | ✅ | — | — | — | — |
+| Architect Hook Token | ✅ | ✅ | ✅ | ✅ | ✅ |
+| VM-2 Gateway Token | ✅ | ✅ | — | — | — |
+| VM-2 HMAC Secret | ✅ | ✅ | — | — | — |
+| VM-3 Gateway Token | ✅ | — | ✅ | — | — |
+| VM-3 HMAC Secret | ✅ | — | ✅ | — | — |
+| VM-4 Gateway Token | ✅ | — | — | ✅ | — |
+| VM-4 HMAC Secret | ✅ | — | — | ✅ | — |
+| VM-5 Gateway Token | ✅ | — | — | — | ✅ |
+| VM-5 HMAC Secret | ✅ | — | — | — | ✅ |
+| ALL tokens | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+✅ = Must re-run setup script and restart gateway. — = No action needed.
+
+VM-1 is always involved because it holds all spoke tokens in its config.
+
+### Verifying Token Propagation
+
+After rotation, confirm the new tokens are active:
+
+```bash
+# Quick check: does the env file have the expected token?
+sudo grep GATEWAY_AUTH_TOKEN /opt/secrets/gateforge.env | cut -c1-40
+
+# Functional check: test-connectivity.sh covers all token-based tests
+# Test 3: Architect dispatches to spokes (uses spoke gateway tokens)
+# Test 4: Spokes notify Architect (uses Architect hook token + HMAC)
+# Test 5: Wrong-token rejection (proves auth is enforced)
+sudo bash install/test-connectivity.sh
+```
+
+If Test 4 fails with `401 Unauthorized`, the Architect hook token on the spoke does not match VM-1. Re-run the spoke setup script with the correct token.
+
+If Test 3 fails with `401 Unauthorized`, the spoke gateway token on VM-1 does not match the spoke. Re-run VM-1 setup and keep or re-paste the correct token.
+
+---
+
 ## Directory Structure
 
 ```
