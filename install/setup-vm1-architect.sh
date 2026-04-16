@@ -83,35 +83,104 @@ main() {
 
   # --- Step 3: Generate tokens and secrets ---
   print_step "Generate Tokens & HMAC Secrets"
-  echo -e "  ${DIM}Press Enter to auto-generate, or paste an existing value.${RESET}"
+
+  # Check if we have existing tokens from a previous run
+  local has_existing_tokens=false
+  if [[ -n "${GATEWAY_AUTH_TOKEN:-}" && -n "${VM2_GATEWAY_TOKEN:-}" ]]; then
+    has_existing_tokens=true
+  fi
+
+  if [[ "$has_existing_tokens" == "true" ]]; then
+    echo ""
+    echo -e "  ${YELLOW}${BOLD}Existing tokens detected from previous setup.${RESET}"
+    echo -e "  ${DIM}Regenerating tokens will require re-running setup on ALL spoke VMs.${RESET}"
+    echo ""
+    echo -e "  ${BOLD}Choose an option:${RESET}"
+    echo -e "    ${TEAL}1)${RESET} Keep existing tokens (recommended if spokes are already configured)"
+    echo -e "    ${TEAL}2)${RESET} Regenerate ALL tokens (you must re-setup every spoke VM)"
+    echo -e "    ${TEAL}3)${RESET} Choose per token (keep some, regenerate others)"
+    echo ""
+    local token_choice=""
+    while [[ ! "$token_choice" =~ ^[123]$ ]]; do
+      echo -en "  ${BOLD}Choose [1-3]${RESET}: "
+      read -r token_choice
+      [[ ! "$token_choice" =~ ^[123]$ ]] && print_error "Invalid choice."
+    done
+  else
+    # No existing tokens — generate everything fresh
+    local token_choice="2"
+    echo -e "  ${DIM}No existing tokens found — generating fresh tokens.${RESET}"
+  fi
+
   echo ""
 
-  # Gateway token for this VM
-  local default_gw_token
-  default_gw_token="${GATEWAY_AUTH_TOKEN:-$(generate_secret)}"
-  prompt_secret GATEWAY_AUTH_TOKEN "VM-1 Gateway auth token" "$default_gw_token"
+  # --- Helper: keep or regenerate a single token ---
+  keep_or_regen() {
+    local var_name="$1"
+    local label="$2"
+    local current_value="${!var_name:-}"
 
-  # Hook token for inbound notifications
-  local default_hook_token
-  default_hook_token="${ARCHITECT_HOOK_TOKEN:-$(generate_secret)}"
-  prompt_secret ARCHITECT_HOOK_TOKEN "Architect hook token (spokes use this)" "$default_hook_token"
+    case "$token_choice" in
+      1)  # Keep all existing
+        if [[ -n "$current_value" ]]; then
+          eval "$var_name='$current_value'"
+          print_success "${label}: kept existing ($(mask_secret "$current_value"))"
+        else
+          local new_val
+          new_val=$(generate_secret)
+          eval "$var_name='$new_val'"
+          print_success "${label}: generated new (no existing value)"
+        fi
+        ;;
+      2)  # Regenerate all
+        local new_val
+        new_val=$(generate_secret)
+        eval "$var_name='$new_val'"
+        print_success "${label}: generated new"
+        ;;
+      3)  # Ask per token
+        if [[ -n "$current_value" ]]; then
+          echo -en "  ${BOLD}${label}${RESET} — keep existing ($(mask_secret "$current_value"))? [${DIM}Y/n${RESET}]: "
+          read -r answer
+          if [[ "${answer,,}" == "n" ]]; then
+            local new_val
+            new_val=$(generate_secret)
+            eval "$var_name='$new_val'"
+            print_success "${label}: regenerated"
+          else
+            eval "$var_name='$current_value'"
+            print_success "${label}: kept existing"
+          fi
+        else
+          local new_val
+          new_val=$(generate_secret)
+          eval "$var_name='$new_val'"
+          print_success "${label}: generated new (no existing value)"
+        fi
+        ;;
+    esac
+  }
 
-  # Gateway tokens for spoke VMs (Architect uses these to dispatch tasks)
+  # --- VM-1 own tokens ---
+  echo -e "  ${BOLD}VM-1 Architect tokens:${RESET}"
+  keep_or_regen GATEWAY_AUTH_TOKEN    "Gateway auth token"
+  keep_or_regen ARCHITECT_HOOK_TOKEN  "Architect hook token"
+
+  # --- Spoke gateway tokens ---
   echo ""
-  print_info "Generating gateway auth tokens for spoke VMs..."
-  VM2_GATEWAY_TOKEN="${VM2_GATEWAY_TOKEN:-$(generate_secret)}"
-  VM3_GATEWAY_TOKEN="${VM3_GATEWAY_TOKEN:-$(generate_secret)}"
-  VM4_GATEWAY_TOKEN="${VM4_GATEWAY_TOKEN:-$(generate_secret)}"
-  VM5_GATEWAY_TOKEN="${VM5_GATEWAY_TOKEN:-$(generate_secret)}"
-  print_success "4 gateway tokens generated"
+  echo -e "  ${BOLD}Spoke gateway tokens:${RESET}"
+  keep_or_regen VM2_GATEWAY_TOKEN  "VM-2 Designer gateway token"
+  keep_or_regen VM3_GATEWAY_TOKEN  "VM-3 Developers gateway token"
+  keep_or_regen VM4_GATEWAY_TOKEN  "VM-4 QC Agents gateway token"
+  keep_or_regen VM5_GATEWAY_TOKEN  "VM-5 Operator gateway token"
 
-  # HMAC signing secrets per spoke VM
-  print_info "Generating HMAC signing secrets for spoke VMs..."
-  VM2_AGENT_SECRET="${VM2_AGENT_SECRET:-$(generate_secret)}"
-  VM3_AGENT_SECRET="${VM3_AGENT_SECRET:-$(generate_secret)}"
-  VM4_AGENT_SECRET="${VM4_AGENT_SECRET:-$(generate_secret)}"
-  VM5_AGENT_SECRET="${VM5_AGENT_SECRET:-$(generate_secret)}"
-  print_success "4 HMAC secrets generated"
+  # --- Spoke HMAC secrets ---
+  echo ""
+  echo -e "  ${BOLD}Spoke HMAC signing secrets:${RESET}"
+  keep_or_regen VM2_AGENT_SECRET  "VM-2 Designer HMAC secret"
+  keep_or_regen VM3_AGENT_SECRET  "VM-3 Developers HMAC secret"
+  keep_or_regen VM4_AGENT_SECRET  "VM-4 QC Agents HMAC secret"
+  keep_or_regen VM5_AGENT_SECRET  "VM-5 Operator HMAC secret"
 
   # --- Step 4: Write central config ---
   print_step "Write Central Config File"
