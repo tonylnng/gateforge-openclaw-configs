@@ -1,388 +1,305 @@
 # GateForge — OpenClaw Hub-and-Spoke Configuration Guide
 
-> Step-by-step guide to configure `openclaw.json` on all 5 GateForge VMs.
+> Step-by-step guide to configure OpenClaw on all 5 GateForge VMs.
+> These scripts **patch** your existing config — they do NOT overwrite it.
 
 ---
 
 ## Overview
 
-Each VM runs its own OpenClaw Gateway process with its own `~/.openclaw/openclaw.json` configuration file. The GateForge hub-and-spoke architecture maps to OpenClaw config as follows:
+Each VM runs its own OpenClaw Gateway with its own `~/.openclaw/openclaw.json`. The GateForge configuration scripts use `openclaw config set` and `config.patch` to add hub-and-spoke settings **on top of** whatever is already configured (models, auth profiles, channels, API keys, etc.).
 
-| VM | Role | Config Pattern | Model | Hooks |
-|----|------|---------------|-------|-------|
-| VM-1 | System Architect (Hub) | Single agent, Telegram channel, cron enabled | Claude Opus 4.6 | Receives notifications from all spokes |
-| VM-2 | System Designer (Spoke) | Single agent, no channels | Claude Sonnet 4.6 | Receives task dispatches from Architect |
-| VM-3 | Developers (Spoke) | Multi-agent (dev-01..N), Docker sandbox | Claude Sonnet 4.6 | Receives task dispatches from Architect |
-| VM-4 | QC Agents (Spoke) | Multi-agent (qc-01..N), Docker sandbox | MiniMax 2.7 | Receives task dispatches from Architect |
-| VM-5 | Operator (Spoke) | Single agent, cron enabled | MiniMax 2.7 | Receives deployment commands from Architect |
+| VM | Role | Script | What It Configures |
+|----|------|--------|-------------------|
+| VM-1 | System Architect (Hub) | `vm-1-architect/configure-openclaw.sh` | Gateway auth, hooks for spoke notifications, Architect agent, cron |
+| VM-2 | System Designer (Spoke) | `configure-openclaw-spoke.sh` | Gateway auth, hooks for task dispatch, Designer agent |
+| VM-3 | Developers (Spoke) | `configure-openclaw-spoke.sh` | Gateway auth, hooks, multi-agent (dev-01..N), Docker sandbox |
+| VM-4 | QC Agents (Spoke) | `configure-openclaw-spoke.sh` | Gateway auth, hooks, multi-agent (qc-01..N), Docker sandbox |
+| VM-5 | Operator (Spoke) | `configure-openclaw-spoke.sh` | Gateway auth, hooks, Operator agent, cron, extra tools |
+
+The spoke script auto-detects the VM role from `GATEFORGE_ROLE` in `/opt/secrets/gateforge.env`.
+
+---
+
+## How It Works — CLI Instead of File Copy
+
+Instead of overwriting `openclaw.json`, the scripts use two methods:
+
+### Method 1: `openclaw config set` (simple key-value)
+
+For flat settings like gateway bind, model, logging:
+
+```bash
+openclaw config set gateway.bind tailnet
+openclaw config set agents.defaults.model.primary "anthropic/claude-opus-4-6"
+openclaw config set cron.enabled true
+```
+
+This is the safest approach — OpenClaw validates the key path and value type against its schema before writing.
+
+### Method 2: `config.patch` (complex nested objects)
+
+For structured settings like hooks and agent lists, the script uses the Gateway's `config.patch` RPC, which performs a **JSON merge patch** (RFC 7386):
+
+- Objects merge recursively (existing keys preserved, new keys added)
+- `null` deletes a key
+- Arrays are replaced (not appended)
+
+```bash
+openclaw gateway call config.patch --params '{
+  "raw": "{ hooks: { enabled: true, token: \"...\", path: \"/hooks\" } }",
+  "baseHash": "<current-hash>",
+  "note": "GateForge hub config"
+}'
+```
+
+If the Gateway is not running, the script falls back to a safe file-based JSON merge using Python.
+
+### What gets preserved
+
+| Preserved (not touched) | Configured (added/updated) |
+|-------------------------|---------------------------|
+| Existing channels (Telegram, Discord, etc.) | `gateway.bind`, `gateway.auth` |
+| Auth profiles and API keys | `hooks.*` (webhook endpoints) |
+| Model provider configuration | `agents.defaults.model` (primary + fallbacks) |
+| Existing tools and skills | `agents.list` (role-specific agents) |
+| Sandbox settings (unless code-exec VM) | `session.*`, `cron.*`, `logging.*` |
+| Any manual customisations | `sandbox.*` (VM-3/VM-4 only) |
 
 ---
 
 ## Prerequisites
 
-Before configuring `openclaw.json`, ensure:
+Before running the config scripts:
 
-1. **OpenClaw is installed** on all 5 VMs
-2. **Setup scripts have been run** (`setup-vm1-architect.sh` etc.) — these generate the tokens stored in `/opt/secrets/gateforge.env`
-3. **Gateway bind is set to tailnet** on all VMs:
-   ```bash
-   openclaw config set gateway.bind tailnet
-   openclaw gateway restart
-   ```
-4. **UFW firewall** is configured (setup scripts handle this)
-
----
-
-## How the Config Files Work
-
-### File Format
-
-OpenClaw uses **JSON5** (not plain JSON) — comments, trailing commas, and unquoted keys are all valid. The file lives at:
-
-```
-~/.openclaw/openclaw.json
-```
-
-### Strict Schema Validation
-
-OpenClaw validates the config with Zod at startup. **Unknown keys cause the Gateway to refuse to start.** There is no graceful degradation. Always validate after editing:
-
-```bash
-# 1. Back up
-cp ~/.openclaw/openclaw.json ~/.openclaw/openclaw.json.bak
-
-# 2. Edit the file
-
-# 3. Validate
-openclaw doctor --fix
-
-# 4. Restart if needed
-openclaw gateway restart
-```
-
-### Environment Variable Substitution
-
-Config values can reference environment variables with `${VAR_NAME}`. These are resolved at Gateway startup from:
-
-1. Shell environment
-2. Variables sourced from `/opt/secrets/gateforge.env`
-
-All token values in the template configs use `${VAR}` references so you never put actual secrets in the JSON file.
-
----
-
-## Configuration Anatomy
-
-Every `openclaw.json` in GateForge has these sections:
-
-### 1. Gateway
-
-Controls how the OpenClaw HTTP server binds and authenticates.
-
-```json5
-gateway: {
-  port: 18789,                        // Default OpenClaw port
-  bind: "tailnet",                     // Listen on Tailscale IP only
-  auth: {
-    mode: "token",
-    token: "${GATEWAY_AUTH_TOKEN}",    // Unique per-VM token
-    allowTailscale: false              // Still require token from Tailscale peers
-  }
-}
-```
-
-| Field | Values | Notes |
-|-------|--------|-------|
-| `bind` | `"loopback"` / `"tailnet"` / `"all"` | GateForge requires `"tailnet"` for inter-VM access |
-| `auth.mode` | `"token"` | Token-based authentication |
-| `auth.token` | string | **Unique per VM** — generated by the VM-1 setup script |
-| `auth.allowTailscale` | boolean | Set `false` to enforce token auth even from Tailscale |
-
-> **Important**: Changing any `gateway.*` field requires a Gateway restart. Hot-reload does not apply.
-
-### 2. Hooks (Webhooks)
-
-Enables inbound HTTP endpoints for inter-VM communication.
-
-```json5
-hooks: {
-  enabled: true,
-  token: "${HOOK_TOKEN}",             // Auth for inbound webhook requests
-  path: "/hooks",                      // URL prefix: /hooks/wake, /hooks/agent
-  defaultSessionKey: "hook:gateforge",
-  allowRequestSessionKey: true,
-  allowedSessionKeyPrefixes: ["hook:", "gateforge:"],
-  mappings: [
-    {
-      match: { path: "agent" },        // Match POST /hooks/agent
-      action: "agent",                 // Run an agent turn
-      agentId: "architect",            // Route to this agent
-      deliver: true
-    }
-  ]
-}
-```
-
-**How communication flows:**
-
-1. **Architect → Spoke**: Architect POSTs to `http://<SPOKE_IP>:18789/hooks/agent` with `Authorization: Bearer <SPOKE_GATEWAY_TOKEN>`
-2. **Spoke → Architect**: Spoke POSTs to `http://<ARCHITECT_IP>:18789/hooks/agent` with `Authorization: Bearer <ARCHITECT_HOOK_TOKEN>` + HMAC signature
-
-The `mappings` section routes inbound requests to the correct agent on that VM.
-
-### 3. Agents
-
-Defines one or more AI agents running in the same Gateway process.
-
-**Single-agent pattern** (VM-1, VM-2, VM-5):
-
-```json5
-agents: {
-  defaults: {
-    workspace: "~/.openclaw/workspace",
-    model: { primary: "anthropic/claude-opus-4-6" }
-  },
-  list: [
-    { id: "architect", default: true, name: "System Architect" }
-  ]
-}
-```
-
-**Multi-agent pattern** (VM-3, VM-4):
-
-```json5
-agents: {
-  defaults: {
-    model: { primary: "anthropic/claude-sonnet-4-6" },
-    sandbox: { mode: "all", scope: "agent" }  // Each agent gets its own sandbox
-  },
-  list: [
-    { id: "dev-01", default: true, workspace: "~/.openclaw/workspace-dev-01", agentDir: "~/.openclaw/agents/dev-01/agent" },
-    { id: "dev-02", workspace: "~/.openclaw/workspace-dev-02", agentDir: "~/.openclaw/agents/dev-02/agent" },
-    { id: "dev-03", workspace: "~/.openclaw/workspace-dev-03", agentDir: "~/.openclaw/agents/dev-03/agent" }
-  ]
-}
-```
-
-Each agent in the list gets:
-- Its own **workspace** directory (files, SOUL.md, skills)
-- Its own **agentDir** (auth profiles, session store, memory)
-- Inherited **defaults** unless overridden
-
-### 4. Channels
-
-Only VM-1 (Architect) has a channel configured — Telegram for human operator interaction. Spokes have no channels because they receive work via webhook hooks only.
-
-### 5. Cron
-
-| VM | Cron | Reason |
-|----|------|--------|
-| VM-1 | `enabled: true` | Scheduled Blueprint checks, health monitoring, progress aggregation |
-| VM-2–VM-4 | `enabled: false` | Spokes don't initiate work — they receive tasks from the Architect |
-| VM-5 | `enabled: true` | Deployment health checks, monitoring, CI/CD polling |
+1. **OpenClaw is installed and working** — the setup wizard (`openclaw onboard`) should have been completed
+2. **GateForge setup scripts have been run** — these generate tokens in `/opt/secrets/gateforge.env`
+3. **API keys configured** — model provider keys should already be set up via `openclaw auth add` or the wizard
 
 ---
 
 ## Step-by-Step Setup
 
-### Step 1 — Run Setup Scripts First
+### Step 1 — Run GateForge Setup Scripts (if not done already)
 
-The setup scripts generate all tokens and write them to `/opt/secrets/gateforge.env`. This must happen **before** configuring `openclaw.json` because the JSON files reference those tokens via `${VAR}` substitution.
+The setup scripts generate the inter-VM communication tokens:
 
 ```bash
-# On VM-1 (generates tokens for all VMs)
+# On VM-1 (generates tokens for ALL VMs)
 sudo bash install/setup-vm1-architect.sh
 
-# On VM-2 through VM-5 (paste tokens from VM-1 output)
-sudo bash install/setup-vm2-designer.sh
-sudo bash install/setup-vm3-developers.sh
-sudo bash install/setup-vm4-qc-agents.sh
-sudo bash install/setup-vm5-operator.sh
+# On each spoke VM (paste tokens from VM-1 output)
+sudo bash install/setup-vm2-designer.sh     # VM-2
+sudo bash install/setup-vm3-developers.sh   # VM-3
+sudo bash install/setup-vm4-qc-agents.sh    # VM-4
+sudo bash install/setup-vm5-operator.sh     # VM-5
 ```
 
-### Step 2 — Source Tokens into Shell Environment
-
-On each VM, make the tokens available to OpenClaw at startup:
+### Step 2 — Configure OpenClaw on VM-1 (Hub)
 
 ```bash
-# Add to the OpenClaw user's ~/.bashrc or ~/.profile
-echo 'set -a; source /opt/secrets/gateforge.env; set +a' >> ~/.bashrc
-source ~/.bashrc
-```
+cd ~/gateforge-openclaw-configs/openclaw-configs
 
-Alternatively, create a systemd environment file (if running OpenClaw as a service):
+# Preview what will change (recommended first)
+sudo bash vm-1-architect/configure-openclaw.sh --dry-run
 
-```bash
-# /etc/systemd/system/openclaw.service.d/gateforge.conf
-[Service]
-EnvironmentFile=/opt/secrets/gateforge.env
-```
+# Apply the configuration
+sudo bash vm-1-architect/configure-openclaw.sh
 
-### Step 3 — Deploy openclaw.json to Each VM
-
-Copy the appropriate config file to each VM:
-
-```bash
-# On VM-1
-cp openclaw-configs/vm-1-architect/openclaw.json ~/.openclaw/openclaw.json
-
-# On VM-2
-cp openclaw-configs/vm-2-designer/openclaw.json ~/.openclaw/openclaw.json
-
-# On VM-3
-cp openclaw-configs/vm-3-developers/openclaw.json ~/.openclaw/openclaw.json
-
-# On VM-4
-cp openclaw-configs/vm-4-qc-agents/openclaw.json ~/.openclaw/openclaw.json
-
-# On VM-5
-cp openclaw-configs/vm-5-operator/openclaw.json ~/.openclaw/openclaw.json
-```
-
-### Step 4 — Add API Keys
-
-Each VM needs its model provider API key. Add to `/opt/secrets/gateforge.env`:
-
-```bash
-# VM-1 (Architect) — uses Claude Opus 4.6
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-TELEGRAM_BOT_TOKEN=123456:ABC-your-telegram-token
-TELEGRAM_ALLOWED_USER_ID=tg:your-telegram-user-id
-BRAVE_SEARCH_API_KEY=BSA-your-key-here        # Optional: for web search
-
-# VM-2 (Designer) — uses Claude Sonnet 4.6
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-BRAVE_SEARCH_API_KEY=BSA-your-key-here
-
-# VM-3 (Developers) — uses Claude Sonnet 4.6
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-
-# VM-4 (QC Agents) — uses MiniMax 2.7
-MINIMAX_API_KEY=your-minimax-key
-ANTHROPIC_API_KEY=sk-ant-your-key-here         # Fallback model
-
-# VM-5 (Operator) — uses MiniMax 2.7
-MINIMAX_API_KEY=your-minimax-key
-ANTHROPIC_API_KEY=sk-ant-your-key-here         # Fallback model
-```
-
-### Step 5 — Validate and Restart
-
-On each VM:
-
-```bash
-# Validate the config (fixes minor issues automatically)
-openclaw doctor --fix
-
-# Restart the Gateway to apply
+# Restart Gateway (required for gateway.* changes)
 openclaw gateway restart
-
-# Verify it's running
-openclaw gateway status
-ss -tlnp | grep 18789
 ```
 
-### Step 6 — Test Inter-VM Communication
+### Step 3 — Configure OpenClaw on Each Spoke VM
 
-Run the test scripts to confirm everything works:
+The same script works on all spoke VMs — it reads `GATEFORGE_ROLE` from `/opt/secrets/gateforge.env` to determine what to configure.
 
 ```bash
-# From VM-1 (tests all VMs)
-sudo bash install/test-connectivity.sh
+cd ~/gateforge-openclaw-configs/openclaw-configs
 
-# From any spoke VM
-sudo bash install/test-spoke.sh
+# Preview what will change
+sudo bash configure-openclaw-spoke.sh --dry-run
+
+# Apply the configuration
+sudo bash configure-openclaw-spoke.sh
+
+# Restart Gateway
+openclaw gateway restart
+```
+
+### Step 4 — Verify
+
+```bash
+# Check the config was applied
+openclaw config get gateway.bind           # Should show: tailnet
+openclaw config get hooks.enabled          # Should show: true
+openclaw config get agents.defaults.model  # Should show the expected model
+
+# Run connectivity tests
+sudo bash install/test-connectivity.sh     # From VM-1
+sudo bash install/test-spoke.sh            # From any spoke
 ```
 
 ---
 
 ## VM-3 and VM-4: Adjusting Agent Count
 
-The setup scripts ask how many agents you want (3, 5, or 10). To change the count after initial setup, edit `openclaw.json` on that VM.
+The spoke script defaults to 3 agents. To change:
 
-### Adding Agents
-
-Add entries to the `agents.list` array:
-
-```json5
-// In VM-3 openclaw.json → agents.list
-{ id: "dev-04", name: "Developer 04", workspace: "~/.openclaw/workspace-dev-04", agentDir: "~/.openclaw/agents/dev-04/agent" },
-{ id: "dev-05", name: "Developer 05", workspace: "~/.openclaw/workspace-dev-05", agentDir: "~/.openclaw/agents/dev-05/agent" },
-```
-
-Then create the workspace directories and copy SOUL.md:
+### Option A: Set in gateforge.env before running the config script
 
 ```bash
-for i in 04 05; do
-  mkdir -p ~/.openclaw/workspace-dev-${i}
-  mkdir -p ~/.openclaw/agents/dev-${i}/agent
-  cp ~/.openclaw/workspace-dev-01/SOUL.md ~/.openclaw/workspace-dev-${i}/SOUL.md
-  sed -i "s/dev-01/dev-${i}/g" ~/.openclaw/workspace-dev-${i}/SOUL.md
-done
+# Add to /opt/secrets/gateforge.env
+echo "GATEFORGE_AGENT_COUNT=5" | sudo tee -a /opt/secrets/gateforge.env
+
+# Then run the config script
+sudo bash configure-openclaw-spoke.sh
+```
+
+### Option B: Add agents via CLI after initial config
+
+```bash
+# Add dev-04 and dev-05 manually
+openclaw agents add --id "dev-04" --workspace ~/.openclaw/workspace-dev-04 --non-interactive
+openclaw agents add --id "dev-05" --workspace ~/.openclaw/workspace-dev-05 --non-interactive
 
 openclaw gateway restart
 ```
 
-### Removing Agents
+### Option C: Remove agents
 
-Remove entries from `agents.list` and restart. Existing workspace files are preserved (delete manually if no longer needed).
+```bash
+openclaw agents delete --id dev-03
+openclaw gateway restart
+```
 
 ---
 
-## Security Considerations
+## What Each Section Does
 
-| Concern | Config Setting | Notes |
-|---------|---------------|-------|
-| Gateway auth | `gateway.auth.token` | Unique per VM — never share across VMs |
-| Hook auth | `hooks.token` | Separate from gateway token on VM-1; spokes can reuse gateway token |
-| Tailscale bypass | `gateway.auth.allowTailscale: false` | Always require token, even from Tailscale peers |
-| Sandbox | `agents.defaults.sandbox.mode` | `"all"` for code-executing VMs (VM-3, VM-4); `"non-main"` for others |
-| Network isolation | `sandbox.docker.network: "none"` | No outbound network from sandboxed code |
-| Session keys | `hooks.allowedSessionKeyPrefixes` | Bound to prevent callers from hijacking arbitrary sessions |
-| Secret storage | `/opt/secrets/gateforge.env` | `root:root 600` — never committed to Git |
+### Gateway
 
-### Token Flow Diagram
-
+```bash
+openclaw config set gateway.bind tailnet            # Listen on Tailscale IP only
+openclaw config set gateway.auth.mode token          # Require Bearer token
+openclaw config set gateway.auth.token "$TOKEN"      # Per-VM unique token
+openclaw config set gateway.auth.allowTailscale false # No free pass for Tailscale peers
 ```
-/opt/secrets/gateforge.env          ~/.openclaw/openclaw.json
-┌──────────────────────────┐        ┌───────────────────────────────┐
-│ GATEWAY_AUTH_TOKEN=abc...│───────▶│ gateway.auth.token: "${...}"  │
-│ ARCHITECT_HOOK_TOKEN=def.│───────▶│ hooks.token: "${...}"         │
-│ ANTHROPIC_API_KEY=sk-ant.│───────▶│ env.ANTHROPIC_API_KEY: "${.}" │
-│ AGENT_SECRET=xyz...      │        │ (used by HMAC scripts only)   │
-└──────────────────────────┘        └───────────────────────────────┘
-         root:root 600                    <user>:<user> (default)
-```
+
+All VMs get the same gateway structure. The token is unique per VM — generated by the VM-1 setup script.
+
+### Hooks
+
+The hooks section enables the `/hooks/agent` endpoint on every VM:
+
+- **VM-1 (Hub)**: Receives status notifications from spokes. Uses a **dedicated hook token** (separate from the gateway token).
+- **VM-2–5 (Spokes)**: Receive task dispatches from the Architect. Use their **gateway token** for hook auth.
+
+The `mappings` array routes inbound `POST /hooks/agent` requests to the correct agent on that VM.
+
+### Agents
+
+| VM | Pattern | Agent IDs |
+|----|---------|-----------|
+| VM-1 | Single agent | `architect` |
+| VM-2 | Single agent | `designer` |
+| VM-3 | Multi-agent | `dev-01`, `dev-02`, `dev-03`, ... |
+| VM-4 | Multi-agent | `qc-01`, `qc-02`, `qc-03`, ... |
+| VM-5 | Single agent | `operator` |
+
+Multi-agent VMs (VM-3, VM-4) get per-agent workspaces and `agentDir` directories so each agent has isolated files, memory, and sessions.
+
+### Sandbox
+
+| VM | `sandbox.mode` | Why |
+|----|---------------|-----|
+| VM-1 Architect | `non-main` | No code execution needed |
+| VM-2 Designer | `non-main` | No code execution needed |
+| VM-3 Developers | `all` (Docker) | Code execution in isolated containers |
+| VM-4 QC Agents | `all` (Docker) | Test execution in isolated containers |
+| VM-5 Operator | `non-main` | Deployment commands run on host |
+
+### Models
+
+| VM | Primary Model | Fallback |
+|----|--------------|----------|
+| VM-1 | `anthropic/claude-opus-4-6` | `claude-sonnet-4-6` |
+| VM-2 | `anthropic/claude-sonnet-4-6` | `claude-sonnet-4-6` |
+| VM-3 | `anthropic/claude-sonnet-4-6` | `claude-sonnet-4-6` |
+| VM-4 | `minimax/MiniMax-M2.7` | `claude-sonnet-4-6` |
+| VM-5 | `minimax/MiniMax-M2.7` | `claude-sonnet-4-6` |
+
+The scripts only set `agents.defaults.model`. If you have already configured models via `openclaw models set` or the wizard, those per-agent overrides are preserved.
+
+---
+
+## Security Notes
+
+| Concern | How the scripts handle it |
+|---------|--------------------------|
+| Token uniqueness | Each VM has its own `GATEWAY_AUTH_TOKEN`; VM-1 has a separate `ARCHITECT_HOOK_TOKEN` |
+| No Tailscale bypass | `gateway.auth.allowTailscale` is set to `false` — token required even from Tailscale |
+| Secret storage | Tokens stay in `/opt/secrets/gateforge.env` (root:root 600) — the JSON file uses `${VAR}` references |
+| Sandbox isolation | Code-executing VMs (VM-3, VM-4) use Docker with `network: "none"` |
+| Hook token separation | VM-1's hook token is separate from its gateway token — leaked hook token can't control the gateway |
 
 ---
 
 ## Troubleshooting
 
-| Problem | Cause | Fix |
-|---------|-------|-----|
-| Gateway refuses to start | Unknown key in `openclaw.json` | Run `openclaw doctor --fix`, check for typos |
-| `${VAR}` appears literally in logs | Env var not set at Gateway startup | Source gateforge.env before starting: `set -a; source /opt/secrets/gateforge.env; set +a` |
-| Hook returns 401 Unauthorized | Wrong token in `Authorization: Bearer` header | Verify the token matches `hooks.token` on the target VM |
-| Hook returns 404 Not Found | `hooks.enabled` is `false` or `hooks.path` is wrong | Check `openclaw.json` has `hooks.enabled: true` and `path: "/hooks"` |
-| Agent not found on hook dispatch | `agentId` in mapping doesn't match `agents.list[].id` | Ensure mapping `agentId` exactly matches an agent ID in the list |
-| Bind error on startup | Port 18789 already in use | `ss -tlnp | grep 18789` — kill old process or change port |
-| Hot-reload doesn't apply | Changed a `gateway.*` field | Gateway fields require a full restart: `openclaw gateway restart` |
+| Problem | Fix |
+|---------|-----|
+| Script says "GATEFORGE_ROLE not set" | Run the VM setup script first (`setup-vmN-*.sh`) |
+| `openclaw config set` fails with schema error | Run `openclaw doctor --fix` then retry |
+| Config change has no effect | Run `openclaw gateway restart` (gateway.* fields require restart) |
+| `config.patch` fails | Gateway may not be running — script falls back to file edit automatically |
+| Hook returns 404 | Check `openclaw config get hooks.enabled` — should be `true` |
+| Agent not found | Run `openclaw agents list` to verify agent IDs |
+| Model not available | Run `openclaw models status --probe` to test provider connectivity |
+| Want to undo changes | Restore backup: `cp ~/.openclaw/openclaw.json.bak ~/.openclaw/openclaw.json` |
+
+### Manual Verification Commands
+
+```bash
+# View all GateForge-related settings
+openclaw config get gateway
+openclaw config get hooks
+openclaw config get agents
+openclaw config get cron
+
+# Check which agents are configured
+openclaw agents list
+openclaw agents list --bindings
+
+# Test hook endpoint locally
+curl -s -X POST http://localhost:18789/hooks/agent \
+  -H "Authorization: Bearer $(openclaw config get hooks.token)" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "test"}'
+```
 
 ---
 
-## Quick Reference — All 5 Configs at a Glance
+## File Reference
 
-| Field | VM-1 Architect | VM-2 Designer | VM-3 Developers | VM-4 QC Agents | VM-5 Operator |
-|-------|---------------|---------------|-----------------|----------------|---------------|
-| `gateway.bind` | tailnet | tailnet | tailnet | tailnet | tailnet |
-| `gateway.auth.token` | Own token | Own token | Own token | Own token | Own token |
-| `hooks.enabled` | true | true | true | true | true |
-| `hooks.token` | Dedicated hook token | Gateway token | Gateway token | Gateway token | Gateway token |
-| `agents.list` | architect | designer | dev-01..N | qc-01..N | operator |
-| `agents.defaults.model` | claude-opus-4-6 | claude-sonnet-4-6 | claude-sonnet-4-6 | MiniMax-M2.7 | MiniMax-M2.7 |
-| `sandbox.mode` | non-main | non-main | all (Docker) | all (Docker) | non-main |
-| `channels` | Telegram | — | — | — | — |
-| `cron.enabled` | true | false | false | false | true |
+```
+openclaw-configs/
+├── OPENCLAW-CONFIG-GUIDE.md                ← This guide
+├── vm-1-architect/
+│   ├── configure-openclaw.sh               ← Hub config script
+│   └── openclaw.json                       ← Reference template (do NOT copy directly)
+├── vm-2-designer/
+│   └── openclaw.json                       ← Reference template
+├── vm-3-developers/
+│   └── openclaw.json                       ← Reference template
+├── vm-4-qc-agents/
+│   └── openclaw.json                       ← Reference template
+├── vm-5-operator/
+│   └── openclaw.json                       ← Reference template
+└── configure-openclaw-spoke.sh             ← Shared spoke config script (VM-2 through VM-5)
+```
+
+The `openclaw.json` files are kept as **reference templates** showing the target state. The actual configuration is done by the shell scripts using CLI commands.
 
 ---
 
