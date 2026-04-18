@@ -235,7 +235,7 @@ EOF
 
   # --- Step 6: Enable webhooks ---
   print_step "Enable Webhooks in OpenClaw"
-  enable_hooks "$GATEWAY_AUTH_TOKEN"
+  enable_hooks "$ARCHITECT_HOOK_TOKEN"
 
   # --- Step 7: Summary ---
   print_step "Setup Complete"
