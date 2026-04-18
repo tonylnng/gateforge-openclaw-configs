@@ -119,7 +119,17 @@ git config --global url."https://gateforge-bot:${GITHUB_TOKEN_RW}@github.com/ton
   "https://github.com/tonylnng/<project>-code"
 ```
 
-All tokens are stored in `/opt/secrets/gateforge.env` (root:root, chmod 600). See the main README for the full configuration, rotation, and security guide.
+All tokens are stored in `/opt/secrets/gateforge.env` (root:root, chmod 600). The setup scripts automatically grant read access to the OpenClaw user via POSIX ACL (`setfacl`). See the main README for the full configuration, rotation, and security guide.
+
+> **Note**: The `acl` package must be installed (`sudo apt-get install acl`). The setup scripts detect this and warn if missing. To verify or manually grant access:
+>
+> ```bash
+> # Grant read access to the OpenClaw user
+> sudo setfacl -m u:<openclaw-user>:r /opt/secrets/gateforge.env
+>
+> # Verify the ACL
+> getfacl /opt/secrets/gateforge.env
+> ```
 
 ---
 
@@ -396,7 +406,8 @@ All tests should show green `PASS`. Common issues:
 |---------|----------|
 | `openssl: command not found` | `sudo apt install -y openssl` |
 | `git: command not found` | `sudo apt install -y git` |
-| `Permission denied` on gateforge.env | Run the setup script with `sudo` |
+| `Permission denied` on gateforge.env | Run the setup script with `sudo`. If the OpenClaw user still can't read it: `sudo setfacl -m u:<user>:r /opt/secrets/gateforge.env` |
+| `setfacl: command not found` | Install the ACL package: `sudo apt-get install acl` |
 | Script says "OpenClaw not found" | Install OpenClaw first: `curl -fsSL https://openclaw.ai/install.sh \| bash` |
 | "Connection refused" on test notification | The Architect's OpenClaw gateway isn't running — start it first |
 | Wrong values pasted | Re-run the setup script — it will overwrite the old config |

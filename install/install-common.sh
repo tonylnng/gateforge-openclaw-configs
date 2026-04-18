@@ -180,6 +180,17 @@ write_config() {
   sudo chown root:root "$CONFIG_FILE"
   sudo chmod 600 "$CONFIG_FILE"
   print_success "Config written to ${CONFIG_FILE} (root:root, 600)"
+
+  # Grant read access to the OpenClaw user via ACL
+  # The file is root:root 600 so the non-root OpenClaw user can't read it otherwise
+  local oc_user="${SUDO_USER:-$(whoami)}"
+  if [[ "$oc_user" != "root" ]] && command -v setfacl &>/dev/null; then
+    sudo setfacl -m "u:${oc_user}:r" "$CONFIG_FILE"
+    print_success "ACL read access granted to user '${oc_user}'"
+  elif [[ "$oc_user" != "root" ]]; then
+    print_warn "setfacl not found — install acl package: sudo apt-get install acl"
+    print_warn "Then run: sudo setfacl -m u:${oc_user}:r ${CONFIG_FILE}"
+  fi
 }
 
 load_existing_config() {
