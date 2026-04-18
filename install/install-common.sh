@@ -352,6 +352,85 @@ except Exception as e:
 }
 
 # ---------------------------------------------------------------------------
+# Control UI — allow browser access from Tailscale IPs
+# ---------------------------------------------------------------------------
+enable_control_ui() {
+  local self_ip="$1"    # This VM's Tailscale IP
+  local oc_user="${SUDO_USER:-$(whoami)}"
+  local oc_home
+  oc_home=$(eval echo "~${oc_user}")
+  local oc_config="${oc_home}/.openclaw/openclaw.json"
+
+  print_info "Configuring Control UI allowed origins..."
+
+  if [[ "$DRY_RUN" == "true" ]]; then
+    print_warn "[DRY RUN] Would set controlUi.allowedOrigins for ${self_ip}"
+    return
+  fi
+
+  if [[ ! -f "$oc_config" ]]; then
+    print_error "OpenClaw config not found at ${oc_config}"
+    return 1
+  fi
+
+  # Build origins array: this VM's Tailscale IP + localhost
+  local port="${OPENCLAW_PORT:-18789}"
+  local origins='["http://'"${self_ip}"':"'"${port}"'","https://'"${self_ip}"':"'"${port}"'","http://localhost:"'"${port}"'","http://127.0.0.1:"'"${port}"'"]'
+
+  if command -v python3 &>/dev/null; then
+    python3 -c "
+import json, sys, re
+
+config_path = '${oc_config}'
+try:
+    with open(config_path) as f:
+        raw = f.read()
+    # Strip comments and trailing commas for JSON parsing
+    stripped = re.sub(r'//[^\n]*', '', raw)
+    stripped = re.sub(r',\s*([}\]])', r'\1', stripped)
+    stripped = re.sub(r'(?<=[{,\n])\s*([a-zA-Z_]\w*)\s*:', r' \"\1\":', stripped)
+    cfg = json.loads(stripped)
+except Exception as e:
+    print(f'error: {e}', file=sys.stderr)
+    sys.exit(1)
+
+# Merge controlUi into gateway (preserve existing settings)
+gw = cfg.setdefault('gateway', {})
+cui = gw.setdefault('controlUi', {})
+
+# Parse the origins we want to add
+new_origins = json.loads('${origins}')
+
+# Merge with any existing origins (no duplicates)
+existing = cui.get('allowedOrigins', [])
+merged = list(dict.fromkeys(existing + new_origins))  # preserve order, dedupe
+cui['allowedOrigins'] = merged
+
+with open(config_path, 'w') as f:
+    json.dump(cfg, f, indent=2)
+print('ok')
+" 2>/dev/null
+    if [[ $? -eq 0 ]]; then
+      sudo chown "${oc_user}:${oc_user}" "$oc_config" 2>/dev/null || true
+      print_success "Control UI origins: http(s)://${self_ip}:${port}, localhost"
+    else
+      print_error "Failed to update controlUi in ${oc_config}"
+      echo -e "  ${DIM}Manually run: openclaw config set gateway.controlUi.allowedOrigins '${origins}'${RESET}"
+      return 1
+    fi
+  else
+    # Fallback: use openclaw CLI directly
+    if sudo -u "$oc_user" openclaw config set gateway.controlUi.allowedOrigins "${origins}" 2>/dev/null; then
+      print_success "Control UI origins set via CLI"
+    else
+      print_error "Could not set controlUi.allowedOrigins"
+      echo -e "  ${DIM}Manually run: openclaw config set gateway.controlUi.allowedOrigins '${origins}'${RESET}"
+      return 1
+    fi
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Verification
 # ---------------------------------------------------------------------------
 verify_openclaw() {

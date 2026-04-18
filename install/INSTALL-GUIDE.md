@@ -410,6 +410,7 @@ All tests should show green `PASS`. Common issues:
 | `setfacl: command not found` | Install the ACL package: `sudo apt-get install acl` |
 | Script says "OpenClaw not found" | Install OpenClaw first: `curl -fsSL https://openclaw.ai/install.sh \| bash` |
 | "Connection refused" on test notification | The Architect's OpenClaw gateway isn't running — start it first |
+| "origin not allowed" on Control UI | The setup scripts auto-configure this. To fix manually: `openclaw config set gateway.controlUi.allowedOrigins '["http://<VM_TAILSCALE_IP>:18789"]'` then `openclaw gateway restart` |
 | Wrong values pasted | Re-run the setup script — it will overwrite the old config |
 
 ---

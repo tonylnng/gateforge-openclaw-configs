@@ -237,7 +237,11 @@ EOF
   print_step "Enable Webhooks in OpenClaw"
   enable_hooks "$ARCHITECT_HOOK_TOKEN"
 
-  # --- Step 7: Summary ---
+  # --- Step 7: Allow Control UI access from Tailscale ---
+  print_step "Configure Control UI Access"
+  enable_control_ui "$VM1_IP"
+
+  # --- Step 8: Summary ---
   print_step "Setup Complete"
 
   print_summary_box "VM-1 System Architect — Configuration" \

@@ -94,6 +94,10 @@ EOF
   print_step "Enable Webhooks in OpenClaw"
   enable_hooks "$GATEWAY_AUTH_TOKEN"
 
+  # --- Step 6: Allow Control UI access from Tailscale ---
+  print_step "Configure Control UI Access"
+  enable_control_ui "$VM5_IP"
+
   # --- Step 6: Verify ---
   print_step "Verify & Summary"
   verify_connectivity "$ARCHITECT_IP" "$OPENCLAW_PORT" "Architect (${ARCHITECT_IP})"
