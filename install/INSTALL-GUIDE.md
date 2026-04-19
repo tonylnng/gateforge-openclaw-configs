@@ -207,6 +207,25 @@ At the end, the script displays a red box with all the tokens and secrets:
 
 **Copy these values to a safe place** (e.g., a text file on your Mac). You will paste them into each spoke VM setup.
 
+### Step 6 — Clone the project Blueprint repo
+
+VM-1 needs a local clone of the per-project Blueprint repo at the canonical path
+`/opt/gateforge/blueprint/`. This is the working copy the Architect uses to
+dispatch tasks and to verify pushes from spoke agents (also required by
+`test-communication.sh`).
+
+```bash
+sudo mkdir -p /opt/gateforge
+sudo git clone https://github.com/tonylnng/<project>-blueprint.git /opt/gateforge/blueprint
+sudo chown -R "$USER:$USER" /opt/gateforge/blueprint
+```
+
+Replace `<project>-blueprint` with the actual repo name for the project you are
+kicking off (see [GateForge Repositories](#gateforge-repositories) above).
+
+To use a different location, export `BLUEPRINT_REPO=/path/to/blueprint` before
+running any Architect tooling.
+
 ---
 
 ## VM-2: System Designer
