@@ -62,7 +62,9 @@ B
 
 # ------------------------------- config --------------------------------------
 CONFIG_FILE="${GATEFORGE_ENV_FILE:-/opt/secrets/gateforge.env}"
-BLUEPRINT_REPO="${BLUEPRINT_REPO:-/opt/gateforge/blueprint}"
+# BLUEPRINT_REPO intentionally NOT defaulted here: we must let load_env()
+# source /opt/secrets/gateforge.env first so an override defined there takes
+# effect. The default is applied in finalize_config() after load_env().
 WAIT_GATE_B_SECONDS="${WAIT_GATE_B_SECONDS:-90}"     # how long to wait for callback
 WAIT_GATE_A_POLL="${WAIT_GATE_A_POLL:-2}"            # seconds between log polls
 HOOK_LOG_CANDIDATES=(
@@ -127,12 +129,20 @@ load_env() {
     fail "Config file not found: $CONFIG_FILE"
     exit 1
   fi
-  # Source only KEY=VALUE lines, no execution of arbitrary shell.
+  # Source only KEY=VALUE lines (with or without a leading `export`), no
+  # execution of arbitrary shell. The regex tolerates both forms so users can
+  # write either `FOO=bar` or `export FOO=bar` in gateforge.env.
   # shellcheck disable=SC1090
   set -a
-  eval "$(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$CONFIG_FILE")"
+  eval "$(grep -E '^(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*=' "$CONFIG_FILE")"
   set +a
   pass "Sourced $CONFIG_FILE"
+
+  # Apply defaults for any config var that can be overridden via gateforge.env.
+  # Must run AFTER sourcing so a value in the file wins over the hard-coded
+  # default; env vars exported in the caller's shell still win over both.
+  : "${BLUEPRINT_REPO:=/opt/gateforge/blueprint}"
+  export BLUEPRINT_REPO
 
   # On VM-1 the canonical env layout uses VM{2..5}_GATEWAY_TOKEN and
   # VM{2..5}_AGENT_SECRET (as produced by setup-vm1-architect.sh).
