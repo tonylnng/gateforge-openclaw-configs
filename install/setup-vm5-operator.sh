@@ -13,7 +13,7 @@ source "${SCRIPT_DIR}/install-common.sh"
 TOTAL_STEPS=9
 VM_NAME="vm5"
 VM_ROLE="VM-5: Operator"
-VM_DIR="${SCRIPT_DIR}/../vm-5-operator"
+VM_DIR="${SCRIPT_DIR}/vm-5-operator"
 
 show_help() {
   print_banner

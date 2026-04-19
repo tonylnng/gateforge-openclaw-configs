@@ -14,7 +14,7 @@ source "${SCRIPT_DIR}/install-common.sh"
 TOTAL_STEPS=7
 VM_NAME="vm4"
 VM_ROLE="VM-4: QC Agents"
-VM_DIR="${SCRIPT_DIR}/../vm-4-qc-agents"
+VM_DIR="${SCRIPT_DIR}/vm-4-qc-agents"
 
 show_help() {
   print_banner

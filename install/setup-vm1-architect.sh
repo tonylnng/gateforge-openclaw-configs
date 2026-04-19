@@ -15,7 +15,7 @@ source "${SCRIPT_DIR}/install-common.sh"
 TOTAL_STEPS=10
 VM_NAME="vm1"
 VM_ROLE="VM-1: System Architect"
-VM_DIR="${SCRIPT_DIR}/../vm-1-architect"
+VM_DIR="${SCRIPT_DIR}/vm-1-architect"
 
 # ---------------------------------------------------------------------------
 # Help

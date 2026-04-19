@@ -14,7 +14,7 @@ source "${SCRIPT_DIR}/install-common.sh"
 TOTAL_STEPS=10
 VM_NAME="vm3"
 VM_ROLE="VM-3: Developers"
-VM_DIR="${SCRIPT_DIR}/../vm-3-developers"
+VM_DIR="${SCRIPT_DIR}/vm-3-developers"
 
 show_help() {
   print_banner
