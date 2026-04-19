@@ -405,13 +405,13 @@ All tests should show green `PASS`. Common issues:
 
 ---
 
-## GitHub Token Storage — Systemd Environment Override
+## GitHub Token Storage
 
 After all 5 VMs have been set up and connectivity tests pass, configure GitHub tokens so the OpenClaw gateway process can access repositories at runtime.
 
-**Method:** Systemd drop-in override file — tokens are loaded by systemd at process start, stored outside the workspace with `600` permissions.
+**Method:** Dedicated secrets file sourced from the shell profile — tokens are loaded into the user session environment, so the OpenClaw process (started via `openclaw gateway restart`) inherits them automatically. The file is stored outside the workspace with `600` permissions.
 
-> **Prerequisites:** OpenClaw gateway running as a systemd user service (`openclaw-gateway.service`), GitHub Fine-Grained PATs already generated per the [GitHub Token Configuration](../README.md#github-token-configuration) section in the README.
+> **Prerequisites:** OpenClaw installed and gateway working, GitHub Fine-Grained PATs already generated per the [GitHub Token Configuration](../README.md#github-token-configuration) section in the README.
 
 ### Token Plan
 
@@ -426,48 +426,61 @@ After all 5 VMs have been set up and connectivity tests pass, configure GitHub t
 - **VM-5** also needs `GITHUB_TOKEN_RW` for the project code repo (Token D)
 - **VM-2 and VM-4** only need `GITHUB_TOKEN_READONLY`
 
-### Step 1: Create the override directory
+### Step 1: Create the secrets file
 
-Run this as the OpenClaw user (not root):
-
-```bash
-mkdir -p ~/.config/systemd/user/openclaw-gateway.service.d
-```
-
-### Step 2: Create the secrets file
+Run this as the OpenClaw user (not root).
 
 **For VM-1 (Architect), VM-3 (Developers), VM-5 (Operator)** — two tokens:
 
 ```bash
-cat > ~/.config/systemd/user/openclaw-gateway.service.d/secrets.conf << 'EOF'
-[Service]
-Environment=GITHUB_TOKEN_READONLY=<paste-token-a-here>
-Environment=GITHUB_TOKEN_RW=<paste-token-b-here>
+mkdir -p ~/.config/gateforge
+cat > ~/.config/gateforge/github-tokens.env << 'EOF'
+# GateForge GitHub tokens — DO NOT COMMIT TO GIT
+export GITHUB_TOKEN_READONLY="<paste-token-a-here>"
+export GITHUB_TOKEN_RW="<paste-token-b-here>"
 EOF
 ```
 
 **For VM-2 (Designer), VM-4 (QC Agents)** — read-only token only:
 
 ```bash
-cat > ~/.config/systemd/user/openclaw-gateway.service.d/secrets.conf << 'EOF'
-[Service]
-Environment=GITHUB_TOKEN_READONLY=<paste-token-a-here>
+mkdir -p ~/.config/gateforge
+cat > ~/.config/gateforge/github-tokens.env << 'EOF'
+# GateForge GitHub tokens — DO NOT COMMIT TO GIT
+export GITHUB_TOKEN_READONLY="<paste-token-a-here>"
 EOF
 ```
 
 Replace `<paste-token-a-here>` and `<paste-token-b-here>` with actual token values.
 
-### Step 3: Lock down permissions
+### Step 2: Lock down permissions
 
 ```bash
-chmod 600 ~/.config/systemd/user/openclaw-gateway.service.d/secrets.conf
+chmod 600 ~/.config/gateforge/github-tokens.env
 ```
 
-### Step 4: Reload systemd and restart gateway
+### Step 3: Auto-load tokens in the shell session
+
+Add to `~/.bashrc` so tokens are available whenever you log in or the gateway starts:
 
 ```bash
-systemctl --user daemon-reload
-systemctl --user restart openclaw-gateway.service
+echo '' >> ~/.bashrc
+echo '# GateForge GitHub tokens' >> ~/.bashrc
+echo '[ -f ~/.config/gateforge/github-tokens.env ] && source ~/.config/gateforge/github-tokens.env' >> ~/.bashrc
+```
+
+Load them into the current session immediately:
+
+```bash
+source ~/.config/gateforge/github-tokens.env
+```
+
+### Step 4: Restart the gateway
+
+The gateway inherits environment variables from the user session:
+
+```bash
+openclaw gateway restart
 ```
 
 ### Step 5: Verify
@@ -482,8 +495,8 @@ openclaw gateway status
 **5b. Environment variables are set:**
 
 ```bash
-systemctl --user show openclaw-gateway.service | grep -c GITHUB_TOKEN
-# Expected: 2 (VM-1/3/5) or 1 (VM-2/4)
+env | grep GITHUB_TOKEN
+# Expected: GITHUB_TOKEN_READONLY=ghp_xxx... (and GITHUB_TOKEN_RW on VM-1/3/5)
 ```
 
 **5c. Read-only token works:**
@@ -531,7 +544,7 @@ git config credential.https://github.com.helper \
 
 | Rule | Detail |
 |------|--------|
-| Never commit `secrets.conf` to git | It contains raw tokens |
+| Never commit `github-tokens.env` to git | It contains raw tokens |
 | Never put tokens in `openclaw.json`, `USER.md`, `TOOLS.md`, or any workspace file | The agent can read workspace files — tokens would be exposed |
 | Rotate every 90 days | Set expiry in GitHub when generating the PAT |
 | Use fine-grained PATs with minimum scope | See the README for exact permissions per token type |
@@ -543,17 +556,22 @@ git config credential.https://github.com.helper \
 To remove tokens from a VM:
 
 ```bash
-rm ~/.config/systemd/user/openclaw-gateway.service.d/secrets.conf
-systemctl --user daemon-reload
-systemctl --user restart openclaw-gateway.service
+rm ~/.config/gateforge/github-tokens.env
+# Remove the source line from ~/.bashrc
+sed -i '/gateforge\/github-tokens.env/d' ~/.bashrc
+sed -i '/GateForge GitHub tokens/d' ~/.bashrc
+# Unset from current session
+unset GITHUB_TOKEN_READONLY GITHUB_TOKEN_RW
+# Restart gateway without tokens
+openclaw gateway restart
 ```
 
 ### File Locations
 
 | File | Purpose |
 |------|---------|
-| `~/.config/systemd/user/openclaw-gateway.service` | Main service file (do not edit) |
-| `~/.config/systemd/user/openclaw-gateway.service.d/secrets.conf` | Token override (this setup) |
+| `~/.config/gateforge/github-tokens.env` | Token storage (this setup) |
+| `~/.bashrc` | Sources the token file on login |
 
 ---
 
