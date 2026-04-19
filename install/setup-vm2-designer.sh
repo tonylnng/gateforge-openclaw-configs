@@ -15,7 +15,7 @@ source "${SCRIPT_DIR}/install-common.sh"
 TOTAL_STEPS=9
 VM_NAME="vm2"
 VM_ROLE="VM-2: System Designer"
-VM_DIR="${SCRIPT_DIR}/../vm-2-designer"
+VM_DIR="${SCRIPT_DIR}/vm-2-designer"
 
 show_help() {
   print_banner
