@@ -12,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/install-common.sh"
 
-TOTAL_STEPS=7
+TOTAL_STEPS=10
 VM_NAME="vm1"
 VM_ROLE="VM-1: System Architect"
 VM_DIR="${SCRIPT_DIR}/../vm-1-architect"
@@ -70,16 +70,25 @@ main() {
   setup_firewall
 
   # --- Step 3: Collect IPs ---
-  TOTAL_STEPS=7
+  TOTAL_STEPS=10
   print_step "Configure VM Addresses"
-  echo -e "  ${DIM}Enter Tailscale hostnames or IP addresses for each VM.${RESET}"
+  echo -e "  ${DIM}Enter Tailscale domain names for each VM (e.g. tonic-architect.sailfish-bass.ts.net)${RESET}"
+  echo -e "  ${DIM}These are used for HTTPS communication via Tailscale Serve.${RESET}"
   echo ""
 
-  prompt_required VM1_IP   "VM-1 Architect IP/host"  "${VM1_IP:-100.73.38.28}"
-  prompt_required VM2_IP   "VM-2 Designer IP/host"   "${VM2_IP:-100.95.30.11}"
-  prompt_required VM3_IP   "VM-3 Developers IP/host" "${VM3_IP:-100.81.114.55}"
-  prompt_required VM4_IP   "VM-4 QC Agents IP/host"  "${VM4_IP:-100.106.117.104}"
-  prompt_required VM5_IP   "VM-5 Operator IP/host"   "${VM5_IP:-100.95.248.68}"
+  prompt_required VM1_TS_DOMAIN  "VM-1 Architect Tailscale domain"  "${VM1_TS_DOMAIN:-tonic-architect.sailfish-bass.ts.net}"
+  prompt_required VM2_TS_DOMAIN  "VM-2 Designer Tailscale domain"   "${VM2_TS_DOMAIN:-tonic-designer.sailfish-bass.ts.net}"
+  prompt_required VM3_TS_DOMAIN  "VM-3 Developers Tailscale domain" "${VM3_TS_DOMAIN:-tonic-developer.sailfish-bass.ts.net}"
+  prompt_required VM4_TS_DOMAIN  "VM-4 QC Agents Tailscale domain"  "${VM4_TS_DOMAIN:-tonic-qc.sailfish-bass.ts.net}"
+  prompt_required VM5_TS_DOMAIN  "VM-5 Operator Tailscale domain"   "${VM5_TS_DOMAIN:-tonic-operator.sailfish-bass.ts.net}"
+  echo ""
+  echo -e "  ${DIM}Tailscale IP addresses (used for firewall rules):${RESET}"
+  echo ""
+  prompt_required VM1_IP   "VM-1 Architect IP"  "${VM1_IP:-100.73.38.28}"
+  prompt_required VM2_IP   "VM-2 Designer IP"   "${VM2_IP:-100.95.30.11}"
+  prompt_required VM3_IP   "VM-3 Developers IP" "${VM3_IP:-100.81.114.55}"
+  prompt_required VM4_IP   "VM-4 QC Agents IP"  "${VM4_IP:-100.106.117.104}"
+  prompt_required VM5_IP   "VM-5 Operator IP"   "${VM5_IP:-100.95.248.68}"
 
   # --- Step 3: Generate tokens and secrets ---
   print_step "Generate Tokens & HMAC Secrets"
@@ -203,7 +212,14 @@ GATEWAY_AUTH_TOKEN=${GATEWAY_AUTH_TOKEN}
 
 # --- Architect Hook (inbound notifications from spokes) ---
 ARCHITECT_HOOK_TOKEN=${ARCHITECT_HOOK_TOKEN}
-ARCHITECT_NOTIFY_URL=http://${VM1_IP}:${OPENCLAW_PORT}/hooks/agent
+ARCHITECT_NOTIFY_URL=https://${VM1_TS_DOMAIN}:${OPENCLAW_PORT}/hooks/agent
+
+# --- Tailscale Domains ---
+VM1_TS_DOMAIN=${VM1_TS_DOMAIN}
+VM2_TS_DOMAIN=${VM2_TS_DOMAIN}
+VM3_TS_DOMAIN=${VM3_TS_DOMAIN}
+VM4_TS_DOMAIN=${VM4_TS_DOMAIN}
+VM5_TS_DOMAIN=${VM5_TS_DOMAIN}
 
 # --- VM-2: System Designer ---
 VM2_IP=${VM2_IP}
@@ -237,11 +253,27 @@ EOF
   print_step "Enable Webhooks in OpenClaw"
   enable_hooks "$ARCHITECT_HOOK_TOKEN"
 
-  # --- Step 7: Allow Control UI access from Tailscale ---
-  print_step "Configure Control UI Access"
-  enable_control_ui "$VM1_IP"
+  # --- Step 7: Configure Gateway (loopback + Tailscale Serve) ---
+  print_step "Configure Gateway & Tailscale"
+  configure_gateway "$VM1_TS_DOMAIN" \
+    "$VM1_TS_DOMAIN" "$VM2_TS_DOMAIN" "$VM3_TS_DOMAIN" "$VM4_TS_DOMAIN" "$VM5_TS_DOMAIN"
 
-  # --- Step 8: Summary ---
+  # --- Step 8: Start Tailscale Serve ---
+  print_step "Start Tailscale Serve"
+  start_tailscale_serve
+
+  # --- Step 9: Restart Gateway & Pair Device ---
+  print_step "Restart Gateway & Device Pairing"
+  local oc_user="${SUDO_USER:-$(whoami)}"
+  print_info "Restarting OpenClaw gateway..."
+  if sudo -u "$oc_user" openclaw gateway restart &>/dev/null 2>&1; then
+    print_success "Gateway restarted"
+  else
+    print_warn "Could not restart gateway. Run: openclaw gateway restart"
+  fi
+  pair_device
+
+  # --- Step 10: Summary ---
   print_step "Setup Complete"
 
   print_summary_box "VM-1 System Architect — Configuration" \

@@ -18,7 +18,11 @@
   // -------------------------------------------------------------------------
   gateway: {
     port: 18789,
-    bind: "tailnet",
+    bind: "loopback",
+    tailscale: {
+      mode: "serve",
+      resetOnExit: false
+    },
     auth: {
       mode: "token",
       token: "${GATEWAY_AUTH_TOKEN}",

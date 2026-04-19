@@ -15,6 +15,7 @@ GATEFORGE_VERSION="2.0.0"
 OPENCLAW_PORT=18789
 CONFIG_FILE="/opt/secrets/gateforge.env"
 OPENCLAW_CONFIG_DIR="$HOME/.openclaw"
+OPENCLAW_WORKSPACE_DIR="$HOME/.openclaw/workspace"
 
 # ---------------------------------------------------------------------------
 # Colors
@@ -208,26 +209,34 @@ load_existing_config() {
 # ---------------------------------------------------------------------------
 copy_config_files() {
   local vm_dir="$1"
+  local oc_user="${SUDO_USER:-$(whoami)}"
+  local oc_home
+  oc_home=$(eval echo "~${oc_user}")
+  local workspace="${oc_home}/.openclaw/workspace"
 
   if [[ "$DRY_RUN" == "true" ]]; then
-    print_warn "[DRY RUN] Would copy files from ${vm_dir} to ${OPENCLAW_CONFIG_DIR}"
+    print_warn "[DRY RUN] Would copy files from ${vm_dir} to ${workspace}"
     return
   fi
 
-  mkdir -p "$OPENCLAW_CONFIG_DIR"
+  # Ensure workspace directory exists with correct ownership
+  sudo -u "$oc_user" mkdir -p "$workspace"
 
+  # Copy agent identity files to workspace (where OpenClaw reads them)
   for f in SOUL.md AGENTS.md USER.md TOOLS.md; do
     if [[ -f "${vm_dir}/${f}" ]]; then
-      cp "${vm_dir}/${f}" "${OPENCLAW_CONFIG_DIR}/${f}"
-      print_success "Copied ${f}"
+      sudo cp "${vm_dir}/${f}" "${workspace}/${f}"
+      sudo chown "${oc_user}:${oc_user}" "${workspace}/${f}"
+      print_success "Copied ${f} → ${workspace}/${f}"
     fi
   done
 
-  # Copy guideline docs
+  # Copy guideline docs to workspace
   for f in BLUEPRINT-GUIDE.md RESILIENCE-SECURITY-GUIDE.md DEVELOPMENT-GUIDE.md QA-FRAMEWORK.md MONITORING-OPERATIONS-GUIDE.md; do
     if [[ -f "${vm_dir}/${f}" ]]; then
-      cp "${vm_dir}/${f}" "${OPENCLAW_CONFIG_DIR}/${f}"
-      print_success "Copied ${f}"
+      sudo cp "${vm_dir}/${f}" "${workspace}/${f}"
+      sudo chown "${oc_user}:${oc_user}" "${workspace}/${f}"
+      print_success "Copied ${f} → ${workspace}/${f}"
     fi
   done
 }
@@ -240,22 +249,50 @@ generate_agent_souls() {
   local prefix="$2"      # "dev" or "qc"
   local count="$3"
   local role_desc="$4"   # "Developer" or "QC Tester"
+  local oc_user="${SUDO_USER:-$(whoami)}"
+  local oc_home
+  oc_home=$(eval echo "~${oc_user}")
 
   if [[ "$DRY_RUN" == "true" ]]; then
-    print_warn "[DRY RUN] Would generate ${count} per-agent SOUL.md files"
+    print_warn "[DRY RUN] Would generate ${count} per-agent workspace + SOUL.md files"
     return
   fi
 
   for i in $(seq -f "%02g" 1 "$count"); do
     local agent_id="${prefix}-${i}"
-    local agent_dir="${OPENCLAW_CONFIG_DIR}/${agent_id}"
-    mkdir -p "$agent_dir"
 
-    # Copy from template if exists, otherwise generate
+    # Create per-agent workspace directory (~/.openclaw/workspace-dev-01, etc.)
+    local agent_workspace="${oc_home}/.openclaw/workspace-${agent_id}"
+    sudo -u "$oc_user" mkdir -p "$agent_workspace"
+
+    # Create per-agent agentDir (~/.openclaw/agents/dev-01/agent)
+    local agent_dir="${oc_home}/.openclaw/agents/${agent_id}/agent"
+    sudo -u "$oc_user" mkdir -p "$agent_dir"
+
+    # Copy shared config files to each agent workspace
+    for f in AGENTS.md USER.md TOOLS.md; do
+      if [[ -f "${vm_dir}/${f}" ]]; then
+        sudo cp "${vm_dir}/${f}" "${agent_workspace}/${f}"
+        sudo chown "${oc_user}:${oc_user}" "${agent_workspace}/${f}"
+      fi
+    done
+
+    # Copy guideline docs to each agent workspace
+    for f in BLUEPRINT-GUIDE.md RESILIENCE-SECURITY-GUIDE.md DEVELOPMENT-GUIDE.md QA-FRAMEWORK.md MONITORING-OPERATIONS-GUIDE.md; do
+      if [[ -f "${vm_dir}/${f}" ]]; then
+        sudo cp "${vm_dir}/${f}" "${agent_workspace}/${f}"
+        sudo chown "${oc_user}:${oc_user}" "${agent_workspace}/${f}"
+      fi
+    done
+
+    # Generate per-agent SOUL.md from template or create fresh
     if [[ -f "${vm_dir}/${prefix}-01/SOUL.md" ]]; then
-      sed "s/${prefix}-01/${agent_id}/g" "${vm_dir}/${prefix}-01/SOUL.md" > "${agent_dir}/SOUL.md"
+      sed "s/${prefix}-01/${agent_id}/g" "${vm_dir}/${prefix}-01/SOUL.md" > "${agent_workspace}/SOUL.md"
+    elif [[ -f "${vm_dir}/SOUL.md" ]]; then
+      # Use the shared SOUL.md with agent ID injected
+      sed "s/\${prefix}.*agent/${agent_id}/g" "${vm_dir}/SOUL.md" > "${agent_workspace}/SOUL.md"
     else
-      cat > "${agent_dir}/SOUL.md" << EOF
+      cat > "${agent_workspace}/SOUL.md" << EOF
 # ${role_desc} Agent — ${agent_id}
 
 > GateForge Multi-Agent SDLC Pipeline — ${agent_id} (Port ${OPENCLAW_PORT})
@@ -272,8 +309,11 @@ Follow the shared SOUL.md for this VM. This file defines your individual identit
 All guidelines, tools, and communication protocols are inherited from the parent SOUL.md.
 EOF
     fi
-    print_success "Generated ${agent_id}/SOUL.md"
+    sudo chown "${oc_user}:${oc_user}" "${agent_workspace}/SOUL.md"
+    print_success "${agent_id}: workspace + SOUL.md + agentDir created"
   done
+
+  print_success "${count} agent workspaces ready (${prefix}-01 to ${prefix}-$(printf '%02d' "$count"))"
 }
 
 # ---------------------------------------------------------------------------
@@ -299,7 +339,6 @@ enable_hooks() {
     return 1
   fi
 
-  # Use python3 if available (safe JSON manipulation), fall back to jq, then sed
   if command -v python3 &>/dev/null; then
     python3 -c "
 import json, sys
@@ -320,7 +359,6 @@ except Exception as e:
     sys.exit(1)
 " 2>/dev/null
     if [[ $? -eq 0 ]]; then
-      # Fix ownership back to the OpenClaw user
       sudo chown "${oc_user}:${oc_user}" "$oc_config" 2>/dev/null || true
       print_success "Webhooks enabled in ${oc_config}"
     else
@@ -335,36 +373,26 @@ except Exception as e:
     print_success "Webhooks enabled in ${oc_config}"
   else
     print_error "Neither python3 nor jq found — cannot update ${oc_config} automatically"
-    echo -e "  ${DIM}Manually add to ${oc_config}:${RESET}"
-    echo -e "  ${DIM}  \"hooks\": { \"enabled\": true, \"token\": \"<GATEWAY_AUTH_TOKEN>\", \"path\": \"/hooks\", \"allowRequestSessionKey\": true }${RESET}"
     return 1
-  fi
-
-  # Restart gateway to pick up new config
-  print_info "Restarting OpenClaw gateway to apply hooks config..."
-  if sudo -u "$oc_user" openclaw gateway restart &>/dev/null 2>&1; then
-    print_success "Gateway restarted"
-  elif openclaw gateway restart &>/dev/null 2>&1; then
-    print_success "Gateway restarted"
-  else
-    print_warn "Could not restart gateway automatically. Run: openclaw gateway restart"
   fi
 }
 
 # ---------------------------------------------------------------------------
-# Control UI — allow browser access from Tailscale IPs
+# Configure Gateway: bind=loopback, tailscale.mode=serve, Control UI origins
 # ---------------------------------------------------------------------------
-enable_control_ui() {
-  local self_ip="$1"    # This VM's Tailscale IP
+configure_gateway() {
+  local ts_domain="$1"   # This VM's Tailscale domain (e.g. tonic-architect.sailfish-bass.ts.net)
+  shift
+  local all_ts_domains=("$@")  # All VM Tailscale domains for allowedOrigins
   local oc_user="${SUDO_USER:-$(whoami)}"
   local oc_home
   oc_home=$(eval echo "~${oc_user}")
   local oc_config="${oc_home}/.openclaw/openclaw.json"
-
-  print_info "Configuring Control UI allowed origins..."
+  local port="${OPENCLAW_PORT:-18789}"
 
   if [[ "$DRY_RUN" == "true" ]]; then
-    print_warn "[DRY RUN] Would set controlUi.allowedOrigins for ${self_ip}"
+    print_warn "[DRY RUN] Would configure gateway: bind=loopback, tailscale.mode=serve"
+    print_warn "[DRY RUN] Would set controlUi.allowedOrigins for ${#all_ts_domains[@]} Tailscale domains"
     return
   fi
 
@@ -373,37 +401,45 @@ enable_control_ui() {
     return 1
   fi
 
-  # Build origins array: this VM's Tailscale IP + localhost
-  local port="${OPENCLAW_PORT:-18789}"
-  local origins='["http://'"${self_ip}"':"'"${port}"'","https://'"${self_ip}"':"'"${port}"'","http://localhost:"'"${port}"'","http://127.0.0.1:"'"${port}"'"]'
+  # Build origins JSON array
+  local origins_json='['
+  local first=true
+  for domain in "${all_ts_domains[@]}"; do
+    [[ "$first" == "true" ]] && first=false || origins_json+=','
+    origins_json+="\"https://${domain}:${port}\""
+  done
+  origins_json+=',"http://localhost:'"${port}"'","http://127.0.0.1:'"${port}"'"]'
 
   if command -v python3 &>/dev/null; then
     python3 -c "
-import json, sys, re
+import json, sys
 
 config_path = '${oc_config}'
 try:
     with open(config_path) as f:
-        raw = f.read()
-    # Strip comments and trailing commas for JSON parsing
-    stripped = re.sub(r'//[^\n]*', '', raw)
-    stripped = re.sub(r',\s*([}\]])', r'\1', stripped)
-    stripped = re.sub(r'(?<=[{,\n])\s*([a-zA-Z_]\w*)\s*:', r' \"\1\":', stripped)
-    cfg = json.loads(stripped)
+        cfg = json.load(f)
 except Exception as e:
     print(f'error: {e}', file=sys.stderr)
     sys.exit(1)
 
-# Merge controlUi into gateway (preserve existing settings)
+# Configure gateway
 gw = cfg.setdefault('gateway', {})
+
+# bind: loopback (Tailscale Serve handles external access)
+gw['bind'] = 'loopback'
+
+# tailscale: serve mode
+gw['tailscale'] = {
+    'mode': 'serve',
+    'resetOnExit': False
+}
+
+# controlUi: allow HTTPS from all Tailscale domains + localhost
 cui = gw.setdefault('controlUi', {})
-
-# Parse the origins we want to add
-new_origins = json.loads('${origins}')
-
-# Merge with any existing origins (no duplicates)
+cui['allowInsecureAuth'] = True
+new_origins = json.loads('${origins_json}')
 existing = cui.get('allowedOrigins', [])
-merged = list(dict.fromkeys(existing + new_origins))  # preserve order, dedupe
+merged = list(dict.fromkeys(existing + new_origins))
 cui['allowedOrigins'] = merged
 
 with open(config_path, 'w') as f:
@@ -412,21 +448,83 @@ print('ok')
 " 2>/dev/null
     if [[ $? -eq 0 ]]; then
       sudo chown "${oc_user}:${oc_user}" "$oc_config" 2>/dev/null || true
-      print_success "Control UI origins: http(s)://${self_ip}:${port}, localhost"
+      print_success "Gateway bind: loopback"
+      print_success "Tailscale mode: serve"
+      print_success "Control UI origins: ${#all_ts_domains[@]} Tailscale domains + localhost"
     else
-      print_error "Failed to update controlUi in ${oc_config}"
-      echo -e "  ${DIM}Manually run: openclaw config set gateway.controlUi.allowedOrigins '${origins}'${RESET}"
+      print_error "Failed to update gateway config in ${oc_config}"
       return 1
     fi
   else
-    # Fallback: use openclaw CLI directly
-    if sudo -u "$oc_user" openclaw config set gateway.controlUi.allowedOrigins "${origins}" 2>/dev/null; then
-      print_success "Control UI origins set via CLI"
-    else
-      print_error "Could not set controlUi.allowedOrigins"
-      echo -e "  ${DIM}Manually run: openclaw config set gateway.controlUi.allowedOrigins '${origins}'${RESET}"
-      return 1
+    print_error "python3 required for gateway configuration"
+    return 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Start Tailscale Serve (HTTPS proxy to local gateway)
+# ---------------------------------------------------------------------------
+start_tailscale_serve() {
+  local port="${OPENCLAW_PORT:-18789}"
+  local oc_user="${SUDO_USER:-$(whoami)}"
+
+  if [[ "$DRY_RUN" == "true" ]]; then
+    print_warn "[DRY RUN] Would run: sudo tailscale serve --bg --https ${port} http://127.0.0.1:${port}"
+    return
+  fi
+
+  print_info "Starting Tailscale Serve (HTTPS :${port} → http://127.0.0.1:${port})..."
+
+  if ! command -v tailscale &>/dev/null; then
+    print_error "tailscale not found — install Tailscale first"
+    return 1
+  fi
+
+  if sudo tailscale serve --bg --https "${port}" "http://127.0.0.1:${port}" 2>/dev/null; then
+    print_success "Tailscale Serve running in background"
+    # Show the Tailscale domain for reference
+    local ts_status
+    ts_status=$(tailscale status --self --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin)['Self']; print(d.get('DNSName','').rstrip('.'))" 2>/dev/null || echo "")
+    if [[ -n "$ts_status" ]]; then
+      print_success "Accessible at: https://${ts_status}:${port}"
     fi
+  else
+    print_warn "Could not start Tailscale Serve automatically"
+    echo -e "  ${DIM}Run manually: sudo tailscale serve --bg --https ${port} http://127.0.0.1:${port}${RESET}"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Device pairing (approve the latest device)
+# ---------------------------------------------------------------------------
+pair_device() {
+  local oc_user="${SUDO_USER:-$(whoami)}"
+
+  if [[ "$DRY_RUN" == "true" ]]; then
+    print_warn "[DRY RUN] Would prompt for device pairing"
+    return
+  fi
+
+  print_info "Checking for devices pending approval..."
+
+  # List devices
+  if sudo -u "$oc_user" openclaw devices list 2>/dev/null; then
+    echo ""
+    echo -en "  ${BOLD}Approve the latest device now?${RESET} [${DIM}Y/n${RESET}]: "
+    read -r answer
+    if [[ "${answer,,}" != "n" ]]; then
+      if sudo -u "$oc_user" openclaw devices approve --latest 2>/dev/null; then
+        print_success "Device approved"
+      else
+        print_warn "No pending devices or approval failed"
+        echo -e "  ${DIM}Run manually: openclaw devices list && openclaw devices approve --latest${RESET}"
+      fi
+    fi
+  else
+    print_warn "Could not list devices — gateway may not be running yet"
+    echo -e "  ${DIM}After starting the gateway, run:${RESET}"
+    echo -e "  ${DIM}  openclaw devices list${RESET}"
+    echo -e "  ${DIM}  openclaw devices approve --latest${RESET}"
   fi
 }
 
@@ -441,16 +539,13 @@ verify_openclaw() {
     print_warn "'openclaw' not found in PATH (may be installed under a different name or path — skipping check)"
   fi
 
-  # Check gateway bind is not loopback
+  # Check gateway is listening
   local bind_check
   bind_check=$(ss -tlnp 2>/dev/null | grep ":18789" | head -1 || true)
   if echo "$bind_check" | grep -q "127\.0\.0\.1"; then
-    print_error "Gateway is bound to 127.0.0.1 (loopback) — other VMs cannot reach it"
-    print_info "Fix: openclaw config set gateway.bind tailnet"
-    print_info "Then: openclaw gateway restart (as your OpenClaw user)"
-    confirm_continue "Continue anyway?"
+    print_success "Gateway listening on 127.0.0.1:18789 (loopback — Tailscale Serve provides external HTTPS access)"
   elif [[ -n "$bind_check" ]]; then
-    print_success "Gateway listening on port 18789 (not loopback)"
+    print_success "Gateway listening on port 18789"
   else
     print_warn "Port 18789 not listening — gateway may not be running"
   fi

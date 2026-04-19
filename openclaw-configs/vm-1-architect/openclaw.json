@@ -17,7 +17,7 @@
   // -------------------------------------------------------------------------
   gateway: {
     port: 18789,
-    bind: "tailnet",                     // "tailnet" = Tailscale IP only (not 0.0.0.0)
+    bind: "loopback",                     // Tailscale Serve handles external HTTPS access
     auth: {
       mode: "token",
       token: "${GATEWAY_AUTH_TOKEN}",    // From /opt/secrets/gateforge.env

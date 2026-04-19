@@ -111,30 +111,73 @@ All VMs are on the Tailscale VPN network. The US VM is also on the same Tailscal
 
 ### Required Network Configuration (All VMs)
 
-Two settings must be configured on every VM before inter-agent communication will work:
+These settings must be configured on every VM before inter-agent communication will work:
 
-#### 1. OpenClaw Gateway Bind — Set to Tailnet
+#### 1. Gateway Networking — Loopback + Tailscale Serve
 
-By default, OpenClaw binds to `127.0.0.1` (loopback), which means other VMs cannot reach the gateway. Change to `tailnet` so the gateway listens on the Tailscale interface:
+GateForge uses **loopback bind** with **Tailscale Serve** for secure HTTPS access between VMs:
+
+- The OpenClaw gateway listens on `127.0.0.1:18789` (loopback only)
+- Tailscale Serve creates an HTTPS reverse proxy from the Tailscale domain to localhost
+- All inter-VM traffic goes through Tailscale's encrypted network with auto-TLS certificates
+
+The setup scripts configure this automatically. To do it manually on each VM:
 
 ```bash
-openclaw config set gateway.bind tailnet
-```
-
-Then restart the gateway (run as your OpenClaw user, not root):
-
-```bash
+# a) Set gateway to loopback bind with Tailscale Serve mode
+openclaw config set gateway.bind loopback
+openclaw config set gateway.tailscale.mode serve
+openclaw config set gateway.tailscale.resetOnExit false
 openclaw gateway restart
+
+# b) Start Tailscale Serve (HTTPS proxy to local gateway)
+sudo tailscale serve --bg --https 18789 http://127.0.0.1:18789
+
+# c) Pair your browser/device for Control UI access
+openclaw devices list
+openclaw devices approve --latest
 ```
 
-Verify it's listening on the Tailscale IP (not 127.0.0.1):
+Verify:
 
 ```bash
+# Gateway on loopback
 ss -tlnp | grep 18789
-# Should show 0.0.0.0:18789 or the Tailscale IP, NOT 127.0.0.1
+# Should show 127.0.0.1:18789
+
+# Tailscale Serve active
+tailscale serve status
+
+# Access Control UI via:
+# https://<hostname>.your-tailnet.ts.net:18789
 ```
 
-#### 2. Firewall (UFW) — Allow Only GateForge VM IPs
+#### 2. Control UI Allowed Origins
+
+The setup scripts add all 5 VM Tailscale domains to `gateway.controlUi.allowedOrigins`. This allows you to open the Control UI from any VM's browser. Example `openclaw.json` gateway section:
+
+```json5
+{
+  "gateway": {
+    "bind": "loopback",
+    "tailscale": { "mode": "serve", "resetOnExit": false },
+    "controlUi": {
+      "allowInsecureAuth": true,
+      "allowedOrigins": [
+        "https://tonic-architect.sailfish-bass.ts.net:18789",
+        "https://tonic-designer.sailfish-bass.ts.net:18789",
+        "https://tonic-developer.sailfish-bass.ts.net:18789",
+        "https://tonic-qc.sailfish-bass.ts.net:18789",
+        "https://tonic-operator.sailfish-bass.ts.net:18789",
+        "http://localhost:18789",
+        "http://127.0.0.1:18789"
+      ]
+    }
+  }
+}
+```
+
+#### 3. Firewall (UFW) — Allow Only GateForge VM IPs
 
 For secure inter-VM communication, allow only the 5 GateForge VM IPs on port 18789 — not the entire Tailscale subnet:
 

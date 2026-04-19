@@ -13,20 +13,37 @@ You need 5 Ubuntu VMs with OpenClaw already installed and working. Each VM shoul
 
 ### Required on ALL 5 VMs Before Running Setup Scripts
 
-#### Step A — Change OpenClaw gateway bind from loopback to tailnet
+#### Step A — Gateway Networking (Loopback + Tailscale Serve)
 
-By default OpenClaw only listens on localhost. Other VMs cannot reach it. Fix this on every VM:
+GateForge uses **loopback bind** with **Tailscale Serve** for secure HTTPS access between VMs. The setup scripts configure this automatically, but if you need to do it manually:
 
 ```bash
-openclaw config set gateway.bind tailnet
+# 1. Bind gateway to loopback only (Tailscale Serve handles external access)
+openclaw config set gateway.bind loopback
+openclaw config set gateway.tailscale.mode serve
+openclaw config set gateway.tailscale.resetOnExit false
 openclaw gateway restart
+
+# 2. Start Tailscale Serve (proxies HTTPS :18789 → http://127.0.0.1:18789)
+sudo tailscale serve --bg --https 18789 http://127.0.0.1:18789
+
+# 3. Pair your browser/device
+openclaw devices list
+openclaw devices approve --latest
 ```
 
 Verify:
 
 ```bash
+# Gateway should be on loopback
 ss -tlnp | grep 18789
-# Must NOT show 127.0.0.1 — should show 0.0.0.0 or the Tailscale IP
+# Should show 127.0.0.1:18789
+
+# Tailscale Serve should be running
+tailscale serve status
+
+# Access the Control UI via Tailscale domain:
+# https://<hostname>.sailfish-bass.ts.net:18789
 ```
 
 #### Step B — Configure firewall to allow only GateForge VMs
