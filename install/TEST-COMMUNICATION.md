@@ -139,7 +139,13 @@ sudo ./cleanup-test-branches.sh
 
 - Raise `WAIT_GATE_B_SECONDS` (default 90s) via env var for slow LLMs:
   `WAIT_GATE_B_SECONDS=180 sudo -E ./test-communication.sh ...`
-- Override gateway URLs per run if Tailscale IPs changed:
-  `DESIGNER_GATEWAY_URL=http://100.x.x.x:18789/hooks/agent sudo -E ./test-communication.sh --target designer`
+- Gateway URLs are built automatically from `VM{2..5}_TS_DOMAIN` and
+  `GATEFORGE_PORT` in `/opt/secrets/gateforge.env` as
+  `https://<domain>:<port>/hooks/agent`. The gateway runs HTTPS via Tailscale
+  Serve — always dial the MagicDNS name, never a raw `100.x.x.x` IP (the
+  cert only matches the domain, so IP-based requests fail with a TLS error).
+- Override gateway URLs per run if needed (useful when testing a new spoke
+  before the env file is updated):
+  `DESIGNER_GATEWAY_URL=https://tonic-designer.sailfish-bass.ts.net:18789/hooks/agent sudo -E ./test-communication.sh --target designer`
   (variables: `DESIGNER_GATEWAY_URL`, `DEV_GATEWAY_URL`, `QC_GATEWAY_URL`, `OPERATOR_GATEWAY_URL`)
 - Use `--no-cleanup` to leave branches for manual inspection after a failure.

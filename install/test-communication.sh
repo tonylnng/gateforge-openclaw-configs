@@ -25,10 +25,13 @@
 #       VM3_GATEWAY_TOKEN  VM3_AGENT_SECRET   (Developers)
 #       VM4_GATEWAY_TOKEN  VM4_AGENT_SECRET   (QC)
 #       VM5_GATEWAY_TOKEN  VM5_AGENT_SECRET   (Operator)
+#       VM2_TS_DOMAIN ... VM5_TS_DOMAIN       (Tailscale MagicDNS names)
+#       GATEFORGE_PORT                        (defaults to 18789)
 #     (GATEWAY_AUTH_TOKEN is accepted as a fallback gateway token)
 #   - /opt/gateforge/blueprint/ present and writable by sudo user
 #   - curl, jq, openssl, git installed
-#   - Tailscale interface up (spoke gateways reachable at :18789)
+#   - Tailscale interface up; spoke gateways reachable at
+#     https://<VM{2..5}_TS_DOMAIN>:${GATEFORGE_PORT}/hooks/agent
 # =============================================================================
 
 set -euo pipefail
@@ -73,16 +76,17 @@ HOOK_LOG_CANDIDATES=(
   "${HOME}/.openclaw/logs/architect.log"
 )
 
-# Spoke gateway URLs (loopback via Tailscale Serve isn't used here — we dispatch
-# directly to the spoke's Tailscale IP on its gateway port, same as the
-# Architect agent would). Values come from /opt/secrets/gateforge.env or can be
-# overridden via env vars before running.
-declare -A SPOKE_GATEWAY=(
-  [designer]="${DESIGNER_GATEWAY_URL:-http://100.95.30.11:18789/hooks/agent}"
-  [dev]="${DEV_GATEWAY_URL:-http://100.81.114.55:18789/hooks/agent}"
-  [qc]="${QC_GATEWAY_URL:-http://100.106.117.104:18789/hooks/agent}"
-  [operator]="${OPERATOR_GATEWAY_URL:-http://100.95.248.68:18789/hooks/agent}"
-)
+# Spoke gateway URLs are built from the Tailscale MagicDNS domains and the
+# gateway port that setup-vm1-architect.sh writes into /opt/secrets/gateforge.env
+# (VM{2..5}_TS_DOMAIN and GATEFORGE_PORT). Gateways run HTTPS via Tailscale
+# Serve with certs pinned to the MagicDNS name, so we MUST dial the domain,
+# not the 100.x.x.x IP, and we MUST use https://.
+#
+# The map itself is populated in load_env() after the env file is sourced,
+# so the domains/port from gateforge.env are available. For ad-hoc overrides,
+# export any of these before running:
+#   DESIGNER_GATEWAY_URL, DEV_GATEWAY_URL, QC_GATEWAY_URL, OPERATOR_GATEWAY_URL
+declare -A SPOKE_GATEWAY=()
 declare -A SPOKE_BRANCH_PREFIX=(
   [designer]="design/TASK-COMMTEST"
   [dev]="feature/TASK-COMMTEST"
@@ -143,6 +147,26 @@ load_env() {
   # default; env vars exported in the caller's shell still win over both.
   : "${BLUEPRINT_REPO:=/opt/gateforge/blueprint}"
   export BLUEPRINT_REPO
+  : "${GATEFORGE_PORT:=18789}"
+  export GATEFORGE_PORT
+
+  # Build the spoke gateway URLs from Tailscale MagicDNS names. The gateway
+  # runs HTTPS (Tailscale Serve terminates TLS with a cert valid only for the
+  # MagicDNS name), so we must dial https://<domain>, not http://<100.x.x.x>.
+  local missing_domains=()
+  for n in 2 3 4 5; do
+    local d="VM${n}_TS_DOMAIN"
+    [[ -z "${!d:-}" ]] && missing_domains+=("$d")
+  done
+  if (( ${#missing_domains[@]} > 0 )); then
+    fail "Missing Tailscale domain(s) in $CONFIG_FILE: ${missing_domains[*]}"
+    info "Rerun setup-vm1-architect.sh, or add VM{2..5}_TS_DOMAIN entries to the env file."
+    exit 1
+  fi
+  SPOKE_GATEWAY[designer]="${DESIGNER_GATEWAY_URL:-https://${VM2_TS_DOMAIN}:${GATEFORGE_PORT}/hooks/agent}"
+  SPOKE_GATEWAY[dev]="${DEV_GATEWAY_URL:-https://${VM3_TS_DOMAIN}:${GATEFORGE_PORT}/hooks/agent}"
+  SPOKE_GATEWAY[qc]="${QC_GATEWAY_URL:-https://${VM4_TS_DOMAIN}:${GATEFORGE_PORT}/hooks/agent}"
+  SPOKE_GATEWAY[operator]="${OPERATOR_GATEWAY_URL:-https://${VM5_TS_DOMAIN}:${GATEFORGE_PORT}/hooks/agent}"
 
   # On VM-1 the canonical env layout uses VM{2..5}_GATEWAY_TOKEN and
   # VM{2..5}_AGENT_SECRET (as produced by setup-vm1-architect.sh).
