@@ -71,7 +71,7 @@ eval "$(sudo cat "$CONFIG_FILE" | grep -v '^#' | grep '=')" 2>/dev/null
 result_pass "Loaded ${CONFIG_FILE}"
 
 # Validate required variables
-REQUIRED_VARS="GATEFORGE_ROLE GATEFORGE_VM_HOST GATEFORGE_PORT ARCHITECT_HOOK_TOKEN VM2_IP VM2_GATEWAY_TOKEN VM2_AGENT_SECRET VM3_IP VM3_GATEWAY_TOKEN VM3_AGENT_SECRET VM4_IP VM4_GATEWAY_TOKEN VM4_AGENT_SECRET VM5_IP VM5_GATEWAY_TOKEN VM5_AGENT_SECRET"
+REQUIRED_VARS="GATEFORGE_ROLE GATEFORGE_VM_HOST GATEFORGE_PORT ARCHITECT_HOOK_TOKEN VM1_TS_DOMAIN VM2_TS_DOMAIN VM2_GATEWAY_TOKEN VM2_AGENT_SECRET VM3_TS_DOMAIN VM3_GATEWAY_TOKEN VM3_AGENT_SECRET VM4_TS_DOMAIN VM4_GATEWAY_TOKEN VM4_AGENT_SECRET VM5_TS_DOMAIN VM5_GATEWAY_TOKEN VM5_AGENT_SECRET"
 
 for var in $REQUIRED_VARS; do
   if [[ -z "${!var:-}" ]]; then
@@ -86,11 +86,11 @@ fi
 
 result_pass "Role confirmed: Architect"
 echo ""
-echo -e "  ${DIM}Architect:  ${GATEFORGE_VM_HOST}:${GATEFORGE_PORT}${RESET}"
-echo -e "  ${DIM}VM-2:       ${VM2_IP}${RESET}"
-echo -e "  ${DIM}VM-3:       ${VM3_IP}${RESET}"
-echo -e "  ${DIM}VM-4:       ${VM4_IP}${RESET}"
-echo -e "  ${DIM}VM-5:       ${VM5_IP}${RESET}"
+echo -e "  ${DIM}Architect:  ${VM1_TS_DOMAIN}:${GATEFORGE_PORT}${RESET}"
+echo -e "  ${DIM}VM-2:       ${VM2_TS_DOMAIN}:${GATEFORGE_PORT}${RESET}"
+echo -e "  ${DIM}VM-3:       ${VM3_TS_DOMAIN}:${GATEFORGE_PORT}${RESET}"
+echo -e "  ${DIM}VM-4:       ${VM4_TS_DOMAIN}:${GATEFORGE_PORT}${RESET}"
+echo -e "  ${DIM}VM-5:       ${VM5_TS_DOMAIN}:${GATEFORGE_PORT}${RESET}"
 
 # ---------------------------------------------------------------------------
 # SSH Credentials — collect per-VM username and password
@@ -113,7 +113,7 @@ declare -A VM_SSH_USER
 declare -A VM_SSH_PASS
 
 for vm in 2 3 4 5; do
-  eval vm_ip=\$VM${vm}_IP
+  eval vm_domain=\$VM${vm}_TS_DOMAIN
   role=""
   case $vm in
     2) role="Designer" ;;
@@ -124,11 +124,11 @@ for vm in 2 3 4 5; do
 
   # Read username
   default_user="${SUDO_USER:-$(whoami)}"
-  read -rp "  VM-${vm} ${role} (${vm_ip}) — SSH user [${default_user}]: " input_user
+  read -rp "  VM-${vm} ${role} (${vm_domain}) — SSH user [${default_user}]: " input_user
   VM_SSH_USER[$vm]="${input_user:-$default_user}"
 
   # Read password (hidden input)
-  read -rsp "  VM-${vm} ${role} (${vm_ip}) — SSH password (blank=key auth): " input_pass
+  read -rsp "  VM-${vm} ${role} (${vm_domain}) — SSH password (blank=key auth): " input_pass
   echo ""  # newline after hidden input
   VM_SSH_PASS[$vm]="${input_pass}"
 
@@ -142,10 +142,10 @@ done
 echo ""
 echo -e "  ${DIM}Credentials collected:${RESET}"
 for vm in 2 3 4 5; do
-  eval vm_ip=\$VM${vm}_IP
+  eval vm_domain=\$VM${vm}_TS_DOMAIN
   auth_mode="key"
   [[ -n "${VM_SSH_PASS[$vm]}" ]] && auth_mode="password"
-  echo -e "  ${DIM}  VM-${vm} (${vm_ip}): user=${VM_SSH_USER[$vm]}, auth=${auth_mode}${RESET}"
+  echo -e "  ${DIM}  VM-${vm} (${vm_domain}): user=${VM_SSH_USER[$vm]}, auth=${auth_mode}${RESET}"
 done
 
 # ---------------------------------------------------------------------------
@@ -156,12 +156,12 @@ ssh_to_vm() {
   shift
   local user="${VM_SSH_USER[$vm_num]}"
   local pass="${VM_SSH_PASS[$vm_num]}"
-  eval local ip=\$VM${vm_num}_IP
+  eval local domain=\$VM${vm_num}_TS_DOMAIN
 
   if [[ -n "$pass" ]]; then
-    sshpass -p "$pass" ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "${user}@${ip}" "$@" 2>/dev/null
+    sshpass -p "$pass" ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "${user}@${domain}" "$@" 2>/dev/null
   else
-    ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "${user}@${ip}" "$@" 2>/dev/null
+    ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "${user}@${domain}" "$@" 2>/dev/null
   fi
 }
 
@@ -228,7 +228,7 @@ fi
 HOOKS_OK_REMOTE=true
 
 for vm in 2 3 4 5; do
-  eval ip=\$VM${vm}_IP
+  eval domain=\$VM${vm}_TS_DOMAIN
   label="VM-${vm}"
 
   REMOTE_CHECK=$(ssh_to_vm "$vm" "
@@ -246,19 +246,19 @@ for vm in 2 3 4 5; do
   " || echo "ssh_fail")
 
   if [[ "$REMOTE_CHECK" == "ssh_fail" ]]; then
-    result_warn "${label} (${ip}) — SSH failed (check user/password for ${VM_SSH_USER[$vm]}@${ip})"
+    result_warn "${label} (${domain}) — SSH failed (check user/password for ${VM_SSH_USER[$vm]}@${domain})"
   elif [[ "$REMOTE_CHECK" == "nofile" ]]; then
-    result_fail "${label} (${ip}) — openclaw.json not found"
+    result_fail "${label} (${domain}) — openclaw.json not found"
     HOOKS_OK_REMOTE=false
   elif [[ "$REMOTE_CHECK" == "True|True" ]]; then
-    result_pass "${label} (${ip}) — webhooks enabled with token"
+    result_pass "${label} (${domain}) — webhooks enabled with token"
   elif [[ "$REMOTE_CHECK" == "True|False" ]]; then
-    result_fail "${label} (${ip}) — hooks.enabled=true but hooks.token is missing"
+    result_fail "${label} (${domain}) — hooks.enabled=true but hooks.token is missing"
     HOOKS_OK_REMOTE=false
   elif [[ "$REMOTE_CHECK" == "error" ]]; then
-    result_warn "${label} (${ip}) — could not parse openclaw.json"
+    result_warn "${label} (${domain}) — could not parse openclaw.json"
   else
-    result_fail "${label} (${ip}) — webhooks NOT enabled (hooks.enabled is not true)"
+    result_fail "${label} (${domain}) — webhooks NOT enabled (hooks.enabled is not true)"
     HOOKS_OK_REMOTE=false
   fi
 done
@@ -270,35 +270,46 @@ if [[ "$HOOKS_OK_LOCAL" != "true" || "$HOOKS_OK_REMOTE" != "true" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Test 1: Network Reachability (ping via Tailscale)
+# Test 1: Network Reachability (Tailscale ping to domain)
 # ---------------------------------------------------------------------------
-print_header "Test 1: Network Reachability"
+print_header "Test 1: Network Reachability (Tailscale)"
 
-for entry in "VM-2:${VM2_IP}" "VM-3:${VM3_IP}" "VM-4:${VM4_IP}" "VM-5:${VM5_IP}"; do
+for entry in "VM-2:${VM2_TS_DOMAIN}" "VM-3:${VM3_TS_DOMAIN}" "VM-4:${VM4_TS_DOMAIN}" "VM-5:${VM5_TS_DOMAIN}"; do
   label="${entry%%:*}"
-  ip="${entry##*:}"
-  if ping -c 1 -W 2 "$ip" &>/dev/null; then
-    result_pass "${label} (${ip}) — reachable"
+  domain="${entry##*:}"
+  if tailscale ping --timeout=3s -c 1 "$domain" &>/dev/null; then
+    result_pass "${label} (${domain}) — reachable"
   else
-    result_fail "${label} (${ip}) — not reachable (check Tailscale)"
+    result_fail "${label} (${domain}) — not reachable (check Tailscale)"
   fi
 done
 
 # ---------------------------------------------------------------------------
-# Test 2: Gateway Port Open (HTTP health check)
+# Test 2: Gateway HTTPS Responding (via Tailscale Serve)
 # ---------------------------------------------------------------------------
-print_header "Test 2: Gateway Port 18789 Responding"
+print_header "Test 2: Gateway HTTPS Responding"
 
-for entry in "VM-1 (self):${GATEFORGE_VM_HOST}" "VM-2:${VM2_IP}" "VM-3:${VM3_IP}" "VM-4:${VM4_IP}" "VM-5:${VM5_IP}"; do
+# Local VM-1: check via localhost (gateway binds to loopback)
+code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 "http://127.0.0.1:${GATEFORGE_PORT}/health" 2>/dev/null || echo "000")
+if [[ "$code" == "200" ]]; then
+  result_pass "VM-1 (localhost:${GATEFORGE_PORT}) — HTTP 200"
+elif [[ "$code" == "000" ]]; then
+  result_fail "VM-1 (localhost:${GATEFORGE_PORT}) — connection refused (gateway not running?)"
+else
+  result_warn "VM-1 (localhost:${GATEFORGE_PORT}) — HTTP ${code}"
+fi
+
+# Remote VMs: check via Tailscale HTTPS domains
+for entry in "VM-2:${VM2_TS_DOMAIN}" "VM-3:${VM3_TS_DOMAIN}" "VM-4:${VM4_TS_DOMAIN}" "VM-5:${VM5_TS_DOMAIN}"; do
   label="${entry%%:*}"
-  ip="${entry##*:}"
-  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 "http://${ip}:${GATEFORGE_PORT}/health" 2>/dev/null || echo "000")
+  domain="${entry##*:}"
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "https://${domain}:${GATEFORGE_PORT}/health" 2>/dev/null || echo "000")
   if [[ "$code" == "200" ]]; then
-    result_pass "${label} (${ip}:${GATEFORGE_PORT}) — HTTP 200"
+    result_pass "${label} (${domain}:${GATEFORGE_PORT}) — HTTPS 200"
   elif [[ "$code" == "000" ]]; then
-    result_fail "${label} (${ip}:${GATEFORGE_PORT}) — connection refused or timeout"
+    result_fail "${label} (${domain}:${GATEFORGE_PORT}) — connection refused (check tailscale serve status)"
   else
-    result_warn "${label} (${ip}:${GATEFORGE_PORT}) — HTTP ${code} (gateway up but unexpected status)"
+    result_warn "${label} (${domain}:${GATEFORGE_PORT}) — HTTPS ${code}"
   fi
 done
 
@@ -308,7 +319,7 @@ done
 print_header "Test 3: Task Dispatch (Architect → Spoke)"
 
 for vm in 2 3 4 5; do
-  eval ip=\$VM${vm}_IP
+  eval domain=\$VM${vm}_TS_DOMAIN
   eval token=\$VM${vm}_GATEWAY_TOKEN
 
   role=""
@@ -320,7 +331,7 @@ for vm in 2 3 4 5; do
   esac
 
   RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 5 \
-    -X POST "http://${ip}:${GATEFORGE_PORT}/hooks/agent" \
+    -X POST "https://${domain}:${GATEFORGE_PORT}/hooks/agent" \
     -H "Authorization: Bearer ${token}" \
     -H "Content-Type: application/json" \
     -d '{"name":"agent-task","agentId":"'${role}'","message":"[TEST] GateForge connectivity test from Architect. No action required.","sessionKey":"test:connectivity:vm'${vm}'"}' 2>/dev/null || echo -e "\n000")
@@ -329,15 +340,15 @@ for vm in 2 3 4 5; do
   code=$(echo "$RESPONSE" | tail -1)
 
   if [[ "$code" == "200" || "$code" == "202" ]]; then
-    result_pass "Architect → VM-${vm} ${role} (${ip}) — HTTP ${code}"
+    result_pass "Architect → VM-${vm} ${role} (${domain}) — HTTPS ${code}"
   elif [[ "$code" == "401" ]]; then
-    result_fail "Architect → VM-${vm} ${role} (${ip}) — HTTP 401 (wrong gateway token)"
+    result_fail "Architect → VM-${vm} ${role} (${domain}) — HTTPS 401 (wrong gateway token)"
   elif [[ "$code" == "404" ]]; then
-    result_fail "Architect → VM-${vm} ${role} (${ip}) — HTTP 404 (webhooks not enabled — check hooks.enabled in ~/.openclaw/openclaw.json)"
+    result_fail "Architect → VM-${vm} ${role} (${domain}) — HTTPS 404 (webhooks not enabled)"
   elif [[ "$code" == "000" ]]; then
-    result_fail "Architect → VM-${vm} ${role} (${ip}) — connection refused"
+    result_fail "Architect → VM-${vm} ${role} (${domain}) — connection refused"
   else
-    result_warn "Architect → VM-${vm} ${role} (${ip}) — HTTP ${code}"
+    result_warn "Architect → VM-${vm} ${role} (${domain}) — HTTPS ${code}"
     if [[ -n "$BODY" ]]; then
       echo -e "  ${DIM}Response: ${BODY}${RESET}"
     fi
@@ -349,7 +360,7 @@ done
 # ---------------------------------------------------------------------------
 print_header "Test 4: HMAC Notification (Simulated Spoke → Architect)"
 
-ARCHITECT_HOOK_URL="${ARCHITECT_NOTIFY_URL:-http://${GATEFORGE_VM_HOST}:${GATEFORGE_PORT}/hooks/agent}"
+ARCHITECT_HOOK_URL="${ARCHITECT_NOTIFY_URL:-https://${VM1_TS_DOMAIN}:${GATEFORGE_PORT}/hooks/agent}"
 echo -e "  ${DIM}Target: ${ARCHITECT_HOOK_URL}${RESET}"
 
 for vm in 2 3 4 5; do
@@ -445,9 +456,9 @@ fi
 echo ""
 echo -e "  ${DIM}Troubleshooting:${RESET}"
 echo -e "  ${DIM}  Network:   tailscale ping <hostname>${RESET}"
-echo -e "  ${DIM}  Port:      ssh <vm-ip> 'ss -tlnp | grep 18789'${RESET}"
-echo -e "  ${DIM}  Logs:      ssh <vm-ip> 'journalctl -u openclaw-gateforge -n 20'${RESET}"
-echo -e "  ${DIM}  Config:    ssh <vm-ip> 'sudo cat /opt/secrets/gateforge.env'${RESET}"
+echo -e "  ${DIM}  Port:      ssh <hostname>.sailfish-bass.ts.net 'ss -tlnp | grep 18789'${RESET}"
+echo -e "  ${DIM}  Logs:      ssh <hostname>.sailfish-bass.ts.net 'journalctl -u openclaw-gateforge -n 20'${RESET}"
+echo -e "  ${DIM}  Config:    ssh <hostname>.sailfish-bass.ts.net 'sudo cat /opt/secrets/gateforge.env'${RESET}"
 echo ""
 echo -e "  ${DIM}If Tests 3-5 return HTTP 404 — webhooks are not enabled in OpenClaw.${RESET}"
 echo -e "  ${DIM}Fix: On EACH VM, ensure ~/.openclaw/openclaw.json contains:${RESET}"
