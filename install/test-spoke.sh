@@ -50,7 +50,7 @@ result_pass "Loaded ${CONFIG_FILE}"
 
 ROLE="${GATEFORGE_ROLE:-unknown}"
 PORT="${GATEFORGE_PORT:-18789}"
-ARCHITECT_DOMAIN="${VM1_TS_DOMAIN:-}"
+ARCHITECT_DOMAIN="${ARCHITECT_TS_DOMAIN:-}"
 HOOK_TOKEN="${ARCHITECT_HOOK_TOKEN:-}"
 NOTIFY_URL="${ARCHITECT_NOTIFY_URL:-}"
 SECRET="${AGENT_SECRET:-}"
@@ -164,7 +164,7 @@ if [[ -n "$ARCHITECT_DOMAIN" ]]; then
     result_fail "Architect (${ARCHITECT_DOMAIN}) — not reachable (check tailscale status)"
   fi
 else
-  result_fail "VM1_TS_DOMAIN not set — cannot test Architect reachability"
+  result_fail "ARCHITECT_TS_DOMAIN not set — cannot test Architect reachability"
 fi
 
 # ---------------------------------------------------------------------------
@@ -182,7 +182,7 @@ if [[ -n "$ARCHITECT_DOMAIN" ]]; then
     result_warn "Architect gateway (${ARCHITECT_DOMAIN}:${PORT}) — HTTPS ${code}"
   fi
 else
-  result_fail "VM1_TS_DOMAIN not set — cannot test Architect gateway"
+  result_fail "ARCHITECT_TS_DOMAIN not set — cannot test Architect gateway"
 fi
 
 # ---------------------------------------------------------------------------
