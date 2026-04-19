@@ -18,9 +18,14 @@
 #   sudo ./test-communication.sh --target all --dev-count 2 --qc-count 2
 #   sudo ./test-communication.sh --target all --dev-count 2 --qc-count 2 --no-cleanup
 #
-# Requirements on VM-1:
-#   - /opt/secrets/gateforge.env populated (GATEWAY_AUTH_TOKEN for every spoke,
-#       ARCHITECT_HOOK_TOKEN, per-spoke VM{2..5}_AGENT_SECRET, per-spoke _GATEWAY_TOKEN)
+# Requirements on VM-1 (written by setup-vm1-architect.sh):
+#   - /opt/secrets/gateforge.env containing:
+#       ARCHITECT_HOOK_TOKEN
+#       VM2_GATEWAY_TOKEN  VM2_AGENT_SECRET   (Designer)
+#       VM3_GATEWAY_TOKEN  VM3_AGENT_SECRET   (Developers)
+#       VM4_GATEWAY_TOKEN  VM4_AGENT_SECRET   (QC)
+#       VM5_GATEWAY_TOKEN  VM5_AGENT_SECRET   (Operator)
+#     (GATEWAY_AUTH_TOKEN is accepted as a fallback gateway token)
 #   - /opt/gateforge/blueprint/ present and writable by sudo user
 #   - curl, jq, openssl, git installed
 #   - Tailscale interface up (spoke gateways reachable at :18789)
@@ -129,17 +134,25 @@ load_env() {
   set +a
   pass "Sourced $CONFIG_FILE"
 
+  # On VM-1 the canonical env layout uses VM{2..5}_GATEWAY_TOKEN and
+  # VM{2..5}_AGENT_SECRET (as produced by setup-vm1-architect.sh).
+  # GATEWAY_AUTH_TOKEN is accepted as a fallback for older installs.
   local missing=()
   [[ -z "${ARCHITECT_HOOK_TOKEN:-}" ]] && missing+=("ARCHITECT_HOOK_TOKEN")
-  for s in DESIGNER DEV QC OPERATOR; do
-    local tok="${s}_GATEWAY_TOKEN"; local sec="${s}_AGENT_SECRET"
-    # Allow either explicit DESIGNER_GATEWAY_TOKEN or a fallback GATEWAY_AUTH_TOKEN
+  for n in 2 3 4 5; do
+    local tok="VM${n}_GATEWAY_TOKEN"; local sec="VM${n}_AGENT_SECRET"
     [[ -z "${!tok:-}" && -z "${GATEWAY_AUTH_TOKEN:-}" ]] && missing+=("$tok")
     [[ -z "${!sec:-}" ]] && missing+=("$sec")
   done
   if (( ${#missing[@]} > 0 )); then
     fail "Missing env vars: ${missing[*]}"
     info "Edit $CONFIG_FILE and rerun, or export them for this shell."
+    info "Expected layout (from setup-vm1-architect.sh):"
+    info "  ARCHITECT_HOOK_TOKEN=..."
+    info "  VM2_GATEWAY_TOKEN=...   VM2_AGENT_SECRET=..."
+    info "  VM3_GATEWAY_TOKEN=...   VM3_AGENT_SECRET=..."
+    info "  VM4_GATEWAY_TOKEN=...   VM4_AGENT_SECRET=..."
+    info "  VM5_GATEWAY_TOKEN=...   VM5_AGENT_SECRET=..."
     exit 1
   fi
   pass "All required tokens present"
@@ -218,16 +231,17 @@ dispatch_task() {
   local dir="${SPOKE_DIR[$agent_family]}"
   local url="${SPOKE_GATEWAY[$agent_family]}"
 
-  # Select gateway token: prefer per-spoke, fall back to GATEWAY_AUTH_TOKEN
+  # Select gateway token using VM{N}_GATEWAY_TOKEN (VM-1 canonical layout).
+  # Falls back to GATEWAY_AUTH_TOKEN for older installs.
   local tok_var
   case "$agent_family" in
-    designer) tok_var="DESIGNER_GATEWAY_TOKEN" ;;
-    dev)      tok_var="DEV_GATEWAY_TOKEN" ;;
-    qc)       tok_var="QC_GATEWAY_TOKEN" ;;
-    operator) tok_var="OPERATOR_GATEWAY_TOKEN" ;;
+    designer) tok_var="VM2_GATEWAY_TOKEN" ;;
+    dev)      tok_var="VM3_GATEWAY_TOKEN" ;;
+    qc)       tok_var="VM4_GATEWAY_TOKEN" ;;
+    operator) tok_var="VM5_GATEWAY_TOKEN" ;;
   esac
   local tok="${!tok_var:-${GATEWAY_AUTH_TOKEN:-}}"
-  [[ -n "$tok" ]] || { fail "No gateway token for $agent_family"; return 1; }
+  [[ -n "$tok" ]] || { fail "No gateway token for $agent_family ($tok_var)"; return 1; }
 
   local payload; payload=$(jq -cn \
     --arg agentId "$agent_key" \

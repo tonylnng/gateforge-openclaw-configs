@@ -46,9 +46,17 @@ sudo ./test-communication.sh --target all --dev-count 2 --qc-count 2 --no-cleanu
 
 ## Requirements on VM-1
 
-- `/opt/secrets/gateforge.env` with: `ARCHITECT_HOOK_TOKEN`, plus either per-spoke
-  `<ROLE>_GATEWAY_TOKEN` or a shared `GATEWAY_AUTH_TOKEN`, plus per-spoke
-  `VM{2..5}_AGENT_SECRET` (used only if you enable the HMAC probe extension).
+`/opt/secrets/gateforge.env` (written by `setup-vm1-architect.sh`) must contain:
+
+```
+ARCHITECT_HOOK_TOKEN=...
+VM2_GATEWAY_TOKEN=...    VM2_AGENT_SECRET=...
+VM3_GATEWAY_TOKEN=...    VM3_AGENT_SECRET=...
+VM4_GATEWAY_TOKEN=...    VM4_AGENT_SECRET=...
+VM5_GATEWAY_TOKEN=...    VM5_AGENT_SECRET=...
+```
+
+`GATEWAY_AUTH_TOKEN` is accepted as a fallback gateway token for older installs.
 - `/opt/gateforge/blueprint/` cloned and writable by the invoking user.
 - Tailscale interface up (spoke gateways reachable on port `18789`).
 - `curl`, `jq`, `openssl`, `git` installed.
@@ -98,7 +106,7 @@ sudo ./cleanup-test-branches.sh
 
 | Symptom | Likely cause |
 |---|---|
-| Gate A fails with HTTP 401 | Per-spoke gateway token wrong in `/opt/secrets/gateforge.env` |
+| Gate A fails with HTTP 401 | `VM{N}_GATEWAY_TOKEN` doesn't match what the spoke's gateway expects |
 | Gate A fails with HTTP 000 | Spoke VM unreachable on Tailscale, or gateway not running |
 | Gate B passes but Gate D fails | Agent committed locally but `git push` failed (check spoke's git creds) |
 | Gate C always warns "skipped" | No readable Architect hook log; run `journalctl -u openclaw-architect -n 100` manually to check |
@@ -111,4 +119,5 @@ sudo ./cleanup-test-branches.sh
   `WAIT_GATE_B_SECONDS=180 sudo -E ./test-communication.sh ...`
 - Override gateway URLs per run if Tailscale IPs changed:
   `DESIGNER_GATEWAY_URL=http://100.x.x.x:18789/hooks/agent sudo -E ./test-communication.sh --target designer`
+  (variables: `DESIGNER_GATEWAY_URL`, `DEV_GATEWAY_URL`, `QC_GATEWAY_URL`, `OPERATOR_GATEWAY_URL`)
 - Use `--no-cleanup` to leave branches for manual inspection after a failure.
