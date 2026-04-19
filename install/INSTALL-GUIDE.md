@@ -405,6 +405,158 @@ All tests should show green `PASS`. Common issues:
 
 ---
 
+## GitHub Token Storage — Systemd Environment Override
+
+After all 5 VMs have been set up and connectivity tests pass, configure GitHub tokens so the OpenClaw gateway process can access repositories at runtime.
+
+**Method:** Systemd drop-in override file — tokens are loaded by systemd at process start, stored outside the workspace with `600` permissions.
+
+> **Prerequisites:** OpenClaw gateway running as a systemd user service (`openclaw-gateway.service`), GitHub Fine-Grained PATs already generated per the [GitHub Token Configuration](../README.md#github-token-configuration) section in the README.
+
+### Token Plan
+
+| Variable | Purpose | Scope | Repos |
+|----------|---------|-------|-------|
+| `GITHUB_TOKEN_READONLY` | Read-only access (Token A) | `contents:read` | All GateForge repos |
+| `GITHUB_TOKEN_RW` | Read/write for Blueprint or Code (Token B/C/D) | `contents:write` | VM-specific target repo only |
+
+- **All VMs** need `GITHUB_TOKEN_READONLY` (Token A)
+- **VM-1** also needs `GITHUB_TOKEN_RW` for the project Blueprint repo (Token B)
+- **VM-3** also needs `GITHUB_TOKEN_RW` for the project code repo (Token C)
+- **VM-5** also needs `GITHUB_TOKEN_RW` for the project code repo (Token D)
+- **VM-2 and VM-4** only need `GITHUB_TOKEN_READONLY`
+
+### Step 1: Create the override directory
+
+Run this as the OpenClaw user (not root):
+
+```bash
+mkdir -p ~/.config/systemd/user/openclaw-gateway.service.d
+```
+
+### Step 2: Create the secrets file
+
+**For VM-1 (Architect), VM-3 (Developers), VM-5 (Operator)** — two tokens:
+
+```bash
+cat > ~/.config/systemd/user/openclaw-gateway.service.d/secrets.conf << 'EOF'
+[Service]
+Environment=GITHUB_TOKEN_READONLY=<paste-token-a-here>
+Environment=GITHUB_TOKEN_RW=<paste-token-b-here>
+EOF
+```
+
+**For VM-2 (Designer), VM-4 (QC Agents)** — read-only token only:
+
+```bash
+cat > ~/.config/systemd/user/openclaw-gateway.service.d/secrets.conf << 'EOF'
+[Service]
+Environment=GITHUB_TOKEN_READONLY=<paste-token-a-here>
+EOF
+```
+
+Replace `<paste-token-a-here>` and `<paste-token-b-here>` with actual token values.
+
+### Step 3: Lock down permissions
+
+```bash
+chmod 600 ~/.config/systemd/user/openclaw-gateway.service.d/secrets.conf
+```
+
+### Step 4: Reload systemd and restart gateway
+
+```bash
+systemctl --user daemon-reload
+systemctl --user restart openclaw-gateway.service
+```
+
+### Step 5: Verify
+
+**5a. Gateway is running:**
+
+```bash
+openclaw gateway status
+# Expected: Runtime: running
+```
+
+**5b. Environment variables are set:**
+
+```bash
+systemctl --user show openclaw-gateway.service | grep -c GITHUB_TOKEN
+# Expected: 2 (VM-1/3/5) or 1 (VM-2/4)
+```
+
+**5c. Read-only token works:**
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" \
+  -H "Authorization: token $GITHUB_TOKEN_READONLY" \
+  https://api.github.com/repos/tonylnng/gateforge-openclaw-configs
+# Expected: 200
+```
+
+**5d. Read/write token works (VM-1, VM-3, VM-5 only):**
+
+```bash
+# Just verify auth — no writes
+curl -s -o /dev/null -w "%{http_code}" \
+  -H "Authorization: token $GITHUB_TOKEN_RW" \
+  https://api.github.com/repos/tonylnng/<project>-blueprint
+# Expected: 200
+```
+
+**5e. Telegram channel still works:**
+
+Send a message to the Telegram bot and confirm it responds.
+
+### Step 6: Configure git credential helper (recommended)
+
+So `git clone`/`pull`/`push` uses the token natively without it appearing in command args:
+
+```bash
+# Default: read-only access for all repos (all VMs)
+git config --global credential.https://github.com.helper \
+  '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN_READONLY"; }; f'
+```
+
+For repos that need write access (VM-1, VM-3, VM-5), override per-repo:
+
+```bash
+cd /path/to/<project>-blueprint   # or <project>-code
+git config credential.https://github.com.helper \
+  '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN_RW"; }; f'
+```
+
+### Security Notes
+
+| Rule | Detail |
+|------|--------|
+| Never commit `secrets.conf` to git | It contains raw tokens |
+| Never put tokens in `openclaw.json`, `USER.md`, `TOOLS.md`, or any workspace file | The agent can read workspace files — tokens would be exposed |
+| Rotate every 90 days | Set expiry in GitHub when generating the PAT |
+| Use fine-grained PATs with minimum scope | See the README for exact permissions per token type |
+| Agent CAN read env vars at runtime | This is by design — it needs them for git/API access |
+| This protects against accidental file exposure | Not against the agent process itself |
+
+### Rollback
+
+To remove tokens from a VM:
+
+```bash
+rm ~/.config/systemd/user/openclaw-gateway.service.d/secrets.conf
+systemctl --user daemon-reload
+systemctl --user restart openclaw-gateway.service
+```
+
+### File Locations
+
+| File | Purpose |
+|------|---------|
+| `~/.config/systemd/user/openclaw-gateway.service` | Main service file (do not edit) |
+| `~/.config/systemd/user/openclaw-gateway.service.d/secrets.conf` | Token override (this setup) |
+
+---
+
 ## Quick Reference — Common Commands
 
 | What | Command |
