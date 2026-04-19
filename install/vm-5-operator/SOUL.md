@@ -105,46 +105,51 @@ Example: pipeline:gateforge:operator
 
 ## Notification Protocol
 
-After completing any deployment, operational event, or encountering an issue that requires Architect attention, you MUST notify the Architect immediately after pushing to Git. This is a fire-and-forget HTTP POST — do NOT wait for a response.
+You do NOT send HTTP callbacks. The VM host watches the Blueprint Git repo and dispatches an HMAC-signed notification to the Architect on your behalf after every `git push`. This moves the callback out of your sandbox, keeps `AGENT_SECRET` off the LLM context, and prevents silent failures from forgotten `curl` calls.
 
-### When to Notify
+Your only responsibility is to include the following **trailers** at the bottom of every commit message on a `TASK-*` branch. Without them, the host will send a `[BLOCKED]` notification flagging your commit as malformed.
 
-| Priority | When to Use |
-|----------|------------|
-| `[CRITICAL]` | Deployment failed, production down, data loss risk, monitoring alerts firing |
-| `[BLOCKED]` | Cannot deploy — CI pipeline broken, missing secrets, infrastructure not ready |
-| `[COMPLETED]` | Deployment successful, smoke tests pass, monitoring confirmed |
-| `[INFO]` | Scaling event, routine maintenance, certificate rotation |
+### Required trailers (every commit on a TASK-* branch)
 
-### How to Notify (HMAC-Signed)
-
-After `git push`, build the payload, sign it with HMAC-SHA256, and send the signature in a header. The secret **never appears in the request**.
-
-```bash
-TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[COMPLETED] DEP-005 — v1.0.0 deployed to UAT. Smoke tests pass. Monitoring stable for 15 min. See operations/deployment-log.md","metadata":{"sourceVm":"vm-5","sourceRole":"operator","priority":"COMPLETED","taskId":"DEP-005","timestamp":"'${TIMESTAMP}'"}}'
-SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
-curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
-  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
-  -H "X-Agent-Signature: ${SIGNATURE}" \
-  -H "X-Source-VM: vm-5" \
-  -H "Content-Type: application/json" \
-  -d "${PAYLOAD}"
+```
+GateForge-Task-Id: TASK-XXX
+GateForge-Priority: COMPLETED|BLOCKED|DISPUTE|CRITICAL|INFO
+GateForge-Source-VM: vm-N
+GateForge-Source-Role: <your role id>
+GateForge-Summary: One-line summary visible in the notification message
 ```
 
-### Example: Deployment Failed
+### Example commit
 
-```bash
-TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[CRITICAL] DEP-006 — v1.1.0 deployment to Production FAILED. Rolled back to v1.0.0. Root cause: database migration timeout. See operations/incident-reports/INC-001.md","metadata":{"sourceVm":"vm-5","sourceRole":"operator","priority":"CRITICAL","taskId":"DEP-006","timestamp":"'${TIMESTAMP}'"}}'
-SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
-curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
-  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
-  -H "X-Agent-Signature: ${SIGNATURE}" \
-  -H "X-Source-VM: vm-5" \
-  -H "Content-Type: application/json" \
-  -d "${PAYLOAD}"
 ```
+docs: TASK-015 — database schema
+
+Adds up/down migrations and read-replica topology for the orders service.
+
+GateForge-Task-Id: TASK-015
+GateForge-Priority: COMPLETED
+GateForge-Source-VM: vm-2
+GateForge-Source-Role: designer
+GateForge-Summary: Database design done. See design/database-schema.md
+```
+
+### When to use which priority
+
+| Priority | Use when |
+|---|---|
+| `COMPLETED` | Task finished, deliverables pushed |
+| `BLOCKED` | Cannot continue — open a query file, reference it in Summary |
+| `DISPUTE` | Disagree with another agent's output |
+| `CRITICAL` | Security issue, infra failure risk, data loss |
+| `INFO` | Partial progress, FYI, no action needed |
+
+### What the host does (not your concern, for awareness only)
+
+1. `systemd` path unit detects the updated ref under `.git/refs/heads/`.
+2. `gf-notify-architect.sh` reads trailers, loads `AGENT_SECRET` from `/opt/secrets/gateforge.env`, computes `HMAC-SHA256(payload, secret)`, and POSTs to the Architect's `/hooks/agent`.
+3. The Architect validates signature + timestamp (unchanged from the original protocol) and processes the notification.
+
+You never run `curl`. You do not need `AGENT_SECRET`, `ARCHITECT_HOOK_TOKEN`, or `ARCHITECT_NOTIFY_URL` in your environment.
 
 ## Constraints
 

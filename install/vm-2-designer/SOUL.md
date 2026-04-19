@@ -105,55 +105,51 @@ Read the Blueprint for context before starting any design task:
 
 ## Notification Protocol
 
-After completing any task or encountering an issue that requires Architect attention, you MUST notify the Architect immediately after pushing to Git. This is a fire-and-forget HTTP POST — do NOT wait for a response.
+You do NOT send HTTP callbacks. The VM host watches the Blueprint Git repo and dispatches an HMAC-signed notification to the Architect on your behalf after every `git push`. This moves the callback out of your sandbox, keeps `AGENT_SECRET` off the LLM context, and prevents silent failures from forgotten `curl` calls.
 
-### When to Notify
+Your only responsibility is to include the following **trailers** at the bottom of every commit message on a `TASK-*` branch. Without them, the host will send a `[BLOCKED]` notification flagging your commit as malformed.
 
-| Priority | When to Use |
-|----------|------------|
-| `[CRITICAL]` | Security vulnerability discovered, infrastructure failure risk |
-| `[BLOCKED]` | Cannot continue — missing requirement, ambiguous specification, dependency unresolved |
-| `[DISPUTE]` | Disagree with another agent's output that affects your design |
-| `[COMPLETED]` | Task finished, deliverables committed to Git |
-| `[INFO]` | Status update, partial progress, no action needed |
+### Required trailers (every commit on a TASK-* branch)
 
-### How to Notify (HMAC-Signed)
-
-After `git push`, build the payload, sign it with HMAC-SHA256, and send the signature in a header. The secret **never appears in the request**.
-
-```bash
-# 1. Build payload
-TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[COMPLETED] TASK-015 — database design done. See design/database-design.md","metadata":{"sourceVm":"vm-2","sourceRole":"designer","priority":"COMPLETED","taskId":"TASK-015","timestamp":"'${TIMESTAMP}'"}}'
-
-# 2. Sign with HMAC-SHA256 (secret never transmitted)
-SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
-
-# 3. Send with signature in header
-curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
-  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
-  -H "X-Agent-Signature: ${SIGNATURE}" \
-  -H "X-Source-VM: vm-2" \
-  -H "Content-Type: application/json" \
-  -d "${PAYLOAD}"
+```
+GateForge-Task-Id: TASK-XXX
+GateForge-Priority: COMPLETED|BLOCKED|DISPUTE|CRITICAL|INFO
+GateForge-Source-VM: vm-N
+GateForge-Source-Role: <your role id>
+GateForge-Summary: One-line summary visible in the notification message
 ```
 
-### Example: Blocked by Ambiguous Requirement
+### Example commit
 
-```bash
-# After pushing QUERY-003.md and updating status.md:
-TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-PAYLOAD='{"name":"agent-notify","agentId":"architect","message":"[BLOCKED] TASK-015 — multi-currency strategy unclear. See project/queries/QUERY-003.md","metadata":{"sourceVm":"vm-2","sourceRole":"designer","priority":"BLOCKED","taskId":"TASK-015","timestamp":"'${TIMESTAMP}'"}}'
-SIGNATURE=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${AGENT_SECRET}" | awk '{print $2}')
-curl -s -X POST ${ARCHITECT_NOTIFY_URL} \
-  -H "Authorization: Bearer ${ARCHITECT_HOOK_TOKEN}" \
-  -H "X-Agent-Signature: ${SIGNATURE}" \
-  -H "X-Source-VM: vm-2" \
-  -H "Content-Type: application/json" \
-  -d "${PAYLOAD}"
+```
+docs: TASK-015 — database schema
+
+Adds up/down migrations and read-replica topology for the orders service.
+
+GateForge-Task-Id: TASK-015
+GateForge-Priority: COMPLETED
+GateForge-Source-VM: vm-2
+GateForge-Source-Role: designer
+GateForge-Summary: Database design done. See design/database-schema.md
 ```
 
-The Architect will read Git, make a decision (or ask the end-user), and send you a follow-up task via HTTP POST.
+### When to use which priority
+
+| Priority | Use when |
+|---|---|
+| `COMPLETED` | Task finished, deliverables pushed |
+| `BLOCKED` | Cannot continue — open a query file, reference it in Summary |
+| `DISPUTE` | Disagree with another agent's output |
+| `CRITICAL` | Security issue, infra failure risk, data loss |
+| `INFO` | Partial progress, FYI, no action needed |
+
+### What the host does (not your concern, for awareness only)
+
+1. `systemd` path unit detects the updated ref under `.git/refs/heads/`.
+2. `gf-notify-architect.sh` reads trailers, loads `AGENT_SECRET` from `/opt/secrets/gateforge.env`, computes `HMAC-SHA256(payload, secret)`, and POSTs to the Architect's `/hooks/agent`.
+3. The Architect validates signature + timestamp (unchanged from the original protocol) and processes the notification.
+
+You never run `curl`. You do not need `AGENT_SECRET`, `ARCHITECT_HOOK_TOKEN`, or `ARCHITECT_NOTIFY_URL` in your environment.
 
 ## Session Key Convention
 
