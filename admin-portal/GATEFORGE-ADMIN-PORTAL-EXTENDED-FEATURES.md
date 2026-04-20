@@ -1,12 +1,12 @@
 # GateForge Admin Portal — Extended Feature Set
 
-> This document proposes a comprehensive set of functions for the GateForge Admin Portal, going beyond the original 8 features to cover the full lifecycle of multi-agent SDLC observability: project management, pipeline analysis, troubleshooting, cost governance, audit, risk, and intelligence.
+> This document proposes a comprehensive set of functions for the GateForge Admin Portal, going beyond the original 8 features to cover the full lifecycle of multi-agent SDLC observability: project management, pipeline analysis, troubleshooting, cost governance, audit, risk, intelligence, and infrastructure connectivity.
 
 ---
 
 ## Feature Map Overview
 
-The features are organised into 6 categories. Original features (v1.0) are marked ●. New proposed features are marked ◆.
+The features are organised into 7 categories. Original features (v1.0) are marked ●. New proposed features are marked ◆.
 
 | Category | Feature | Tag |
 |----------|---------|-----|
@@ -42,8 +42,14 @@ The features are organised into 6 categories. Original features (v1.0) are marke
 | | Activity Feed & Audit Log | ◆ New |
 | | Project Health Score | ◆ New |
 | | Webhook & External Alerts | ◆ New |
+| **G. Infrastructure & Connectivity** | Network Topology & Health Monitor | ◆ New |
+| | Notification Delivery Tracker | ◆ New |
+| | Installation & Setup Dashboard | ◆ New |
+| | Communication Test Results Viewer | ◆ New |
+| | Secrets & Token Inventory | ◆ New |
+| | OpenClaw Configuration Viewer | ◆ New |
 
-**Total: 8 original + 22 new = 30 features**
+**Total: 8 original + 28 new = 36 features**
 
 ---
 
@@ -397,7 +403,7 @@ Health cards, task table, backlog, burndown. No changes needed.
 
 ### ◆ E1. Troubleshooting Console
 
-**What it does:** A centralised troubleshooting workspace where The end-user can investigate issues across agents, tasks, and pipeline phases.
+**What it does:** A centralised troubleshooting workspace where the end-user can investigate issues across agents, tasks, and pipeline phases.
 
 **Why it matters:** When something goes wrong, information is scattered across agent logs, notifications, task status, and pipeline state. The console aggregates everything related to a specific issue in one place.
 
@@ -563,6 +569,203 @@ Health cards, task table, backlog, burndown. No changes needed.
 
 ---
 
+## Category G: Infrastructure & Connectivity
+
+> All features in this category are read-only. The portal observes and reports on the GateForge infrastructure; it never controls or reconfigures it.
+
+---
+
+### ◆ G1. Network Topology & Health Monitor
+
+**What it does:** Provides a real-time view of all 5 VM connections over the Tailscale VPN, showing the live connectivity status of every node in the GateForge hub-and-spoke network.
+
+**Why it matters:** GateForge's inter-VM communication now runs over Tailscale VPN with MagicDNS hostnames and loopback-bound gateways exposed via Tailscale Serve. If any VM becomes unreachable — due to a Tailscale key expiry, a failed Serve process, or a UFW misconfiguration — agent dispatches and notifications will silently fail. A dedicated topology monitor surfaces these failures immediately so the end-user can act before the pipeline stalls.
+
+**What it shows:**
+- **Network Topology Diagram:** Hub-and-spoke layout rendered as an interactive graph
+  - Hub: `tonic-architect` (VM-1, 100.73.38.28)
+  - Spokes: `tonic-designer` (VM-2, 100.95.30.11), `tonic-developer` (VM-3, 100.81.114.55), `tonic-qc` (VM-4, 100.106.117.104), `tonic-operator` (VM-5, 100.95.248.68)
+  - Each node shows: MagicDNS hostname, Tailscale IP, role label
+  - Each edge shows: latency (ms), last successful heartbeat timestamp
+- **Per-VM Status Cards:**
+  - Tailscale connection status (connected / disconnected / key expired)
+  - Tailscale Serve status (active / inactive)
+  - OpenClaw gateway reachability (probed at `https://<hostname>.sailfish-bass.ts.net:18789/health`)
+  - UFW firewall status (enabled / disabled / misconfigured)
+  - Last heartbeat timestamp and round-trip latency
+- **Live Status Indicators:** Green (all healthy) / Amber (degraded — high latency or partial failure) / Red (unreachable)
+- **Alerts:**
+  - VM unreachable for > 60 seconds
+  - Gateway health probe returning non-200
+  - Latency spike above configurable threshold (default: 200 ms)
+  - Tailscale Serve inactive on any spoke
+
+**Example use case:** The end-user notices BLOCKED notifications have stopped arriving from tonic-developer. The Network Topology Monitor shows tonic-developer's gateway health probe has been failing for 3 minutes — Tailscale Serve has stopped. The end-user can immediately identify which VM needs attention without manually SSH-ing into each machine.
+
+**Data source:** Periodic health probes to `https://<hostname>.sailfish-bass.ts.net:18789/health` on each VM; Tailscale status API (read-only)
+
+---
+
+### ◆ G2. Notification Delivery Tracker
+
+**What it does:** Monitors the host-side `gf-notify-architect` notification relay system, providing full visibility into every HMAC-signed notification sent from spoke VMs to the Architect, including delivery status and dead-letter queue contents.
+
+**Why it matters:** GateForge's host-side notification relay (`gf-notify-architect.sh`) keeps the `AGENT_SECRET` off the LLM context entirely — but this means notification delivery is now a separate process from the agent itself. If a notification fails to reach the Architect's `/hooks/agent` endpoint, the pipeline loses the signal that a task completed or was blocked. The end-user needs a real-time view of delivery health, with visibility into dead-lettered notifications that require replay.
+
+**What it shows:**
+- **Notification Feed:** Chronological timeline of all notifications sent via the relay, with:
+  - Timestamp (commit time → notification sent → delivery acknowledged)
+  - Source VM and role (e.g., `tonic-developer` / developer)
+  - Task ID (`GateForge-Task-Id` commit trailer)
+  - Priority level (COMPLETED / BLOCKED / DISPUTE / CRITICAL / INFO)
+  - HMAC-SHA256 signature status (valid / invalid / missing)
+  - Delivery status badge: Delivered (green) / Failed (red) / Dead-Lettered (amber) / Pending Replay (blue)
+- **Commit Trailer Compliance:**
+  - Required trailers: `GateForge-Task-Id`, `GateForge-Priority`, `GateForge-Source-VM`, `GateForge-Source-Role`, `GateForge-Summary`
+  - Commits with missing or malformed trailers are flagged — these auto-trigger a BLOCKED notification
+  - Trailer compliance rate per VM (% of commits with all 5 trailers present)
+- **Dead Letter Queue Viewer:**
+  - List of all failed notifications awaiting replay via `gf-replay-deadletter.sh`
+  - Per-entry: failure reason, retry count, original payload summary, time since failure
+  - Replay history: when replays were attempted and whether they succeeded
+- **Delivery Metrics:**
+  - Notifications sent / delivered / failed (last 24h, 7d, 30d)
+  - Average delivery latency (commit push → Architect acknowledgement)
+  - Failed delivery rate trend
+
+**Example use case:** The end-user sees that tonic-qc sent a COMPLETED notification 8 minutes ago but no task was updated in the pipeline view. The Notification Delivery Tracker shows the notification is dead-lettered — the Architect's hook endpoint returned a 503. The end-user can see the replay has been scheduled and monitor when it succeeds.
+
+**Data source:** `gf-notify-architect` relay logs; `.git/refs` watch events; Architect `/hooks/agent` delivery receipts
+
+---
+
+### ◆ G3. Installation & Setup Dashboard
+
+**What it does:** Shows the setup and configuration status of all 5 VMs, surfacing whether the automated install scripts have been run, whether their outputs are still valid, and whether any configuration drift has occurred since initial setup.
+
+**Why it matters:** GateForge's install pipeline consists of `install-common.sh` plus per-VM setup scripts (`setup-vm1-architect.sh` through `setup-vm5-operator.sh`) — approximately 1,400 lines of bash automation. Each script is idempotent, but the end-user needs to know at a glance whether every VM is fully configured and whether anything has drifted from the expected state (e.g., a Tailscale Serve config was cleared, UFW rules were flushed, or a secrets file was deleted).
+
+**What it shows:**
+- **Per-VM Setup Checklist:** One card per VM, each showing a checklist of setup components:
+  - `install-common.sh` — last run timestamp, exit status
+  - Per-VM setup script — last run timestamp, exit status
+  - OpenClaw gateway configuration — present and valid
+  - Tailscale Serve — active and serving on expected port (18789)
+  - UFW firewall — enabled, port 18789 restricted to the 5 GateForge Tailscale IPs
+  - Secrets files — present with correct permissions (see G5)
+  - SOUL.md / TOOLS.md / USER.md / AGENTS.md — present and up to date
+- **Configuration Drift Detection:**
+  - Compares live VM state against the expected configuration defined at install time
+  - Flags any component that has diverged: "UFW rule for 100.73.38.28 missing on tonic-qc"
+  - Drift severity: Info (cosmetic difference) / Warning (functional impact possible) / Critical (component non-functional)
+- **Setup History:**
+  - Log of all setup script runs with timestamp, operator, and outcome
+  - Side-by-side comparison of successive runs to see what changed
+
+**Example use case:** After a VMware snapshot restore on tonic-operator, the end-user opens the Installation & Setup Dashboard and sees the Tailscale Serve entry is red — the restore rolled back the Serve configuration. The end-user can immediately identify the affected VM and the specific component to remediate.
+
+**Data source:** Setup script execution logs; live configuration probes per VM; file presence and permission checks via OpenClaw gateway API
+
+---
+
+### ◆ G4. Communication Test Results Viewer
+
+**What it does:** Displays the results of GateForge's end-to-end communication test suite (`test-connectivity.sh` and `test-communication.sh`), giving the end-user a structured, visual record of every test run and historical trend.
+
+**Why it matters:** The test framework validates the entire communication path from Architect dispatch through to HMAC callback and Git deliverable readability — 4 sequential gates per agent. Raw test output is bash terminal text; the end-user needs a structured view to understand pass/fail patterns, spot flaky agents, and confirm the network is healthy before starting a new iteration.
+
+**What it shows:**
+- **Test Run History:** Table of all test suite executions with timestamp, triggered-by, scope (all agents / specific agent), pass/fail summary
+- **Gate-by-Gate Results Matrix:**
+  - Rows = agents tested (dev-01, dev-02...dev-N, qc-01...qc-N, designer, operator)
+  - Columns = the 4 communication gates:
+    - **Gate A (Dispatch):** Architect → spoke dispatch accepted (HTTP 200 + runId returned)
+    - **Gate B (Commit):** Spoke agent committed and pushed deliverable file to branch
+    - **Gate C (Callback):** Architect received valid HMAC-signed callback within 90 seconds
+    - **Gate D (Readable):** Deliverable readable by hub via `git cat-file`
+  - Each cell: Pass (green) / Fail (red) / Warn (amber) / Not Run (gray)
+  - Click any cell → drill down to the raw test output for that gate and agent
+- **Trailer Validation Results:**
+  - Per-agent validation of all 5 required commit trailers
+  - Missing or malformed trailers highlighted by trailer name
+- **Trend View:**
+  - Pass rate per agent over the last N test runs (sparkline)
+  - "Are tests getting more reliable?" — trend direction indicator
+  - Flaky agent detection: agents with inconsistent pass/fail patterns across runs
+- **Connectivity Test Results (`test-connectivity.sh`):**
+  - Network reachability results per VM
+  - Gateway authentication checks
+  - HMAC notification round-trip results
+
+**Example use case:** Before beginning a new development iteration, the end-user runs the full test suite and opens the Communication Test Results Viewer. Gate C fails for tonic-designer — the HMAC callback did not arrive within 90 seconds. Drilling into the raw output shows the Architect's hook endpoint returned a 404. The end-user investigates the Architect's OpenClaw config before proceeding.
+
+**Data source:** `test-connectivity.sh` and `test-communication.sh` output logs; `test-spoke.sh` results for individual VM validation runs
+
+---
+
+### ◆ G5. Secrets & Token Inventory
+
+**What it does:** Provides a read-only inventory of the secrets management layout across all 5 VMs — showing which token files exist, their permissions, and whether the 3-tier secrets architecture is correctly in place. Actual secret values are never displayed.
+
+**Why it matters:** GateForge uses a structured 3-tier secrets layout to ensure that sensitive tokens (HMAC keys, GitHub PATs, LLM API keys) are stored in the correct locations with the correct permissions and are never exposed to agent LLM contexts. Without a centralised inventory view, a missing token file or wrong permission on one VM can cause silent failures that are hard to diagnose — a setup script re-run might not fix a file that was manually modified.
+
+**What it shows:**
+- **Per-VM Token Inventory:** One panel per VM listing all expected secret files and their status:
+  - **Platform tier** (`/opt/secrets/gateforge.env`): present / missing / wrong permissions
+    - Expected: `root:root`, mode `0600`
+    - Expected tokens: HMAC_SECRET, ARCHITECT_HOOK_TOKEN, GATEWAY_API_KEY
+  - **GitHub tier** (`~/.config/gateforge/github-tokens.env`): present / missing / wrong permissions
+    - Expected: `<vm-user>:<vm-user>`, mode `0600`
+    - Expected tokens: GITHUB_PAT, GITHUB_USERNAME, GITHUB_REPO
+  - **App tier** (`~/.config/gateforge/<app>.env` per application): present / missing / wrong permissions
+    - Apps vary by VM role: LLM provider key, Brave Search, Telegram (Architect only), etc.
+- **Compliance Status per VM:**
+  - All expected files present: Yes / No (with list of missing files)
+  - All permissions correct: Yes / No (with list of mismatched files)
+  - Expected token count vs actual token count per file
+- **Alerts:**
+  - Missing expected token file on any VM
+  - Incorrect file permissions (e.g., file readable by group or world)
+  - Stale tokens: file not modified in more than N days (configurable threshold, default: 90 days)
+  - Token count mismatch: fewer tokens than expected in a file (possible partial write)
+- **Last Modified Timestamps:** When each secrets file was last written (without revealing content)
+
+**Example use case:** After rotating the GitHub PAT on tonic-developer, the end-user checks the Secrets & Token Inventory and sees `github-tokens.env` on tonic-qc still shows a last-modified date from 45 days ago — a different rotation schedule. The end-user notes the discrepancy for the next secrets rotation cycle.
+
+**Data source:** File presence and `stat` metadata checks via OpenClaw gateway API on each VM (read-only filesystem introspection; no file content is transmitted)
+
+---
+
+### ◆ G6. OpenClaw Configuration Viewer
+
+**What it does:** A read-only view of each VM's `openclaw.json` configuration, with a cross-VM diff capability to spot inconsistencies between configurations and a validation check against expected settings.
+
+**Why it matters:** Each VM runs its own `openclaw.json` tailored to its role — gateway bind mode, Tailscale Serve settings, allowed origins, agent definitions, and environment variable mappings. Because each config is maintained separately, they can drift: an `allowedOrigins` entry might be missing from one VM, a port might be wrong, or the bind mode might have been changed during debugging. A centralised viewer with diff and validation makes auditing all 5 configs a one-minute task rather than a manual SSH exercise.
+
+**What it shows:**
+- **Per-VM Configuration Panel:** One tab per VM, showing the full `openclaw.json` rendered as a structured, syntax-highlighted JSON viewer (not raw text):
+  - Gateway settings: bind mode (expected: `loopback`), port (expected: `18789`), TLS/Tailscale Serve settings
+  - `allowedOrigins`: list of domains permitted to access the Control UI cross-VM
+  - Agent definitions: list of configured agents with their model, system prompt reference, and tool access
+  - Environment variable mappings: which env vars are injected into agent contexts (names only, not values)
+- **Cross-VM Diff View:**
+  - Select any two VMs → side-by-side diff of their `openclaw.json` contents
+  - Differences highlighted at the field level (not just line level)
+  - "All VMs" diff: shows a summary of fields that differ across any of the 5 VMs
+- **Validation Checks:**
+  - All 5 VM domains present in `allowedOrigins` on every VM (e.g., `https://tonic-architect.sailfish-bass.ts.net`)
+  - Bind mode is `loopback` on all VMs (not `0.0.0.0`)
+  - Gateway port is `18789` on all VMs
+  - No agent definition references a missing environment variable
+  - Tailscale Serve is configured to match the gateway port
+- **Configuration History:** If `openclaw.json` is version-controlled, shows a changelog of recent edits with timestamps
+
+**Example use case:** After onboarding a new QC agent on tonic-qc, the end-user uses the cross-VM diff to compare `tonic-qc`'s `openclaw.json` against `tonic-developer`'s. The diff reveals that the new agent definition on tonic-qc references `BRAVE_API_KEY` in its env var mapping, but the validation check flags that this variable is not in the app-tier secrets file for that VM — a configuration mismatch that would cause the agent to fail silently.
+
+**Data source:** `openclaw.json` file contents read via OpenClaw gateway API on each VM (read-only); Git history if `openclaw.json` is tracked in the Blueprint repository
+
+---
+
 ## Implementation Priority Matrix
 
 | Priority | Feature | Category | Effort | Value |
@@ -583,6 +786,8 @@ Health cards, task table, backlog, burndown. No changes needed.
 | | Project Health Score | F | Small | High |
 | | Blocker Chain Visualiser | E | Small | High |
 | | Webhook & External Alerts | F | Medium | Medium |
+| | Network Topology & Health Monitor | G | Medium | High |
+| | Notification Delivery Tracker | G | Medium | High |
 | **P2 — Could (v2.0)** | Agent Decision Graph | A | Large | High |
 | | Agent Session Replay | A | Large | High |
 | | Pipeline Analytics & Bottleneck Detection | B | Medium | High |
@@ -594,17 +799,21 @@ Health cards, task table, backlog, burndown. No changes needed.
 | | Release Manager | C | Medium | Medium |
 | | Decision Timeline | C | Small | Medium |
 | | Risk Register & Heat Map | C | Medium | Medium |
+| | Installation & Setup Dashboard | G | Medium | Medium |
+| | Communication Test Results Viewer | G | Medium | Medium |
 | **P3 — Want (v2.5+)** | Agent Comparison Matrix | A | Small | Medium |
 | | Pipeline YAML Preview & Validation | B | Medium | Medium |
 | | Defect Deep-Dive & Trend Analysis | D | Medium | Medium |
 | | Deployment Diff & Rollback Viewer | D | Medium | Medium |
 | | SLO Forecasting & Budget Projection | D | Medium | Medium |
+| | Secrets & Token Inventory | G | Small | Medium |
+| | OpenClaw Configuration Viewer | G | Small | Medium |
 
 ---
 
 ## Revised Navigation Structure
 
-With 30 features, the sidebar navigation needs restructuring:
+With 36 features, the sidebar navigation needs restructuring:
 
 ```
 GATEFORGE ADMIN PORTAL
@@ -653,6 +862,14 @@ GATEFORGE ADMIN PORTAL
 │   ├── Explorer          ← Git tree & document viewer
 │   └── Compare           ← Version diff
 │
+├── Infrastructure
+│   ├── Network Topology  ← Tailscale VPN health & latency
+│   ├── Notifications     ← gf-notify-architect delivery tracker
+│   ├── Setup Status      ← Install script & config drift
+│   ├── Test Results      ← Communication test suite viewer
+│   ├── Secrets Inventory ← Token file presence & permissions
+│   └── OpenClaw Config   ← Per-VM openclaw.json viewer & diff
+│
 ├── Notifications         ← Priority-coded feed
 ├── Activity Log          ← Full audit trail
 ├── Webhooks              ← External alert config
@@ -663,7 +880,7 @@ GATEFORGE ADMIN PORTAL
 
 ## Summary
 
-The original 8 features provide solid observability for "what is happening now." The 22 new features add:
+The original 8 features provide solid observability for "what is happening now." The 28 new features add:
 
 - **Depth** — Decision graphs, session replay, and task lifecycle tracking let the end-user drill from a dashboard card all the way down to a specific model response on a specific timestamp
 - **History** — Pipeline run history, iteration manager, release manager, and audit logs give full retrospective capability
@@ -671,8 +888,9 @@ The original 8 features provide solid observability for "what is happening now."
 - **Troubleshooting** — Console, blocker chains, and communication audit let the end-user investigate any issue without switching between multiple views
 - **Governance** — Audit log, risk register, decision timeline, and webhook alerts support enterprise and regulated environments
 - **Cost Control** — Agent cost tracker with anomaly detection prevents invisible token spend from growing unchecked
+- **Infrastructure** — Network topology monitoring, notification delivery tracking, setup validation, end-to-end test results, secrets inventory, and OpenClaw configuration review give the end-user full visibility into the Tailscale VPN networking layer, host-side relay health, and per-VM configuration state that underpins the entire GateForge system
 
-Together, these 30 features make the GateForge Admin Portal a complete multi-agent SDLC command centre — not just a monitoring dashboard, but a tool for understanding, analysing, and improving the pipeline.
+Together, these 36 features make the GateForge Admin Portal a complete multi-agent SDLC command centre — not just a monitoring dashboard, but a tool for understanding, analysing, and improving the pipeline.
 
 ---
 
