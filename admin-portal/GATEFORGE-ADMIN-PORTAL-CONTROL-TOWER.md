@@ -5,7 +5,7 @@
 **Created:** 2026-04-24
 **Supersedes (positioning only, not feature set):** companion product framing in `GATEFORGE-ADMIN-PORTAL.md` §1
 
-> This document extends the existing Admin Portal specification set (`GATEFORGE-ADMIN-PORTAL.md`, `…-IMPLEMENTATION.md`, `…-EXTENDED-FEATURES.md`, `…-EXTENDED-IMPLEMENTATION.md`) with the **Control Tower** product direction. It **preserves** the 30 + 36 feature catalogue already defined; it **re-groups** them into operational modules, adds the backlog IDs (ADM-xxx), acceptance criteria, a suggested SQLite data model, an API outline, and a phased delivery roadmap.
+> This document extends the existing Admin Portal specification set (`GATEFORGE-ADMIN-PORTAL.md`, `…-EXTENDED-FEATURES.md`, and the canonical build plan `…-IMPLEMENTATION.md`) with the **Control Tower** product direction. It **preserves** the 30 + 36 feature catalogue already defined; it **re-groups** them into operational modules, adds the backlog IDs (ADM-xxx), acceptance criteria, a suggested SQLite data model, an API outline, and a phased delivery roadmap.
 >
 > Where this document and the existing specs disagree on *wording*, the existing specs remain the detailed reference. Where they disagree on *product positioning or scope* (read-only v1, Control Tower framing), **this document takes precedence**.
 
