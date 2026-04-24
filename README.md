@@ -1067,6 +1067,10 @@ Each VM directory in this configuration package contains:
 | VM-4 | `QA-FRAMEWORK.md` | QA framework, multi-level testing, quality gate thresholds, PROMOTE/HOLD/ROLLBACK decision model |
 | VM-5 | `MONITORING-OPERATIONS-GUIDE.md` | Monitoring dashboards, OS/app/DB metrics, alerting baseline, proactive scaling, SLA/SLO |
 
+### Admin Portal (Control Tower)
+
+The `admin-portal/` directory contains the specification set for the GateForge Admin Portal — the **read-only operational Control Tower and trust layer** for this pipeline. It observes agent fleet health, notification delivery, Blueprint governance, security posture, model/provider routing, setup readiness, and audit evidence. It does **not** control agents in v1; human interaction continues to route through Telegram → Architect. See `admin-portal/README.md` for the document map and `admin-portal/GATEFORGE-ADMIN-PORTAL-CONTROL-TOWER.md` for modules, ADM-xxx backlog, acceptance criteria, data model, API outline, and the 5-phase roadmap.
+
 ---
 
 ## GitHub Token Configuration
