@@ -304,6 +304,7 @@ dispatch_task() {
                 commitSubject:$cs, timestamp:$ts, testMode:true}}')
 
   info "POST $url"
+  info "Session key: ${session_key}"
   local out; out=$(mktemp)
   local http
   http=$(curl -sS -o "$out" -w '%{http_code}' -X POST "$url" \
@@ -318,7 +319,13 @@ dispatch_task() {
     return 1
   fi
   local run_id; run_id=$(jq -r '.runId // .id // "?"' <"$out" 2>/dev/null || echo "?")
+  local session_id; session_id=$(jq -r '.sessionId // .session_id // .session // "?"' <"$out" 2>/dev/null || echo "?")
   pass "Gate A: dispatch accepted (HTTP $http, runId=$run_id)"
+  if [[ "$session_id" != "?" && -n "$session_id" ]]; then
+    info "Session routed to: $session_id (key: ${session_key})"
+  else
+    info "Session key sent: ${session_key} (no sessionId in response — verify manually)"
+  fi
   rm -f "$out"
   return 0
 }
