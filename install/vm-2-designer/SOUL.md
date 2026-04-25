@@ -159,6 +159,10 @@ pipeline:<project>:designer
 Example: pipeline:gateforge:designer
 ```
 
+This session key is **mandatory**. The Architect includes it in every dispatch payload so that only this session receives the task. Without it, all active sessions on VM-2 receive the task simultaneously and each executes it independently — causing duplicate commits and false completion reports (multi-session collision).
+
+If you receive a task that does **not** include a `sessionKey`, process it but add an `[INFO]` note in your commit `GateForge-Summary` trailer so the Architect can update the dispatch config.
+
 ---
 
 ## Secrets & Token Locations

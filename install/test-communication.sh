@@ -99,6 +99,16 @@ declare -A SPOKE_DIR=(
   [qc]="qa/reports"
   [operator]="ops/runbooks"
 )
+# Session keys ensure the Architect dispatches to the correct single session
+# on each spoke VM. Without this, all active sessions on the VM receive the
+# task and execute it redundantly (multi-session collision).
+# These values MUST match the Session Key Convention in each spoke's SOUL.md.
+declare -A SPOKE_SESSION_KEY=(
+  [designer]="pipeline:gateforge:designer"
+  [dev]="pipeline:gateforge:dev"
+  [qc]="pipeline:gateforge:qc"
+  [operator]="pipeline:gateforge:operator"
+)
 
 # Summary table (rows appended as tests run)
 SUMMARY_ROWS=()
@@ -277,17 +287,19 @@ dispatch_task() {
   local tok="${!tok_var:-${GATEWAY_AUTH_TOKEN:-}}"
   [[ -n "$tok" ]] || { fail "No gateway token for $agent_family ($tok_var)"; return 1; }
 
+  local session_key="${SPOKE_SESSION_KEY[$agent_family]}"
   local payload; payload=$(jq -cn \
-    --arg agentId "$agent_key" \
-    --arg name    "comm-test-task" \
-    --arg msg     "[COMMTEST] Please create the prescribed file and commit verbatim." \
-    --arg tid     "$task_id" \
-    --arg fname   "$filename" \
-    --arg path    "$dir/$filename" \
-    --arg branch  "$branch" \
-    --arg cs      "docs: $task_id — communication test" \
-    --arg ts      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    '{name:$name, agentId:$agentId, message:$msg,
+    --arg agentId      "$agent_key" \
+    --arg sessionKey   "$session_key" \
+    --arg name         "comm-test-task" \
+    --arg msg          "[COMMTEST] Please create the prescribed file and commit verbatim. filename: $filename path: $dir/$filename branch: $branch commitSubject: docs: $task_id — communication test" \
+    --arg tid          "$task_id" \
+    --arg fname        "$filename" \
+    --arg path         "$dir/$filename" \
+    --arg branch       "$branch" \
+    --arg cs           "docs: $task_id — communication test" \
+    --arg ts           "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    '{name:$name, agentId:$agentId, sessionKey:$sessionKey, message:$msg,
       metadata:{taskId:$tid, filename:$fname, path:$path, branch:$branch,
                 commitSubject:$cs, timestamp:$ts, testMode:true}}')
 
