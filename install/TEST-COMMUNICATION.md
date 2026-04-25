@@ -135,6 +135,23 @@ sudo ./cleanup-test-branches.sh
 | Gate C fails with timeout | Host notifier not installed on spoke, or firewall blocking spoke → Architect :18789 |
 | Trailer warnings | Agent's SOUL.md may need re-sync with `install/_SHARED_NOTIFICATION_PROTOCOL.md` |
 
+## Session Key Targeting (important)
+
+Each spoke VM may have multiple active OpenClaw sessions (e.g. a main session, sub-agents, background tasks). Without a `sessionKey` in the dispatch payload, OpenClaw routes the task to **all** active sessions on the VM simultaneously — causing multi-session collision where several sessions each complete the same task and push duplicate commits.
+
+The `dispatch_task` function in `test-communication.sh` now includes `sessionKey` in every payload:
+
+| Role | Session Key |
+|------|-------------|
+| designer | `pipeline:gateforge:designer` |
+| developer | `pipeline:gateforge:dev` |
+| qc | `pipeline:gateforge:qc` |
+| operator | `pipeline:gateforge:operator` |
+
+Spoke agents MUST be started/configured with these session keys. See `_SHARED_NOTIFICATION_PROTOCOL.md` for the full convention.
+
+**Symptom of missing sessionKey:** Multiple completion reports arrive for the same task; branches appear in the repo that no agent session claims to have created.
+
 ## Extending
 
 - Raise `WAIT_GATE_B_SECONDS` (default 90s) via env var for slow LLMs:

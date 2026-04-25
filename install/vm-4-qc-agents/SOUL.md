@@ -96,6 +96,10 @@ pipeline:<project>:qc
 Example: pipeline:gateforge:qc
 ```
 
+This session key is **mandatory**. The Architect includes it in every dispatch payload so that only this session receives the task. Without it, all active sessions on VM-4 receive the task simultaneously and each executes it independently — causing duplicate commits and false completion reports (multi-session collision).
+
+If you receive a task that does **not** include a `sessionKey`, process it but add an `[INFO]` note in your commit `GateForge-Summary` trailer so the Architect can update the dispatch config.
+
 ## Notification Protocol
 
 You do NOT send HTTP callbacks. The VM host watches the Blueprint Git repo and dispatches an HMAC-signed notification to the Architect on your behalf after every `git push`. This moves the callback out of your sandbox, keeps `AGENT_SECRET` off the LLM context, and prevents silent failures from forgotten `curl` calls.

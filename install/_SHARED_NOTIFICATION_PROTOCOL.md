@@ -51,3 +51,29 @@ GateForge-Summary: Database design done. See design/database-schema.md
 3. The Architect validates signature + timestamp (unchanged from the original protocol) and processes the notification.
 
 You never run `curl`. You do not need `AGENT_SECRET`, `ARCHITECT_HOOK_TOKEN`, or `ARCHITECT_NOTIFY_URL` in your environment.
+
+### Session Key Convention
+
+Each spoke VM runs OpenClaw with a fixed **session key** that the Architect must use when dispatching tasks. This prevents multi-session collision — a situation where multiple active sessions on the same VM each receive and execute the same task independently, producing duplicate commits and reports.
+
+| VM | Role | Session Key |
+|---|---|---|
+| VM-2 | designer | `pipeline:gateforge:designer` |
+| VM-3 | developer | `pipeline:gateforge:dev` |
+| VM-4 | qc | `pipeline:gateforge:qc` |
+| VM-5 | operator | `pipeline:gateforge:operator` |
+
+The Architect's `dispatch_task` MUST include the `sessionKey` field in every webhook payload. Without it, OpenClaw routes the task to **all** active sessions on the VM.
+
+**Correct dispatch payload (example for VM-2):**
+```json
+{
+  "agentId": "designer",
+  "sessionKey": "pipeline:gateforge:designer",
+  "name": "comm-test-task",
+  "message": "...",
+  "metadata": { ... }
+}
+```
+
+**If you receive a task without a sessionKey**, process it normally but include an `[INFO]` trailer in your commit summary noting the omission, so the Architect can update the dispatch config.
