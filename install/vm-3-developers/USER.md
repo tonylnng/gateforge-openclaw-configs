@@ -49,18 +49,18 @@ The host-side notifier reads `AGENT_SECRET`, `ARCHITECT_HOOK_TOKEN`, and `ARCHIT
 
 ## Blueprint Repository
 
-The Blueprint is the single source of truth for project deliverables. It is cloned to `/opt/gateforge/blueprint` on this VM and configured for HTTPS push using the GitHub PAT loaded from `~/.config/gateforge/github-tokens.env`.
+The Blueprint is the single source of truth for project deliverables. It is cloned to `/opt/gateforge/openclaw-configs` on this VM and configured for HTTPS push using the GitHub PAT loaded from `~/.config/gateforge/github-tokens.env`.
 
 | Property | Value |
 |---|---|
-| Local path | `/opt/gateforge/blueprint` |
+| Local path | `/opt/gateforge/openclaw-configs` |
 | Remote URL | `BLUEPRINT_REPO_URL` (in `/opt/secrets/gateforge.env`) |
 | Default branch | `BLUEPRINT_REPO_BRANCH` (typically `main`) |
 
 ### Workflow for every task
 
 ```bash
-cd /opt/gateforge/blueprint
+cd /opt/gateforge/openclaw-configs
 git fetch --prune origin
 git checkout -B <branch-name> origin/main      # branch off latest main
 # ...write your deliverable file(s)...

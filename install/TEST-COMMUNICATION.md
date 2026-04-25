@@ -58,30 +58,31 @@ VM5_GATEWAY_TOKEN=...    VM5_AGENT_SECRET=...
 
 `GATEWAY_AUTH_TOKEN` is accepted as a fallback gateway token for older installs.
 
-- **Blueprint repo cloned at `/opt/gateforge/blueprint/`** — see setup below.
+- **Shared config repo cloned at `/opt/gateforge/openclaw-configs/`** — see setup below.
 - Tailscale interface up (spoke gateways reachable on port `18789`).
 - `curl`, `jq`, `openssl`, `git` installed.
 
-### Blueprint repo setup (one-time, VM-1 only)
+### Shared repo setup (one-time, all VMs)
 
-The script uses a local clone of the project Blueprint repo as its working copy —
-this is where dispatched tasks land and where Gate D verifies pushed files on
-`origin`. Clone it once to the canonical path:
+All pipeline comm tests use `tonylnng/gateforge-openclaw-configs` as the shared
+working repo. Test deliverables are committed to the `testing/` folder on
+per-agent feature branches. Gate D verifies the pushed file on `origin`.
+
+Clone it once on each VM at the canonical path:
 
 ```bash
 sudo mkdir -p /opt/gateforge
-sudo git clone https://github.com/tonylnng/<project>-blueprint.git /opt/gateforge/blueprint
-sudo chown -R "$USER:$USER" /opt/gateforge/blueprint
+sudo git clone https://github.com/tonylnng/gateforge-openclaw-configs.git /opt/gateforge/openclaw-configs
+sudo chown -R "$USER:$USER" /opt/gateforge/openclaw-configs
 ```
-
-Replace `<project>-blueprint` with the actual per-project Blueprint repo name
-(see [INSTALL-GUIDE.md](./INSTALL-GUIDE.md) § GateForge Repositories).
 
 To use a different location, set `BLUEPRINT_REPO` before invoking the script:
 
 ```bash
-sudo BLUEPRINT_REPO=/path/to/blueprint ./test-communication.sh --target designer
+BLUEPRINT_REPO=/path/to/openclaw-configs ./test-communication.sh --target designer
 ```
+
+> **Note:** `gateforge-blueprint-template` is a read-only project template — do not use it as the comm-test target repo.
 
 ## Flow per agent
 

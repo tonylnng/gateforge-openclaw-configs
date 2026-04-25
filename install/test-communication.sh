@@ -88,16 +88,16 @@ HOOK_LOG_CANDIDATES=(
 #   DESIGNER_GATEWAY_URL, DEV_GATEWAY_URL, QC_GATEWAY_URL, OPERATOR_GATEWAY_URL
 declare -A SPOKE_GATEWAY=()
 declare -A SPOKE_BRANCH_PREFIX=(
-  [designer]="design/TASK-COMMTEST"
-  [dev]="feature/TASK-COMMTEST"
-  [qc]="test/TASK-COMMTEST"
-  [operator]="deploy/TASK-COMMTEST"
+  [designer]="testing/TASK-COMMTEST-designer"
+  [dev]="testing/TASK-COMMTEST-dev"
+  [qc]="testing/TASK-COMMTEST-qc"
+  [operator]="testing/TASK-COMMTEST-operator"
 )
 declare -A SPOKE_DIR=(
-  [designer]="design"
-  [dev]="src/commtest"
-  [qc]="qa/reports"
-  [operator]="ops/runbooks"
+  [designer]="testing"
+  [dev]="testing"
+  [qc]="testing"
+  [operator]="testing"
 )
 # Session keys ensure the Architect dispatches to the correct single session
 # on each spoke VM. Without this, all active sessions on the VM receive the
@@ -155,7 +155,10 @@ load_env() {
   # Apply defaults for any config var that can be overridden via gateforge.env.
   # Must run AFTER sourcing so a value in the file wins over the hard-coded
   # default; env vars exported in the caller's shell still win over both.
-  : "${BLUEPRINT_REPO:=/opt/gateforge/blueprint}"
+  # Shared working repo for all pipeline testing — gateforge-openclaw-configs.
+  # All VMs commit test deliverables to the testing/ folder in this repo.
+  # Override via BLUEPRINT_REPO env var or BLUEPRINT_REPO in gateforge.env.
+  : "${BLUEPRINT_REPO:=/opt/gateforge/openclaw-configs}"
   export BLUEPRINT_REPO
   : "${GATEFORGE_PORT:=18789}"
   export GATEFORGE_PORT
