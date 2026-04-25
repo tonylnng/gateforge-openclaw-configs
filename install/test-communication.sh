@@ -220,6 +220,20 @@ prepare_blueprint() {
     exit 1
   fi
   pass "Blueprint at $BLUEPRINT_REPO"
+
+  # Inject GitHub token into remote URL so fetch/push --delete work without
+  # interactive credential prompts. Tries VM2_GITHUB_TOKEN, GITHUB_TOKEN_RW,
+  # GITHUB_TOKEN_READONLY, and GITHUB_TOKEN in order.
+  local gh_token="${VM2_GITHUB_TOKEN:-${GITHUB_TOKEN_RW:-${GITHUB_TOKEN_READONLY:-${GITHUB_TOKEN:-}}}}"
+  if [[ -n "$gh_token" ]]; then
+    local current_url; current_url=$(git -C "$BLUEPRINT_REPO" remote get-url origin 2>/dev/null || echo "")
+    if [[ "$current_url" != *"@github.com"* && "$current_url" == *"github.com"* ]]; then
+      local authed_url; authed_url=$(echo "$current_url" | sed "s|https://github.com|https://${gh_token}@github.com|")
+      git -C "$BLUEPRINT_REPO" remote set-url origin "$authed_url" 2>/dev/null && \
+        info "GitHub token injected into remote URL for authenticated push/fetch."
+    fi
+  fi
+
   # Best-effort fetch so local state matches origin
   if git -C "$BLUEPRINT_REPO" fetch --quiet origin 2>/dev/null; then
     pass "git fetch origin OK"
@@ -404,7 +418,11 @@ run_one() {
   local rc=0; wait_for_callback "$task_id" || rc=$?
   case "$rc" in
     0) pass "Gate C: Architect received callback carrying $task_id"; gate_c=1 ;;
-    2) warn "Gate C: skipped (no readable hook log)"; gate_c=-1 ;;
+    2) warn "Gate C: skipped (no readable hook log)"; gate_c=-1
+       # No hook log available — wait explicitly for agent to commit+push
+       info "Waiting ${WAIT_GATE_B_SECONDS}s for agent to commit and push (Gate B)…"
+       sleep "$WAIT_GATE_B_SECONDS"
+       ;;
     *) fail "Gate C: timeout — no callback seen in ${WAIT_GATE_B_SECONDS}s"; gate_c=0 ;;
   esac
 
