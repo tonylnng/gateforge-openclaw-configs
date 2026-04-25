@@ -88,10 +88,10 @@ HOOK_LOG_CANDIDATES=(
 #   DESIGNER_GATEWAY_URL, DEV_GATEWAY_URL, QC_GATEWAY_URL, OPERATOR_GATEWAY_URL
 declare -A SPOKE_GATEWAY=()
 declare -A SPOKE_BRANCH_PREFIX=(
-  [designer]="testing/TASK-COMMTEST-designer"
-  [dev]="testing/TASK-COMMTEST-dev"
-  [qc]="testing/TASK-COMMTEST-qc"
-  [operator]="testing/TASK-COMMTEST-operator"
+  [designer]="testing/TASK-COMMTEST"
+  [dev]="testing/TASK-COMMTEST"
+  [qc]="testing/TASK-COMMTEST"
+  [operator]="testing/TASK-COMMTEST"
 )
 declare -A SPOKE_DIR=(
   [designer]="testing"
