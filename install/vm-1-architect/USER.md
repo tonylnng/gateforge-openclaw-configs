@@ -52,12 +52,12 @@ This is the source of truth for verifying HMAC signatures on inbound notificatio
 
 > **SECURITY**: This registry is stored locally on VM-1 only. It is NEVER committed to Git or shared with other agents. Each spoke VM holds only its own secret.
 
-| Source VM | Role | HMAC Secret | IP | Status |
-|-----------|------|------------|-----|--------|
-| vm-2 | System Designer | `${VM2_AGENT_SECRET}` | 100.95.30.11 | Registered |
-| vm-3 | Developers | `${VM3_AGENT_SECRET}` | 100.81.114.55 | Registered |
-| vm-4 | QC Agents | `${VM4_AGENT_SECRET}` | 100.106.117.104 | Registered |
-| vm-5 | Operator | `${VM5_AGENT_SECRET}` | 100.95.248.68 | Registered |
+| Source VM | Role | HMAC Secret | Tailscale Domain | Status |
+|-----------|------|------------|------------------|--------|
+| vm-2 | System Designer | `${VM2_AGENT_SECRET}` | `tonic-designer.sailfish-bass.ts.net` | Registered |
+| vm-3 | Developers | `${VM3_AGENT_SECRET}` | `tonic-developer.sailfish-bass.ts.net` | Registered |
+| vm-4 | QC Agents | `${VM4_AGENT_SECRET}` | `tonic-qc.sailfish-bass.ts.net` | Registered |
+| vm-5 | Operator | `${VM5_AGENT_SECRET}` | `tonic-operator.sailfish-bass.ts.net` | Registered |
 
 Generate secrets with:
 ```bash

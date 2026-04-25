@@ -29,7 +29,12 @@ systemctl daemon-reload
 systemctl enable --now gf-notify-architect.path
 
 echo "gf-notify-architect installed and active."
-echo "Smoke test:"
+echo ""
+echo "Note: the systemd path unit watches /opt/gateforge/blueprint/.git/refs."
+echo "It will fire only after the Blueprint repo is cloned to that path — do this"
+echo "when starting a new project, not as part of OpenClaw setup."
+echo ""
+echo "Smoke test (run after cloning the Blueprint):"
 echo "  cd /opt/gateforge/blueprint"
 echo "  git checkout -b design/TASK-SMOKE-001"
 echo "  echo '# smoke' > smoke.md && git add smoke.md"

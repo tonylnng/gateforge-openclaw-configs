@@ -6,7 +6,7 @@
 | **Owner**     | the end-user                                            |
 | **Agent**     | System Designer (VM-2, Claude Sonnet 4.6)          |
 | **Port**      | 18789                                              |
-| **IP**        | 100.95.30.11                                      |
+| **Tailscale Domain** | `tonic-designer.sailfish-bass.ts.net`        |
 | **Stack**     | TypeScript · NestJS · React · PostgreSQL · Redis · Kubernetes |
 | **Updated**   | 2026-04-07                                         |
 

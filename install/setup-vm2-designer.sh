@@ -12,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/install-common.sh"
 
-TOTAL_STEPS=11
+TOTAL_STEPS=10
 VM_NAME="vm2"
 VM_NUM=2
 VM_ROLE="VM-2: System Designer"
@@ -61,8 +61,6 @@ main() {
 
   prompt_required VM2_TS_DOMAIN       "This VM's Tailscale domain"  "${VM2_TS_DOMAIN:-tonic-designer.sailfish-bass.ts.net}"
   prompt_required ARCHITECT_TS_DOMAIN "Architect Tailscale domain"  "${ARCHITECT_TS_DOMAIN:-tonic-architect.sailfish-bass.ts.net}"
-  prompt_required VM2_IP              "This VM's Tailscale IP"      "${GATEFORGE_VM_HOST:-100.95.30.11}"
-  prompt_required ARCHITECT_IP        "Architect Tailscale IP"      "${ARCHITECT_IP:-100.73.38.28}"
   echo ""
   echo -e "  ${DIM}Paste the remaining Tailscale domains (for Control UI origins):${RESET}"
   prompt_required VM3_TS_DOMAIN  "VM-3 Developers Tailscale domain" "${VM3_TS_DOMAIN:-tonic-developer.sailfish-bass.ts.net}"
@@ -73,10 +71,6 @@ main() {
   prompt_required GATEWAY_AUTH_TOKEN  "This VM's gateway token"    "${GATEWAY_AUTH_TOKEN:-}"
   prompt_required ARCHITECT_HOOK_TOKEN "Architect hook token"      "${ARCHITECT_HOOK_TOKEN:-}"
   prompt_required AGENT_SECRET        "This VM's HMAC secret"     "${AGENT_SECRET:-}"
-  echo ""
-  echo -e "  ${DIM}Blueprint repo (cloned to /opt/gateforge/blueprint for agent commits):${RESET}"
-  prompt_required BLUEPRINT_REPO_URL    "Blueprint repo HTTPS URL"    "${BLUEPRINT_REPO_URL:-https://github.com/tonylnng/gateforge-admin-portal-site.git}"
-  prompt_required BLUEPRINT_REPO_BRANCH "Blueprint default branch"    "${BLUEPRINT_REPO_BRANCH:-main}"
 
   # --- Step 3: Write config ---
   print_step "Write Central Config File"
@@ -93,12 +87,11 @@ main() {
 # --- This VM ---
 GATEFORGE_ROLE=designer
 GATEFORGE_VM_NUM=${VM_NUM}
-GATEFORGE_VM_HOST=${VM2_IP}
+GATEFORGE_VM_HOST=${VM2_TS_DOMAIN}
 GATEFORGE_PORT=${OPENCLAW_PORT}
 GATEWAY_AUTH_TOKEN=${GATEWAY_AUTH_TOKEN}
 
 # --- Architect Connection ---
-ARCHITECT_IP=${ARCHITECT_IP}
 ARCHITECT_NOTIFY_URL=https://${ARCHITECT_TS_DOMAIN}:${OPENCLAW_PORT}/hooks/agent
 ARCHITECT_TS_DOMAIN=${ARCHITECT_TS_DOMAIN}
 VM2_TS_DOMAIN=${VM2_TS_DOMAIN}
@@ -109,11 +102,6 @@ ARCHITECT_HOOK_TOKEN=${ARCHITECT_HOOK_TOKEN}
 
 # --- HMAC Signing Secret (never transmitted) ---
 AGENT_SECRET=${AGENT_SECRET}
-
-# --- Blueprint repo (clone target for agent deliverables) ---
-BLUEPRINT_REPO=/opt/gateforge/blueprint
-BLUEPRINT_REPO_URL=${BLUEPRINT_REPO_URL}
-BLUEPRINT_REPO_BRANCH=${BLUEPRINT_REPO_BRANCH}
 EOF
 )
 
@@ -122,10 +110,6 @@ EOF
   # --- Step 4: Copy config files ---
   print_step "Copy GateForge Config Files"
   copy_config_files "$VM_DIR"
-
-  # --- Step 4b: Clone Blueprint repo ---
-  print_step "Clone Blueprint Repo"
-  setup_blueprint_repo "$BLUEPRINT_REPO_URL" "$BLUEPRINT_REPO_BRANCH"
 
   # --- Step 4c: Install host-side notifier ---
   print_step "Install Host-Side Notifier"
@@ -157,11 +141,11 @@ EOF
 
   # --- Step 9: Verify ---
   print_step "Verify & Summary"
-  verify_connectivity "$ARCHITECT_IP" "$OPENCLAW_PORT" "Architect (${ARCHITECT_IP})"
+  verify_connectivity "$ARCHITECT_TS_DOMAIN" "$OPENCLAW_PORT" "Architect (${ARCHITECT_TS_DOMAIN})"
 
   print_summary_box "VM-2 System Designer — Configuration" \
     "Role:" "System Designer (Spoke)" \
-    "IP/Host:" "$VM2_IP" \
+    "Host:" "$VM2_TS_DOMAIN" \
     "Port:" "$OPENCLAW_PORT" \
     "Config:" "$CONFIG_FILE" \
     "Architect:" "https://${ARCHITECT_TS_DOMAIN}:${OPENCLAW_PORT}" \

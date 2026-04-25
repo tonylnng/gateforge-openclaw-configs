@@ -36,7 +36,8 @@
   // -------------------------------------------------------------------------
   // Webhooks — receives task dispatches from the Architect
   // -------------------------------------------------------------------------
-  // Architect POSTs to http://<VM2_IP>:18789/hooks/agent to dispatch tasks.
+  // Architect POSTs to https://<VM2_TS_DOMAIN>:18789/hooks/agent to dispatch tasks
+  // (e.g. https://tonic-designer.sailfish-bass.ts.net:18789/hooks/agent).
   hooks: {
     enabled: true,
     token: "${GATEWAY_AUTH_TOKEN}",      // Spokes use their gateway token for hooks

@@ -81,14 +81,6 @@ main() {
   prompt_required VM3_TS_DOMAIN  "VM-3 Developers Tailscale domain" "${VM3_TS_DOMAIN:-tonic-developer.sailfish-bass.ts.net}"
   prompt_required VM4_TS_DOMAIN  "VM-4 QC Agents Tailscale domain"  "${VM4_TS_DOMAIN:-tonic-qc.sailfish-bass.ts.net}"
   prompt_required VM5_TS_DOMAIN  "VM-5 Operator Tailscale domain"   "${VM5_TS_DOMAIN:-tonic-operator.sailfish-bass.ts.net}"
-  echo ""
-  echo -e "  ${DIM}Tailscale IP addresses (used for firewall rules):${RESET}"
-  echo ""
-  prompt_required VM1_IP   "VM-1 Architect IP"  "${VM1_IP:-100.73.38.28}"
-  prompt_required VM2_IP   "VM-2 Designer IP"   "${VM2_IP:-100.95.30.11}"
-  prompt_required VM3_IP   "VM-3 Developers IP" "${VM3_IP:-100.81.114.55}"
-  prompt_required VM4_IP   "VM-4 QC Agents IP"  "${VM4_IP:-100.106.117.104}"
-  prompt_required VM5_IP   "VM-5 Operator IP"   "${VM5_IP:-100.95.248.68}"
 
   # --- Step 3: Generate tokens and secrets ---
   print_step "Generate Tokens & HMAC Secrets"
@@ -206,7 +198,7 @@ main() {
 
 # --- This VM ---
 GATEFORGE_ROLE=architect
-GATEFORGE_VM_HOST=${VM1_IP}
+GATEFORGE_VM_HOST=${VM1_TS_DOMAIN}
 GATEFORGE_PORT=${OPENCLAW_PORT}
 GATEWAY_AUTH_TOKEN=${GATEWAY_AUTH_TOKEN}
 
@@ -222,22 +214,18 @@ VM4_TS_DOMAIN=${VM4_TS_DOMAIN}
 VM5_TS_DOMAIN=${VM5_TS_DOMAIN}
 
 # --- VM-2: System Designer ---
-VM2_IP=${VM2_IP}
 VM2_GATEWAY_TOKEN=${VM2_GATEWAY_TOKEN}
 VM2_AGENT_SECRET=${VM2_AGENT_SECRET}
 
 # --- VM-3: Developers ---
-VM3_IP=${VM3_IP}
 VM3_GATEWAY_TOKEN=${VM3_GATEWAY_TOKEN}
 VM3_AGENT_SECRET=${VM3_AGENT_SECRET}
 
 # --- VM-4: QC Agents ---
-VM4_IP=${VM4_IP}
 VM4_GATEWAY_TOKEN=${VM4_GATEWAY_TOKEN}
 VM4_AGENT_SECRET=${VM4_AGENT_SECRET}
 
 # --- VM-5: Operator ---
-VM5_IP=${VM5_IP}
 VM5_GATEWAY_TOKEN=${VM5_GATEWAY_TOKEN}
 VM5_AGENT_SECRET=${VM5_AGENT_SECRET}
 EOF
@@ -292,7 +280,7 @@ EOF
 
   print_summary_box "VM-1 System Architect — Configuration" \
     "Role:" "System Architect (Hub)" \
-    "IP/Host:" "$VM1_IP" \
+    "Host:" "$VM1_TS_DOMAIN" \
     "Port:" "$OPENCLAW_PORT" \
     "Config:" "$CONFIG_FILE" \
     "Gateway Token:" "$(mask_secret "$GATEWAY_AUTH_TOKEN")" \

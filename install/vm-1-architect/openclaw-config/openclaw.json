@@ -32,8 +32,10 @@
   // -------------------------------------------------------------------------
   // Webhooks — inbound hook endpoint for spoke notifications
   // -------------------------------------------------------------------------
-  // Spokes POST to http://<VM1_IP>:18789/hooks/agent with Bearer token.
-  // The Architect also dispatches TO spokes via their /hooks/agent endpoints.
+  // Spokes POST to https://<VM1_TS_DOMAIN>:18789/hooks/agent with Bearer token.
+  // The Architect also dispatches TO spokes via their /hooks/agent endpoints
+  // using each spoke's Tailscale MagicDNS hostname (e.g.
+  // https://tonic-designer.sailfish-bass.ts.net:18789/hooks/agent).
   hooks: {
     enabled: true,
     token: "${ARCHITECT_HOOK_TOKEN}",    // Dedicated hook token (NOT the gateway token)

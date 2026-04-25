@@ -4,7 +4,7 @@
 > **Owner:** the end-user  
 > **Target:** VM-3 Developer Agents (dev-01..dev-N)  
 > **Model:** Claude Sonnet 4.6 (`anthropic/claude-sonnet-4-6`)  
-> **Gateway Port:** 18789 | **IP:** 100.81.114.55  
+> **Gateway Port:** 18789 | **Tailscale Domain:** `tonic-developer.sailfish-bass.ts.net`  
 > **Last Updated:** 2026-04-07  
 
 ---
@@ -3405,13 +3405,15 @@ FRONTEND_URL=http://localhost:3000
 
 ### GateForge Network Reference
 
-| VM | Role | IP | Port |
-|----|------|----|------|
-| VM-1 | System Architect | 100.73.38.28 | 18789 |
-| VM-2 | System Designer | 100.95.30.11 | 18789 |
-| VM-3 | Developers (dev-01..dev-N) | 100.81.114.55 | 18789 |
-| VM-4 | QC Agents (qc-01..qc-N) | 100.106.117.104 | 18789 |
-| VM-5 | Operator | 100.95.248.68 | 18789 |
+| VM | Role | Tailscale Domain | Port |
+|----|------|------------------|------|
+| VM-1 | System Architect | `tonic-architect.sailfish-bass.ts.net` | 18789 |
+| VM-2 | System Designer | `tonic-designer.sailfish-bass.ts.net` | 18789 |
+| VM-3 | Developers (dev-01..dev-N) | `tonic-developer.sailfish-bass.ts.net` | 18789 |
+| VM-4 | QC Agents (qc-01..qc-N) | `tonic-qc.sailfish-bass.ts.net` | 18789 |
+| VM-5 | Operator | `tonic-operator.sailfish-bass.ts.net` | 18789 |
+
+> All inter-VM URLs use HTTPS via Tailscale Serve, e.g. `https://tonic-designer.sailfish-bass.ts.net:18789/hooks/agent`. Raw 100.x.x.x Tailscale IPs are not used anywhere in this project.
 
 ---
 

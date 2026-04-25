@@ -5,7 +5,7 @@
 | **Version** | 1.0.0 |
 | **Owner** | the end-user |
 | **Target Agent** | System Architect (VM-1, Claude Opus 4.6) |
-| **Gateway** | `100.73.38.28:18789` |
+| **Gateway** | `https://tonic-architect.sailfish-bass.ts.net:18789` |
 | **Last Updated** | 2026-04-07 |
 | **Document Status** | Active |
 

@@ -54,11 +54,10 @@ Run this on every VM:
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow ssh
-sudo ufw allow from 100.73.38.28 to any port 18789
-sudo ufw allow from 100.95.30.11 to any port 18789
-sudo ufw allow from 100.81.114.55 to any port 18789
-sudo ufw allow from 100.106.117.104 to any port 18789
-sudo ufw allow from 100.95.248.68 to any port 18789
+# Allow all traffic on the Tailscale interface to port 18789.
+# This is robust to Tailscale IP changes — only peers on your tailnet can
+# reach the interface, and the gateway itself enforces auth (Bearer + HMAC).
+sudo ufw allow in on tailscale0 to any port 18789 proto tcp
 sudo ufw enable
 ```
 
@@ -68,16 +67,18 @@ Verify:
 sudo ufw status
 ```
 
-Only the 5 GateForge VM IPs can access port 18789. This is more secure than allowing the entire Tailscale subnet.
+Only peers on your Tailscale tailnet can reach port 18789 (because `tailscale0` is only attached to tailnet traffic). The gateway itself enforces Bearer-token + HMAC-SHA256 auth, so this is defence-in-depth.
 
 #### Step C — Test connectivity between VMs
 
 From any VM, test that you can reach another VM's gateway:
 
 ```bash
-curl -s http://100.73.38.28:18789/health
+curl -s https://tonic-architect.sailfish-bass.ts.net:18789/health
 # Should return: {"ok":true,"status":"live"}
 ```
+
+> Always dial the **Tailscale MagicDNS domain** (`tonic-*.sailfish-bass.ts.net`), never the raw `100.x.x.x` IP. The Tailscale Serve TLS certificate is bound to the MagicDNS hostname, so a raw-IP connection will fail TLS verification.
 
 If this fails, check the bind setting (Step A) and firewall (Step B) on the target VM.
 
@@ -182,10 +183,10 @@ sudo bash setup-vm1-architect.sh
 ```
 
 The script will ask you:
-1. **VM-1 IP/host** — Press Enter for default (`100.73.38.28`) or type your IP
-2. **VM-2 through VM-5 IPs** — Press Enter for defaults or type each IP
-3. **Gateway auth token** — Press Enter to auto-generate
-4. **Architect hook token** — Press Enter to auto-generate
+1. **Gateway auth token** — Press Enter to auto-generate
+2. **Architect hook token** — Press Enter to auto-generate
+
+> Tailscale MagicDNS domains for all 5 VMs (`tonic-architect`, `tonic-designer`, `tonic-developer`, `tonic-qc`, `tonic-operator`, all `.sailfish-bass.ts.net`) are baked into the script — no IPs to type.
 
 All tokens and secrets are auto-generated. Just press Enter for each unless you have specific values.
 
@@ -207,12 +208,11 @@ At the end, the script displays a red box with all the tokens and secrets:
 
 **Copy these values to a safe place** (e.g., a text file on your Mac). You will paste them into each spoke VM setup.
 
-### Step 6 — Clone the project Blueprint repo
+### Step 6 — (At project start, not now) Clone the project Blueprint repo
 
-VM-1 needs a local clone of the per-project Blueprint repo at the canonical path
-`/opt/gateforge/blueprint/`. This is the working copy the Architect uses to
-dispatch tasks and to verify pushes from spoke agents (also required by
-`test-communication.sh`).
+The **Blueprint** is a per-project artifact, not part of OpenClaw setup. You only
+need it once you start a real project. When that time comes, clone the project's
+Blueprint repo to the canonical path `/opt/gateforge/blueprint/`:
 
 ```bash
 sudo mkdir -p /opt/gateforge
@@ -225,6 +225,9 @@ kicking off (see [GateForge Repositories](#gateforge-repositories) above).
 
 To use a different location, export `BLUEPRINT_REPO=/path/to/blueprint` before
 running any Architect tooling.
+
+> The Architect's communication tests (`test-communication.sh`) do **not** require
+> the Blueprint repo — they exercise OpenClaw connectivity only.
 
 ---
 
@@ -253,11 +256,11 @@ sudo bash setup-vm2-designer.sh
 ```
 
 The script will ask you:
-1. **This VM's IP/host** — Press Enter for default (`100.95.30.11`)
-2. **Architect VM IP/host** — Press Enter for default (`100.73.38.28`)
-3. **This VM's gateway token** — Paste the **VM-2 Gateway Token** from the VM-1 output
-4. **Architect hook token** — Paste the **Architect Hook Token** from the VM-1 output
-5. **This VM's HMAC secret** — Paste the **VM-2 HMAC Secret** from the VM-1 output
+1. **This VM's gateway token** — Paste the **VM-2 Gateway Token** from the VM-1 output
+2. **Architect hook token** — Paste the **Architect Hook Token** from the VM-1 output
+3. **This VM's HMAC secret** — Paste the **VM-2 HMAC Secret** from the VM-1 output
+
+> Tailscale MagicDNS domains (`tonic-designer.sailfish-bass.ts.net` for this VM, `tonic-architect.sailfish-bass.ts.net` for VM-1) are baked into the script — no IPs to type.
 
 ### Step 4 — Done
 
