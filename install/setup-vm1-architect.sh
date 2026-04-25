@@ -12,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/install-common.sh"
 
-TOTAL_STEPS=10
+TOTAL_STEPS=11
 VM_NAME="vm1"
 VM_ROLE="VM-1: System Architect"
 VM_DIR="${SCRIPT_DIR}/vm-1-architect"
@@ -70,7 +70,7 @@ main() {
   setup_firewall
 
   # --- Step 3: Collect IPs ---
-  TOTAL_STEPS=10
+  TOTAL_STEPS=11
   print_step "Configure VM Addresses"
   echo -e "  ${DIM}Enter Tailscale domain names for each VM (e.g. tonic-architect.sailfish-bass.ts.net)${RESET}"
   echo -e "  ${DIM}These are used for HTTPS communication via Tailscale Serve.${RESET}"
@@ -252,6 +252,20 @@ EOF
   # --- Step 6: Enable webhooks ---
   print_step "Enable Webhooks in OpenClaw"
   enable_hooks "$ARCHITECT_HOOK_TOKEN"
+
+  # --- Step 6b: Create hook log directory ---
+  print_step "Prepare Hook Log Directory"
+  local oc_user="${SUDO_USER:-$(whoami)}"
+  local hook_log_dir="/var/log/gateforge"
+  if sudo mkdir -p "$hook_log_dir"; then
+    sudo chown "${oc_user}:${oc_user}" "$hook_log_dir"
+    sudo chmod 755 "$hook_log_dir"
+    # Pre-create the file so test-communication.sh's tail can attach immediately
+    sudo -u "$oc_user" touch "${hook_log_dir}/architect-hook.log"
+    print_success "Hook log dir ready: ${hook_log_dir}"
+  else
+    print_warn "Could not create ${hook_log_dir} (test-communication.sh will fall back to ~/.openclaw/logs)"
+  fi
 
   # --- Step 7: Configure Gateway (loopback + Tailscale Serve) ---
   print_step "Configure Gateway & Tailscale"

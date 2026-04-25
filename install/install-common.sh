@@ -593,6 +593,122 @@ verify_connectivity() {
 }
 
 # ---------------------------------------------------------------------------
+# Clone the Blueprint repo to /opt/gateforge/blueprint (spokes only)
+# ---------------------------------------------------------------------------
+# Usage: setup_blueprint_repo <repo_url> [<branch>]
+# - Reads GitHub token from ~/.config/gateforge/github-tokens.env (RW preferred)
+# - Clones to /opt/gateforge/blueprint owned by the OpenClaw user
+# - Configures a per-repo credential helper so push works without inline tokens
+# - Idempotent: if repo already cloned, just runs `git fetch` to update
+setup_blueprint_repo() {
+  local repo_url="$1"
+  local branch="${2:-main}"
+  local oc_user="${SUDO_USER:-$(whoami)}"
+  local oc_home
+  oc_home=$(eval echo "~${oc_user}")
+  local repo_dir="/opt/gateforge/blueprint"
+
+  if [[ "$DRY_RUN" == "true" ]]; then
+    print_warn "[DRY RUN] Would clone ${repo_url} to ${repo_dir}"
+    return
+  fi
+
+  # Try to load github tokens from the agent user's env file. We need RW for
+  # spokes that push (designer/dev/qc/operator all push deliverables).
+  local tokens_file="${oc_home}/.config/gateforge/github-tokens.env"
+  local rw_token="" ro_token=""
+  if [[ -f "$tokens_file" ]]; then
+    # shellcheck disable=SC1090
+    rw_token=$(sudo -u "$oc_user" bash -c "set -a; source '${tokens_file}'; set +a; printf '%s' \"\${GITHUB_TOKEN_RW:-}\"")
+    ro_token=$(sudo -u "$oc_user" bash -c "set -a; source '${tokens_file}'; set +a; printf '%s' \"\${GITHUB_TOKEN_READONLY:-}\"")
+  else
+    print_warn "GitHub tokens file not found: ${tokens_file}"
+    print_info "See INSTALL-GUIDE.md → 'GitHub Token Storage' to create it before cloning."
+  fi
+
+  local clone_token="${rw_token:-$ro_token}"
+  if [[ -z "$clone_token" ]]; then
+    print_warn "No GitHub token available — attempting public clone (will fail for private repos)."
+  fi
+
+  # Prepare /opt/gateforge owned by the OpenClaw user
+  sudo install -d -m 0755 -o "$oc_user" -g "$oc_user" /opt/gateforge
+
+  if [[ -d "${repo_dir}/.git" ]]; then
+    print_info "Blueprint repo already present at ${repo_dir} — fetching latest..."
+    if sudo -u "$oc_user" git -C "$repo_dir" fetch --quiet origin 2>/dev/null; then
+      print_success "Fetched origin"
+    else
+      print_warn "git fetch failed — check repo URL and token"
+    fi
+  else
+    print_info "Cloning ${repo_url} → ${repo_dir}"
+    # Use a one-off URL with token embedded just for the clone. We then strip
+    # the token from the saved remote and install a credential helper.
+    local clone_url="$repo_url"
+    if [[ -n "$clone_token" && "$repo_url" =~ ^https://github\.com/ ]]; then
+      clone_url="https://x-access-token:${clone_token}@${repo_url#https://}"
+    fi
+
+    if sudo -u "$oc_user" git clone --quiet --branch "$branch" "$clone_url" "$repo_dir" 2>/dev/null; then
+      # Reset remote URL so the token isn't persisted on disk
+      sudo -u "$oc_user" git -C "$repo_dir" remote set-url origin "$repo_url"
+      print_success "Cloned to ${repo_dir}"
+    else
+      print_error "git clone failed — check ${repo_url}, branch '${branch}', and token"
+      return 1
+    fi
+  fi
+
+  # Configure local git identity for commits the agent makes here
+  sudo -u "$oc_user" git -C "$repo_dir" config user.email "${GATEFORGE_ROLE:-agent}@gateforge.local" 2>/dev/null || true
+  sudo -u "$oc_user" git -C "$repo_dir" config user.name "GateForge ${GATEFORGE_ROLE:-Agent}" 2>/dev/null || true
+
+  # Per-repo credential helper: prefer RW token (spokes push deliverables)
+  if [[ -n "$rw_token" ]]; then
+    sudo -u "$oc_user" git -C "$repo_dir" config \
+      credential.https://github.com.helper \
+      '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN_RW"; }; f'
+    print_success "Per-repo credential helper installed (uses GITHUB_TOKEN_RW)"
+  elif [[ -n "$ro_token" ]]; then
+    sudo -u "$oc_user" git -C "$repo_dir" config \
+      credential.https://github.com.helper \
+      '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN_READONLY"; }; f'
+    print_warn "Per-repo credential helper uses GITHUB_TOKEN_READONLY — push will fail."
+  fi
+
+  # Make sure the path is in gateforge.env so gf-notify-architect.sh finds it
+  print_info "Blueprint path: ${repo_dir}"
+}
+
+# ---------------------------------------------------------------------------
+# Install the host-side notifier (spokes only): systemd path + service +
+# the dispatcher script. Wraps install/install-host-notifier.sh.
+# ---------------------------------------------------------------------------
+install_host_notifier_hook() {
+  local script_dir="${1:-${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}}"
+  local installer="${script_dir}/install-host-notifier.sh"
+
+  if [[ "$DRY_RUN" == "true" ]]; then
+    print_warn "[DRY RUN] Would run ${installer}"
+    return
+  fi
+
+  if [[ ! -f "$installer" ]]; then
+    print_error "Host notifier installer not found: ${installer}"
+    return 1
+  fi
+
+  print_info "Installing host-side notifier (gf-notify-architect)..."
+  if sudo bash "$installer"; then
+    print_success "Host notifier installed and active (watch /opt/gateforge/blueprint/.git/refs)"
+  else
+    print_error "Host notifier install failed"
+    return 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Summary display
 # ---------------------------------------------------------------------------
 print_summary_box() {

@@ -26,17 +26,67 @@ GateForge is a multi-agent SDLC pipeline running on 5 isolated OpenClaw instance
 - Infrastructure as Code (Helm charts, K8s manifests) preferred
 - Follow 12-factor app principles
 
-## Notification Configuration
+## Notification Protocol
 
-This agent is registered with the System Architect (VM-1) for authenticated notifications.
+You do **not** send HTTP callbacks yourself. The VM host watches the Blueprint Git repo and dispatches an HMAC-signed notification to the Architect on your behalf after every `git push` on a `TASK-*` branch. This keeps `AGENT_SECRET` off your context and prevents silent failures.
 
-- **Notify URL**: `http://100.73.38.28:18789/hooks/agent` (stored in `ARCHITECT_NOTIFY_URL`)
-- **Hook Token**: Stored in `ARCHITECT_HOOK_TOKEN` environment variable
-- **HMAC Secret**: Stored in `AGENT_SECRET` environment variable — unique to this VM, **never transmitted**
-- **Source Identity**: `X-Source-VM: vm-2`, `sourceRole: "designer"`
-- **Signing**: All notifications are signed with `HMAC-SHA256(payload, AGENT_SECRET)` — the signature is sent in the `X-Agent-Signature` header, the secret stays on this VM
+Your only responsibility: include these **commit-message trailers** on every commit you push to a `TASK-*` branch.
 
-Always send an HMAC-signed notification after every `git push`. See SOUL.md for the full protocol and examples.
+```
+GateForge-Task-Id: TASK-XXX
+GateForge-Priority: COMPLETED|BLOCKED|DISPUTE|CRITICAL|INFO
+GateForge-Source-VM: vm-2
+GateForge-Source-Role: designer
+GateForge-Summary: One-line summary visible in the Architect notification
+```
+
+Without these trailers, the host sends a `[BLOCKED]` notification flagging your commit as malformed. See `SOUL.md` and `_SHARED_NOTIFICATION_PROTOCOL.md` for the full protocol, payload schema, and examples.
+
+The host-side notifier reads `AGENT_SECRET`, `ARCHITECT_HOOK_TOKEN`, and `ARCHITECT_NOTIFY_URL` directly from `/opt/secrets/gateforge.env`. They are deliberately **not** exposed to your environment.
+
+---
+
+## Blueprint Repository
+
+The Blueprint is the single source of truth for project deliverables. It is cloned to `/opt/gateforge/blueprint` on this VM and configured for HTTPS push using the GitHub PAT loaded from `~/.config/gateforge/github-tokens.env`.
+
+| Property | Value |
+|---|---|
+| Local path | `/opt/gateforge/blueprint` |
+| Remote URL | `BLUEPRINT_REPO_URL` (in `/opt/secrets/gateforge.env`) |
+| Default branch | `BLUEPRINT_REPO_BRANCH` (typically `main`) |
+
+### Workflow for every task
+
+```bash
+cd /opt/gateforge/blueprint
+git fetch --prune origin
+git checkout -B <branch-name> origin/main      # branch off latest main
+# ...write your deliverable file(s)...
+git add <files>
+git commit -m "<conventional-prefix>: TASK-XXX — <short summary>
+
+<longer body if needed>
+
+GateForge-Task-Id: TASK-XXX
+GateForge-Priority: COMPLETED
+GateForge-Source-VM: vm-2
+GateForge-Source-Role: designer
+GateForge-Summary: <one-line summary>"
+git push -u origin <branch-name>
+```
+
+After the push completes, the host's `gf-notify-architect` service detects the new ref and dispatches the signed notification automatically. You are done — do **not** run `curl` or open a PR yourself.
+
+### Branch naming conventions
+
+| Role | Prefix | Example |
+|---|---|---|
+| designer | `design/TASK-XXX-...` | `design/TASK-015-db-schema` |
+| developers | `feature/TASK-XXX-...` | `feature/TASK-042-auth-api` |
+| qc-agents | `test/TASK-XXX-...` | `test/TASK-042-auth-tests` |
+| operator | `deploy/TASK-XXX-...` | `deploy/TASK-099-uat-rollout` |
+
 
 ---
 

@@ -11,8 +11,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/install-common.sh"
 
-TOTAL_STEPS=7
+TOTAL_STEPS=9
 VM_NAME="vm4"
+VM_NUM=4
 VM_ROLE="VM-4: QC Agents"
 VM_DIR="${SCRIPT_DIR}/vm-4-qc-agents"
 
@@ -47,7 +48,6 @@ main() {
   setup_firewall
 
   # --- Step 3: Collect config ---
-  TOTAL_STEPS=7
   print_step "Configure Communication"
 
   prompt_required VM4_TS_DOMAIN       "This VM's Tailscale domain"  "${VM4_TS_DOMAIN:-tonic-qc.sailfish-bass.ts.net}"
@@ -64,6 +64,10 @@ main() {
   prompt_required GATEWAY_AUTH_TOKEN  "This VM's gateway token"    "${GATEWAY_AUTH_TOKEN:-}"
   prompt_required ARCHITECT_HOOK_TOKEN "Architect hook token"      "${ARCHITECT_HOOK_TOKEN:-}"
   prompt_required AGENT_SECRET        "This VM's HMAC secret"     "${AGENT_SECRET:-}"
+  echo ""
+  echo -e "  ${DIM}Blueprint repo (cloned to /opt/gateforge/blueprint for agent commits):${RESET}"
+  prompt_required BLUEPRINT_REPO_URL    "Blueprint repo HTTPS URL"    "${BLUEPRINT_REPO_URL:-https://github.com/tonylnng/gateforge-admin-portal-site.git}"
+  prompt_required BLUEPRINT_REPO_BRANCH "Blueprint default branch"    "${BLUEPRINT_REPO_BRANCH:-main}"
 
   # --- Step 3: Agent count ---
   print_step "Configure QC Agents"
@@ -84,6 +88,7 @@ main() {
 
 # --- This VM ---
 GATEFORGE_ROLE=qc-agents
+GATEFORGE_VM_NUM=${VM_NUM}
 GATEFORGE_VM_HOST=${VM4_IP}
 GATEFORGE_PORT=${OPENCLAW_PORT}
 GATEWAY_AUTH_TOKEN=${GATEWAY_AUTH_TOKEN}
@@ -101,6 +106,11 @@ ARCHITECT_HOOK_TOKEN=${ARCHITECT_HOOK_TOKEN}
 
 # --- HMAC Signing Secret (never transmitted) ---
 AGENT_SECRET=${AGENT_SECRET}
+
+# --- Blueprint repo (clone target for agent deliverables) ---
+BLUEPRINT_REPO=/opt/gateforge/blueprint
+BLUEPRINT_REPO_URL=${BLUEPRINT_REPO_URL}
+BLUEPRINT_REPO_BRANCH=${BLUEPRINT_REPO_BRANCH}
 EOF
 )
 
@@ -110,6 +120,14 @@ EOF
   print_step "Copy Config Files & Generate Agent Identities"
   copy_config_files "$VM_DIR"
   generate_agent_souls "$VM_DIR" "qc" "$AGENT_COUNT" "QC Tester"
+
+  # --- Step 5b: Clone Blueprint repo ---
+  print_step "Clone Blueprint Repo"
+  setup_blueprint_repo "$BLUEPRINT_REPO_URL" "$BLUEPRINT_REPO_BRANCH"
+
+  # --- Step 5c: Install host-side notifier ---
+  print_step "Install Host-Side Notifier"
+  install_host_notifier_hook "$SCRIPT_DIR"
 
   # --- Step 6: Enable webhooks ---
   print_step "Enable Webhooks in OpenClaw"
