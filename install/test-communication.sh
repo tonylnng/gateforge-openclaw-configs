@@ -166,11 +166,8 @@ load_env() {
   # Apply defaults for any config var that can be overridden via gateforge.env.
   # Must run AFTER sourcing so a value in the file wins over the hard-coded
   # default; env vars exported in the caller's shell still win over both.
-  # Shared working repo for all pipeline testing — gateforge-openclaw-configs.
-  # All VMs commit test deliverables to the testing/ folder in this repo.
-  # Override via BLUEPRINT_REPO env var or BLUEPRINT_REPO in gateforge.env.
-  : "${BLUEPRINT_REPO:=/opt/gateforge/openclaw-configs}"
-  export BLUEPRINT_REPO
+  : "${COMMTEST_REPO_URL:=$COMMTEST_REPO_URL_DEFAULT}"
+  export COMMTEST_REPO_URL
   : "${GATEFORGE_PORT:=18789}"
   export GATEFORGE_PORT
 
@@ -230,31 +227,50 @@ prepare_commtest_repo() {
 
   # If the local clone exists, verify it points at the configured remote.
   # If not, scrap it — the URL may have changed (e.g. operator switched repos).
+  # Strip any embedded GitHub token before comparing, since previous runs may
+  # have injected one and that would otherwise look like a different URL.
   if [[ -d "$COMMTEST_REPO_DIR/.git" ]]; then
-    local current_url
+    local current_url current_url_clean
     current_url=$(git -C "$COMMTEST_REPO_DIR" remote get-url origin 2>/dev/null || echo "")
-    if [[ "$current_url" != "$COMMTEST_REPO_URL" ]]; then
-      warn "Local clone points at '$current_url'; refreshing to $COMMTEST_REPO_URL"
+    current_url_clean=$(echo "$current_url" | sed -E 's|https://[^@]*@github.com|https://github.com|')
+    if [[ "$current_url_clean" != "$COMMTEST_REPO_URL" ]]; then
+      warn "Local clone points at '$current_url_clean'; refreshing to $COMMTEST_REPO_URL"
       rm -rf "$COMMTEST_REPO_DIR"
     fi
   fi
-  pass "Blueprint at $BLUEPRINT_REPO"
 
-  # Inject GitHub token into remote URL so fetch/push --delete work without
-  # interactive credential prompts. Tries VM2_GITHUB_TOKEN, GITHUB_TOKEN_RW,
-  # GITHUB_TOKEN_READONLY, and GITHUB_TOKEN in order.
-  local gh_token="${VM2_GITHUB_TOKEN:-${GITHUB_TOKEN_RW:-${GITHUB_TOKEN_READONLY:-${GITHUB_TOKEN:-}}}}"
+  # Clone fresh if needed.
+  if [[ ! -d "$COMMTEST_REPO_DIR/.git" ]]; then
+    info "Cloning comm-test repo (one-time, throwaway)…"
+    if git clone --quiet "$COMMTEST_REPO_URL" "$COMMTEST_REPO_DIR" 2>/dev/null; then
+      pass "Cloned $COMMTEST_REPO_URL → $COMMTEST_REPO_DIR"
+    else
+      fail "Clone failed: $COMMTEST_REPO_URL"
+      info "Verify VM-1 has GitHub credentials with read access to that repo,"
+      info "or pre-set GITHUB_TOKEN_RW / GITHUB_TOKEN in your environment."
+      info "You can also override with: COMMTEST_REPO_URL=<url> $0 …"
+      exit 1
+    fi
+  else
+    pass "Local clone present at $COMMTEST_REPO_DIR"
+  fi
+
+  # Inject GitHub token into the comm-test remote URL so fetch and
+  # push --delete (cleanup) work without interactive credential prompts.
+  # Tries VM-aware vars first, then generic ones. (Carried forward from the
+  # pre-refactor Blueprint flow — same need, different repo.)
+  local gh_token="${VM1_GITHUB_TOKEN:-${VM2_GITHUB_TOKEN:-${GITHUB_TOKEN_RW:-${GITHUB_TOKEN_READONLY:-${GITHUB_TOKEN:-}}}}}"
   if [[ -n "$gh_token" ]]; then
-    local current_url; current_url=$(git -C "$BLUEPRINT_REPO" remote get-url origin 2>/dev/null || echo "")
+    local current_url; current_url=$(git -C "$COMMTEST_REPO_DIR" remote get-url origin 2>/dev/null || echo "")
     if [[ "$current_url" != *"@github.com"* && "$current_url" == *"github.com"* ]]; then
       local authed_url; authed_url=$(echo "$current_url" | sed "s|https://github.com|https://${gh_token}@github.com|")
-      git -C "$BLUEPRINT_REPO" remote set-url origin "$authed_url" 2>/dev/null && \
+      git -C "$COMMTEST_REPO_DIR" remote set-url origin "$authed_url" 2>/dev/null && \
         info "GitHub token injected into remote URL for authenticated push/fetch."
     fi
   fi
 
-  # Best-effort fetch so local state matches origin
-  if git -C "$BLUEPRINT_REPO" fetch --quiet origin 2>/dev/null; then
+  # Sync with origin so subsequent fetches see the spoke pushes.
+  if git -C "$COMMTEST_REPO_DIR" fetch --quiet --prune origin 2>/dev/null; then
     pass "git fetch origin OK"
   else
     warn "git fetch origin failed (continuing — spokes may still push, we'll retry per-test)"
