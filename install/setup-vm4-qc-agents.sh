@@ -99,6 +99,12 @@ ARCHITECT_HOOK_TOKEN=${ARCHITECT_HOOK_TOKEN}
 
 # --- HMAC Signing Secret (never transmitted) ---
 AGENT_SECRET=${AGENT_SECRET}
+
+# --- Communication Test Target ---
+# Throwaway repo used by install/test-communication.sh on VM-1. The spoke
+# agent reads this to know which remote to push test branches to. Not used
+# by any project — comm test only.
+COMMTEST_REPO_URL=${COMMTEST_REPO_URL}
 EOF
 )
 

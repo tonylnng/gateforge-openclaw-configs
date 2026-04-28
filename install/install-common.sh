@@ -14,6 +14,10 @@ set -euo pipefail
 GATEFORGE_VERSION="2.0.0"
 OPENCLAW_PORT=18789
 CONFIG_FILE="/opt/secrets/gateforge.env"
+# Throwaway target repo for end-to-end communication tests. Spoke agents push
+# TASK-COMMTEST-* branches here; install/test-communication.sh deletes them
+# after each run. Not used by any project — comm test only.
+COMMTEST_REPO_URL="https://github.com/tonylnng/gateforge-openclaw-commtest.git"
 OPENCLAW_CONFIG_DIR="$HOME/.openclaw"
 OPENCLAW_WORKSPACE_DIR="$HOME/.openclaw/workspace"
 

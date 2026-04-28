@@ -98,6 +98,7 @@ GateForge uses multiple private GitHub repositories. Each VM needs authenticatio
 | `tonylnng/gateforge-blueprint-template` | Standardised Blueprint document structure — cloned per project, updated over time with improved standards | **Read-only** for all VMs |
 | `tonylnng/<project>-blueprint` | Per-project working Blueprint — requirements, architecture, designs, status, backlog | **Read/write** for VM-1 (Architect); read-only for others |
 | `tonylnng/<project>-code` | Per-project source code | **Read/write** for VM-3 (Developers) and VM-5 (Operator); read-only for others |
+| `tonylnng/gateforge-openclaw-commtest` | Throwaway target repo for `install/test-communication.sh`. Spokes push `TASK-COMMTEST-*` branches here; the test script deletes them after each run. Not used by any project. | **Read/write** for all VMs (VM-1 reads/cleans up; VM-2..5 push test branches) |
 
 ### Authentication: Fine-Grained Personal Access Tokens (PATs)
 
@@ -226,8 +227,13 @@ kicking off (see [GateForge Repositories](#gateforge-repositories) above).
 To use a different location, export `BLUEPRINT_REPO=/path/to/blueprint` before
 running any Architect tooling.
 
-> The Architect's communication tests (`test-communication.sh`) do **not** require
-> the Blueprint repo — they exercise OpenClaw connectivity only.
+> The Architect's communication tests (`install/test-communication.sh`) do **not**
+> require the Blueprint repo. They push test branches to a separate throwaway
+> repo (`tonylnng/gateforge-openclaw-commtest`, baked into `install-common.sh`
+> as `COMMTEST_REPO_URL`). The test script clones that repo on demand to
+> `/var/tmp/gateforge-commtest/` and deletes the test branches at the end of
+> each run. Override with `COMMTEST_REPO_URL=<url>` in `gateforge.env` or
+> exported in your shell.
 
 ---
 

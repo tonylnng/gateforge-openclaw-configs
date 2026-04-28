@@ -27,11 +27,18 @@
 #       VM5_GATEWAY_TOKEN  VM5_AGENT_SECRET   (Operator)
 #       VM2_TS_DOMAIN ... VM5_TS_DOMAIN       (Tailscale MagicDNS names)
 #       GATEFORGE_PORT                        (defaults to 18789)
+#       COMMTEST_REPO_URL                     (throwaway target repo; default below)
 #     (GATEWAY_AUTH_TOKEN is accepted as a fallback gateway token)
-#   - /opt/gateforge/blueprint/ present and writable by sudo user
 #   - curl, jq, openssl, git installed
 #   - Tailscale interface up; spoke gateways reachable at
 #     https://<VM{2..5}_TS_DOMAIN>:${GATEFORGE_PORT}/hooks/agent
+#   - VM-1 + spoke VMs have GitHub credentials with push access to
+#     COMMTEST_REPO_URL (default: tonylnng/gateforge-openclaw-commtest)
+#
+# This script does NOT require the project Blueprint repo. The comm test pushes
+# to a dedicated throwaway repo (COMMTEST_REPO_URL) so it never touches any
+# real project artefact. The Blueprint is a project-start concern, not a
+# communication-test concern.
 # =============================================================================
 
 set -euo pipefail
@@ -65,9 +72,13 @@ B
 
 # ------------------------------- config --------------------------------------
 CONFIG_FILE="${GATEFORGE_ENV_FILE:-/opt/secrets/gateforge.env}"
-# BLUEPRINT_REPO intentionally NOT defaulted here: we must let load_env()
-# source /opt/secrets/gateforge.env first so an override defined there takes
-# effect. The default is applied in finalize_config() after load_env().
+# COMMTEST_REPO_URL is the throwaway remote that spokes push to and that VM-1
+# fetches from to verify deliverables. Defaulted only if not in gateforge.env
+# and not exported by the caller. Hard-coded fallback matches the value that
+# install-common.sh writes during setup.
+COMMTEST_REPO_URL_DEFAULT="https://github.com/tonylnng/gateforge-openclaw-commtest.git"
+# Local working clone of the comm-test repo. Throwaway — wiped if stale.
+COMMTEST_REPO_DIR="${COMMTEST_REPO_DIR:-/var/tmp/gateforge-commtest}"
 WAIT_GATE_B_SECONDS="${WAIT_GATE_B_SECONDS:-90}"     # how long to wait for callback
 WAIT_GATE_A_POLL="${WAIT_GATE_A_POLL:-2}"            # seconds between log polls
 HOOK_LOG_CANDIDATES=(
@@ -212,12 +223,20 @@ require_cli() {
   pass "CLI prerequisites satisfied"
 }
 
-prepare_blueprint() {
-  print_header "Prepare Blueprint repo"
-  if [[ ! -d "$BLUEPRINT_REPO/.git" ]]; then
-    fail "Blueprint repo not found at $BLUEPRINT_REPO"
-    info "Set BLUEPRINT_REPO env var or clone the repo first."
-    exit 1
+prepare_commtest_repo() {
+  print_header "Prepare comm-test repo"
+  info "Remote:  $COMMTEST_REPO_URL"
+  info "Local:   $COMMTEST_REPO_DIR"
+
+  # If the local clone exists, verify it points at the configured remote.
+  # If not, scrap it — the URL may have changed (e.g. operator switched repos).
+  if [[ -d "$COMMTEST_REPO_DIR/.git" ]]; then
+    local current_url
+    current_url=$(git -C "$COMMTEST_REPO_DIR" remote get-url origin 2>/dev/null || echo "")
+    if [[ "$current_url" != "$COMMTEST_REPO_URL" ]]; then
+      warn "Local clone points at '$current_url'; refreshing to $COMMTEST_REPO_URL"
+      rm -rf "$COMMTEST_REPO_DIR"
+    fi
   fi
   pass "Blueprint at $BLUEPRINT_REPO"
 
@@ -238,7 +257,7 @@ prepare_blueprint() {
   if git -C "$BLUEPRINT_REPO" fetch --quiet origin 2>/dev/null; then
     pass "git fetch origin OK"
   else
-    warn "git fetch origin failed (continuing — local-only test)"
+    warn "git fetch origin failed (continuing — spokes may still push, we'll retry per-test)"
   fi
 }
 
@@ -318,7 +337,8 @@ dispatch_task() {
     --arg ts           "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     '{name:$name, agentId:$agentId, sessionKey:$sessionKey, message:$msg,
       metadata:{taskId:$tid, filename:$fname, path:$path, branch:$branch,
-                commitSubject:$cs, timestamp:$ts, testMode:true}}')
+                commitSubject:$cs, timestamp:$ts, testMode:true,
+                repoUrl:$repo}}')
 
   info "POST $url"
   info "Session key: ${session_key}"
@@ -351,24 +371,24 @@ dispatch_task() {
 verify_deliverable() {
   local branch="$1" expected_path="$2"
   # Try origin first (source of truth); fall back to any ref we can find
-  if git -C "$BLUEPRINT_REPO" fetch --quiet origin "$branch:refs/remotes/origin/$branch" 2>/dev/null; then
-    if git -C "$BLUEPRINT_REPO" cat-file -e "origin/$branch:$expected_path" 2>/dev/null; then
+  if git -C "$COMMTEST_REPO_DIR" fetch --quiet origin "$branch:refs/remotes/origin/$branch" 2>/dev/null; then
+    if git -C "$COMMTEST_REPO_DIR" cat-file -e "origin/$branch:$expected_path" 2>/dev/null; then
       pass "Gate D: $expected_path present on origin/$branch"
       return 0
     fi
     warn "Branch origin/$branch exists but $expected_path not found"
     info "Branch file list:"
-    git -C "$BLUEPRINT_REPO" ls-tree --name-only "origin/$branch" | sed 's/^/        /'
+    git -C "$COMMTEST_REPO_DIR" ls-tree --name-only "origin/$branch" | sed 's/^/        /'
     return 1
   fi
-  fail "Gate D: branch $branch not found on origin"
+  fail "Gate D: branch $branch not found on origin (repo: $COMMTEST_REPO_URL)"
   return 1
 }
 
 verify_trailers() {
   local branch="$1" task_id="$2"
   local msg
-  msg=$(git -C "$BLUEPRINT_REPO" log -1 --pretty=%B "origin/$branch" 2>/dev/null || echo "")
+  msg=$(git -C "$COMMTEST_REPO_DIR" log -1 --pretty=%B "origin/$branch" 2>/dev/null || echo "")
   [[ -z "$msg" ]] && { warn "No commit message available on origin/$branch"; return 1; }
   local ok=1
   for t in GateForge-Task-Id GateForge-Priority GateForge-Source-VM GateForge-Source-Role GateForge-Summary; do
@@ -468,9 +488,9 @@ cleanup_branches() {
     read -r ans
     [[ "${ans,,}" == "n" ]] && { info "Cleanup skipped."; return; }
   fi
-  # Collect candidates from origin
+  # Collect candidates from origin (comm-test repo — NOT the Blueprint)
   local branches
-  branches=$(git -C "$BLUEPRINT_REPO" ls-remote --heads origin "refs/heads/*COMMTEST*" \
+  branches=$(git -C "$COMMTEST_REPO_DIR" ls-remote --heads origin "refs/heads/*COMMTEST*" \
              | awk '{print $2}' | sed 's#refs/heads/##')
   if [[ -z "$branches" ]]; then
     info "No test branches to remove."
@@ -478,7 +498,12 @@ cleanup_branches() {
   fi
   while IFS= read -r b; do
     [[ -z "$b" ]] && continue
-    if git -C "$BLUEPRINT_REPO" push origin --delete "$b" --quiet 2>/dev/null; then
+    # Defence in depth: never delete protected branches (main/master).
+    if [[ "$b" == "main" || "$b" == "master" ]]; then
+      warn "Refusing to delete protected branch: $b"
+      continue
+    fi
+    if git -C "$COMMTEST_REPO_DIR" push origin --delete "$b" --quiet 2>/dev/null; then
       pass "Deleted origin/$b"
     else
       warn "Could not delete origin/$b (may already be gone)"
@@ -577,7 +602,7 @@ main() {
   banner
   load_env
   require_cli
-  prepare_blueprint
+  prepare_commtest_repo
 
   if [[ -z "$TARGET" ]]; then
     menu

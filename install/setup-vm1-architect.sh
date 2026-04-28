@@ -206,6 +206,11 @@ GATEWAY_AUTH_TOKEN=${GATEWAY_AUTH_TOKEN}
 ARCHITECT_HOOK_TOKEN=${ARCHITECT_HOOK_TOKEN}
 ARCHITECT_NOTIFY_URL=https://${VM1_TS_DOMAIN}:${OPENCLAW_PORT}/hooks/agent
 
+# --- Communication Test Target ---
+# Throwaway repo used by install/test-communication.sh. Spokes push test
+# branches here; the test script deletes them after each run.
+COMMTEST_REPO_URL=${COMMTEST_REPO_URL}
+
 # --- Tailscale Domains ---
 VM1_TS_DOMAIN=${VM1_TS_DOMAIN}
 VM2_TS_DOMAIN=${VM2_TS_DOMAIN}
