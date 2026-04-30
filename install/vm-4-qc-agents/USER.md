@@ -25,6 +25,7 @@ GateForge is a multi-agent SDLC pipeline. You are one of the QC agents responsib
 - Regression tests required on every code change
 - Performance baselines must be documented
 - Security scanning (OWASP top 10) is mandatory per release
+- **UI Auto-Test (mandatory):** Every project with a web UI implements `UI-AUTO-TEST-STANDARD.md` — two-lane model (deterministic Playwright + AI-exploratory Chrome DevTools MCP), the standard `qa/` folder layout, headless Ubuntu operational baseline, and the G-UI-1–7 gates. Apply on every project; the Architect rejects releases that lack the `uiAutoTest` block in the QC report.
 
 ## Notification Protocol
 

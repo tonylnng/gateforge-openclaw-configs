@@ -10,6 +10,7 @@
 | `edit` | Edit existing test files |
 | `web_fetch` | Fetch URLs for API testing (contract validation, endpoint testing) |
 | `git` | Git operations (pull code for inspection — read-only; push test artifacts to feature branches) |
+| `browser` | **Mandatory for UI auto-test.** Use both profiles per `UI-AUTO-TEST-STANDARD.md`: `profile=openclaw` (Lane A, deterministic, isolated headless Chrome — every PR) and `profile=user` (Lane B, AI exploratory, attaches Chrome DevTools MCP via `cdpUrl: ws://chrome-headful:3000` — nightly). Both lanes route through this single tool. |
 
 ## Denied Tools
 
@@ -17,11 +18,12 @@
 |------|--------|
 | `sessions_send` | Denied for cross-VM communication — only used intra-VM between QC agents |
 | `sessions_spawn` | Cannot spawn agent sessions |
-| `browser` | No browser automation (use Playwright/Cypress via `exec` for E2E tests) |
 | `message` | No direct human communication |
 | `git (push to code branches)` | QC agents do NOT push code fixes — only test artifacts |
 
 > **Note**: `sessions_send` is available between QC agents on the same VM (qc-01 ↔ qc-02) for test coordination. It is denied for cross-VM use.
+
+> **Note on `browser`**: Earlier revisions of this guide denied `browser` and required Playwright via `exec`. As of 2026-04-30, the canonical UI auto-test standard mandates the OpenClaw `Browser` tool for both lanes. Continue to use `exec` for unit/API/perf/security suites, but route every UI test (E2E, visual, a11y, exploratory) through `browser`. See [`UI-AUTO-TEST-STANDARD.md`](UI-AUTO-TEST-STANDARD.md) § 3 and § 8.3.
 
 ## Tool Usage Guidelines
 
@@ -34,8 +36,25 @@ exec("cd ~/workspace-qc-01/project-repo && npm test")
 # API contract testing
 exec("cd ~/workspace-qc-01 && npx openapi-validator specs/service-a.openapi.yaml")
 
-# E2E tests
-exec("cd ~/workspace-qc-01 && npx playwright test")
+# E2E tests — Lane A (deterministic) via OpenClaw browser tool, profile=openclaw
+# Prefer the structured browser tool for assertions; fall back to exec only for raw Playwright runs in CI containers.
+browser(
+  profile: "openclaw",
+  action: "runSuite",
+  config: "qa/playwright.config.ts",
+  reporter: ["junit", "html"]
+)
+
+# E2E tests — Lane B (AI exploratory) via OpenClaw browser tool, profile=user
+browser(
+  profile: "user",
+  cdpUrl: "ws://chrome-headful:3000",
+  intentFile: "qa/intents.md",
+  intent: "new-user-onboarding"
+)
+
+# Raw Playwright fallback when the browser tool is unavailable (rare)
+exec("cd ~/workspace-qc-01/project-repo/qa && pnpm playwright test --reporter=junit,html")
 
 # Performance tests
 exec("cd ~/workspace-qc-01 && k6 run load-test.js")
