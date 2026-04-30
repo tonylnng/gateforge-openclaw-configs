@@ -402,10 +402,12 @@ QC Agents are **quality assurance specialists**. They design test cases, execute
 - Use the PROMOTE / HOLD / ROLLBACK decision model
 - Produce structured test result reports with defect details
 
-**Tools**: exec (sandboxed), read, write, edit, web_fetch (for API testing), Git (pull only — no push)
-**Denied**: sessions_send (cross-VM), browser, message, Git push — QC agents report results, they do not fix code
+**Tools**: exec (sandboxed), read, write, edit, web_fetch (for API testing), Git (pull only — no push), **browser** (mandatory for UI auto-test — both `profile=openclaw` Lane A and `profile=user` Lane B per `UI-AUTO-TEST-STANDARD.md`)
+**Denied**: sessions_send (cross-VM), message, Git push — QC agents report results, they do not fix code
 
-**Key guideline document**: `QA-FRAMEWORK.md` — comprehensive QA framework with 13 sections, 14 JSON templates, multi-level testing (unit, integration, E2E, performance, security), LLM-as-Judge evaluation, golden dataset validation
+**Key guideline documents**:
+- `QA-FRAMEWORK.md` — comprehensive QA framework with 13 sections, 14 JSON templates, multi-level testing (unit, integration, E2E, performance, security), LLM-as-Judge evaluation, golden dataset validation
+- `UI-AUTO-TEST-STANDARD.md` — **mandatory on every project with a web UI**. Two-lane model (deterministic Playwright MCP + AI-exploratory Chrome DevTools MCP), standard `qa/` folder layout, headless Ubuntu operations baseline (Section 9), G-UI-1–7 release gates, 5-step rollout. Architect rejects releases without compliance evidence.
 
 **Agent scaling**: This VM can run 3, 5, or 10 QC agents depending on the project size. Each agent gets its own workspace and per-agent `SOUL.md`.
 

@@ -116,9 +116,21 @@ Examples:
 | Gate | Criteria | Owner |
 |------|----------|-------|
 | Design Review | All deliverables have rollback strategy + security assessment | Architect |
-| Code Review | Unit tests pass, conventional commits, no hardcoded secrets | Architect |
+| Code Review | Unit tests pass, conventional commits, no hardcoded secrets, `data-testid` on every interactive element | Architect |
 | QA Gate | P0: 100% pass, P1: 95% pass, P2: 80% pass | Architect |
+| **UI Auto-Test Gate** | All G-UI-1 through G-UI-7 in `vm-4-qc-agents/UI-AUTO-TEST-STANDARD.md` § 6 pass; `uiAutoTest` JSON block present in QC report; headless compliance checklist (§ 9.12) signed | Architect |
 | Release Gate | All QA gates pass + Go/No-Go from human | Architect + Human |
+
+### UI Auto-Test enforcement
+
+When dispatching test tasks to `@qc-01..N` for any project with a web UI, the task payload **must** require compliance with [`UI-AUTO-TEST-STANDARD.md`](../vm-4-qc-agents/UI-AUTO-TEST-STANDARD.md). On every release-tagged commit you receive from VM-4, verify:
+
+1. The QC report contains a populated `uiAutoTest` block (laneA, laneB, visualDrift, a11y*, lighthousePerf, headlessComplianceSigned).
+2. `qa/intents.md` exists in the Blueprint repo and every entry has a passing Lane B run (G-UI-6).
+3. `qa/metrics.md` carries the latest signed Section 9.12 checklist (G-UI-7).
+4. No new P0/P1 defects from Lane B nightly runs (G-UI-5).
+
+When dispatching to `@designer` (VM-2), require accessibility-first specs (semantic HTML, ARIA labels) so Lane A's axe-core gate (G-UI-3) is achievable. When dispatching to `@dev-01..N` (VM-3), require `data-testid` on every interactive element so Lane A selectors stay stable. Reject any deliverable that violates these requirements.
 
 ## Inbound Notification Handling
 

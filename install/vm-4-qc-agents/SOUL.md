@@ -18,10 +18,19 @@ Every task must produce a structured JSON report:
   "taskId": "TASK-XXX",
   "status": "completed|blocked|needs-review",
   "qaFramework": {
-    "testStrategy": "unit|integration|e2e|performance|security",
+    "testStrategy": "unit|integration|e2e|performance|security|ui-auto-test",
     "coverage": {
       "target": "80%",
       "actual": "..."
+    },
+    "uiAutoTest": {
+      "laneA": { "total": 0, "passed": 0, "failed": 0, "passRate": "0%" },
+      "laneB": { "intentsTotal": 0, "intentsPassed": 0, "newDefects": [] },
+      "visualDrift": "0.00%",
+      "a11yCritical": 0,
+      "a11ySerious": 0,
+      "lighthousePerf": 0,
+      "headlessComplianceSigned": false
     }
   },
   "testCases": [
@@ -61,9 +70,23 @@ Every task must produce a structured JSON report:
 |------|-------|-------|
 | **Unit Tests** | Individual functions | Test runner (jest, pytest, etc.) |
 | **API Tests** | Contract testing, integration | OpenAPI validation, HTTP requests via `web_fetch` |
-| **UI Tests** | E2E, visual regression | Playwright / Cypress via `exec` |
+| **UI Tests** | E2E, visual regression, accessibility, exploratory | **Mandatory:** OpenClaw `Browser` tool (Lane A: `profile=openclaw` + Playwright MCP; Lane B: `profile=user` + Chrome DevTools MCP). See `UI-AUTO-TEST-STANDARD.md`. |
 | **Performance Tests** | Load, stress, latency | k6, artillery, custom scripts |
 | **Security Tests** | OWASP top 10, dependency scan | npm audit, trivy, custom checks |
+
+### UI Auto-Test (mandatory on every project)
+
+Every project you run QA on **must** implement [`UI-AUTO-TEST-STANDARD.md`](UI-AUTO-TEST-STANDARD.md) — a single, project-agnostic standard covering:
+
+- Two-lane execution (deterministic Lane A + AI-exploratory Lane B) through the OpenClaw `Browser` tool
+- The mandatory `qa/` folder layout in the Blueprint repo (`features/`, `pages/`, `intents.md`, `openclaw.qa.yaml`, `docker-compose.qa.yml`, `scripts/bootstrap-qa-runner.sh`)
+- Headless Ubuntu Operations (Section 9 of the standard) — bootstrap, compose, runbook, troubleshooting, compliance checklist
+- Additional UI quality gates (G-UI-1 through G-UI-7) added to the gates in `QA-FRAMEWORK.md` § 5
+- The 5-step per-project rollout (Section 12 of the standard)
+
+Your structured QA report (next section) **must** include the `uiAutoTest` block defined in `UI-AUTO-TEST-STANDARD.md` § 6 on every release-tagged commit. A missing or all-zero `uiAutoTest` block is a `BLOCKED` notification.
+
+For projects without a web UI (CLI tools, pure backend services), record the rationale once in `qa/ui-auto-test-plan.md` § 1 ("Not applicable — pure backend") and the Architect signs off. The standard then becomes informational only for that project.
 
 ## Quality Gates
 

@@ -49,6 +49,18 @@ Every task must produce a structured JSON report:
 - Keep functions small and focused — single responsibility principle
 - Error handling: always return structured errors, never throw unhandled exceptions
 
+### UI Testability (mandatory for any web UI work)
+
+When you implement web UI code, the QC agents on VM-4 will run two-lane UI auto-tests against your output per [`../vm-4-qc-agents/UI-AUTO-TEST-STANDARD.md`](../vm-4-qc-agents/UI-AUTO-TEST-STANDARD.md). Make their job possible:
+
+- **Every interactive element carries a `data-testid`** (kebab-case, e.g. `login-submit`, `agents-row-status`). The Architect rejects PRs that lack them.
+- **Use semantic HTML** (`<button>`, `<nav>`, `<main>`, `<form>`, headings in order). Ensure axe-core reports 0 critical / 0 serious.
+- **Avoid randomised IDs in the DOM** that would change between renders — they break Lane A selectors and visual baselines.
+- **Expose loading/error states with stable text or `data-state` attributes** so tests can wait deterministically without arbitrary `setTimeout`s.
+- **Make every screen deep-linkable** — no state-only modals; QC must be able to navigate by URL.
+- **Honour `prefers-reduced-motion`** to disable animations during tests; the Lane A config sets this header.
+- **Never break Lane A on purpose** — if a test fails because the DOM legitimately changed, update `qa/pages/*.ts` and `qa/visual-baselines/` in the same PR; do not delete failing tests.
+
 ## Git Workflow
 
 - Branch from: `develop`
