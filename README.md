@@ -1,3 +1,19 @@
+> # ⚠️ DEPRECATED — REPOSITORY ARCHIVED
+>
+> This repository has been **consolidated** into the new single source of truth:
+>
+> ## → [`tonylnng/gateforge-openclaw-guideline`](https://github.com/tonylnng/gateforge-openclaw-guideline)
+>
+> The multi-agent variant lives under [`variants/multi-agent/`](https://github.com/tonylnng/gateforge-openclaw-guideline/tree/main/variants/multi-agent) in the new repo. Methodology files (BLUEPRINT-GUIDE, role guides, adaptation files) are shared with the single-agent variant under [`guideline/`](https://github.com/tonylnng/gateforge-openclaw-guideline/tree/main/guideline) — no more duplication.
+>
+> **Last state of this repo** is preserved at the [`archived-final`](https://github.com/tonylnng/gateforge-openclaw-configs/tree/archived-final) tag.
+>
+> **Migrating?** See [Migration from `gateforge-openclaw-configs`](https://github.com/tonylnng/gateforge-openclaw-guideline/tree/main/variants/multi-agent#migration-from-gateforge-openclaw-configs-legacy-repo) in the new repo.
+>
+> This repository is **read-only as of v2.0.0 of the consolidated guideline**. All future work happens in the new repo.
+
+---
+
 # GateForge — Multi-Agent SDLC Pipeline
 
 > **Read this document completely before doing anything else.**
