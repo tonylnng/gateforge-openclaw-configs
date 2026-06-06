@@ -153,6 +153,17 @@ The test architecture follows a multi-level evaluation approach, adapted from in
 
 > **Reference:** Multi-level evaluation (component, integration, end-to-end) is the standard architecture for AI agent testing ([Maxim AI](https://www.getmaxim.ai/articles/how-to-evaluate-your-ai-agents-effectively/)).
 
+### 3.0 UI Auto-Test (mandatory cross-cutting layer)
+
+Every project with a web UI must implement [`UI-AUTO-TEST-STANDARD.md`](UI-AUTO-TEST-STANDARD.md) — the project-agnostic UI auto-test standard. It is **not** a separate level in the pyramid; it is a cross-cutting standard that defines:
+
+- **How** Levels 3 (E2E) and the new exploratory layer execute on every project (two-lane model: deterministic Playwright MCP via `profile=openclaw`, plus AI exploratory via `profile=user` + Chrome DevTools MCP)
+- **Where** the test artefacts live in the Blueprint repo (`qa/features/`, `qa/pages/`, `qa/intents.md`, etc.)
+- **What** the operational baseline looks like on a headless Ubuntu QC runner (Section 9 of the standard)
+- **Which** additional release gates apply (G-UI-1 through G-UI-7)
+
+The `uiAutoTest` JSON block in `SOUL.md` and Section 11 of this framework is mandatory on every release-tagged commit. Treat the UI auto-test standard as authoritative; if any conflict appears between this framework and the standard on UI-specific topics, the standard wins.
+
 ### 3.1 Level 1 — Component Testing (Unit)
 
 **Why:** Catch defects at the smallest possible scope. Unit tests are deterministic, fast, and cheap to run.

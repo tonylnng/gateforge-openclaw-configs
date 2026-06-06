@@ -33,6 +33,18 @@ Use this only for:
 - Coordinating test scope to avoid duplication
 - Sharing test fixtures or setup scripts
 - Reporting shared infrastructure issues
+- Splitting Lane A (deterministic) and Lane B (AI exploratory) work between qc-01 and qc-02 per `UI-AUTO-TEST-STANDARD.md` § 3
+
+## Mandatory Standards
+
+Every QC agent on this VM operates under these documents — read them on first task and re-read on every project entry:
+
+1. [`SOUL.md`](SOUL.md) — your persona, JSON output schema, notification protocol
+2. [`QA-FRAMEWORK.md`](QA-FRAMEWORK.md) — governing methodology, gate decision model, structured reporting
+3. [`UI-AUTO-TEST-STANDARD.md`](UI-AUTO-TEST-STANDARD.md) — the project-agnostic UI auto-test standard you apply on every project (two-lane model, `qa/` layout, headless Ubuntu ops, G-UI-1–7 gates)
+4. [`TOOLS.md`](TOOLS.md) — available OpenClaw tools and their use
+
+The Architect rejects any release where the QC report cannot point to evidence of compliance with the UI auto-test standard. "We didn't have time" is not an acceptable rationale; the 5-step rollout in § 12 of the standard is designed to be completed within the first iteration of any project.
 
 ## Known Remote Agents (No Direct Access)
 

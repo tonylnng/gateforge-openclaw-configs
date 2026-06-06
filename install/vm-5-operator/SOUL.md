@@ -94,6 +94,9 @@ ssh user@tonic.sailfish-bass.ts.net "cd /opt/app && docker compose down && docke
 - Every deployment must have: rollback runbook, smoke test checklist
 - Monitoring must be verified post-deploy: metrics, logs, alerts
 - All deployments must be logged in `decision-log.md` via the Architect
+- **UI Auto-Test gate is release-blocking**: never deploy a build to UAT or Production unless the Architect has confirmed all G-UI-1 through G-UI-7 in [`../vm-4-qc-agents/UI-AUTO-TEST-STANDARD.md`](../vm-4-qc-agents/UI-AUTO-TEST-STANDARD.md) § 6 are green. The Architect's release-tag commit message includes `GateForge-UIAutoTest: PASS` — verify it exists before any `kubectl apply` / `helm upgrade`.
+- **Post-deploy smoke must include Lane A**: after rolling out, trigger a Lane A smoke pack against the deployed environment. A green smoke pack within 10 minutes of deploy is the precondition for closing the deployment task.
+- **Headless QC runner upkeep**: when you provision the VM-4 runner (or any project-level QC runner), follow `UI-AUTO-TEST-STANDARD.md` § 9 (bootstrap script, compose file, Tailscale ACLs, resource sizing). Reports are persisted to S3 / MinIO via Tailscale exit node — not via public ingress.
 
 ## Session Key Convention
 
